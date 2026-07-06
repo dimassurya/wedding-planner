@@ -70,6 +70,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
+import { supabase } from '../lib/supabase'
 
 const emit = defineEmits(['close'])
 const store = useWeddingStore()
@@ -80,16 +81,15 @@ const pendingInvite = ref(null)
 
 onMounted(async () => {
   if (!store.isPartner && !store.partnerEmail) {
-    const { data } = await import('../lib/supabase').then(m =>
-      m.supabase.from('partner_invitations')
-        .select('*')
-        .eq('owner_user_id', store.user.id)
-        .eq('status', 'pending')
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    )
+    const { data } = await supabase
+      .from('partner_invitations')
+      .select('*')
+      .eq('owner_user_id', store.user.id)
+      .eq('status', 'pending')
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
     pendingInvite.value = data || null
   }
 })
