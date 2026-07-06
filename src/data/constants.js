@@ -49,12 +49,12 @@ export const GUEST_SEED = [
 ].map((r, i) => ({ id: i + 1, nama: r[0], jumlah: r[1], status: r[2], undangan: r[3] || 'keduanya', konfirmasi: true }))
 
 export const BUDGET_SEED = [
-  ['Mahar',0],['Seserahan',0],['Resto',13800000],['Dekor',0],['Konsumsi',6390000],['MASJID',4500000],
-  ['Dokumentasi',0],['Music + Sound',0],['MC Akad + Resepsi',0],['Undangan Online',0],['Undangan Cetak',0],
-  ['MakeUp Pengantin',0],['Attire',0],['Hair/Hijabdo',0],['Henna/Nails Art',0],['Kue untuk Undangan',2160000],
-  ['Penginapan',0],['Souvenir',910000],['Buku Tamu',0],['Penjaga Stand',0],['Penerima Tamu',0],['Kendaraan',0],
-  ['Bingkisan',0],['Makeup Keluarga',0],['Busana Keluarga',0],['Biaya Penghulu',0],
-].map((r, i) => ({ id: i + 1, item: r[0], estimasi: r[1], aktual: 0, uangMuka: 0, dibayar: 0, jatuhTempo: '', remarks: '', template: true }))
+  'Mahar','Seserahan','Resto','Dekor','Konsumsi','MASJID',
+  'Dokumentasi','Music + Sound','MC Akad + Resepsi','Undangan Online','Undangan Cetak',
+  'MakeUp Pengantin','Attire','Hair/Hijabdo','Henna/Nails Art','Kue untuk Undangan',
+  'Penginapan','Souvenir','Buku Tamu','Penjaga Stand','Penerima Tamu','Kendaraan',
+  'Bingkisan','Makeup Keluarga','Busana Keluarga','Biaya Penghulu',
+].map((item, i) => ({ id: i + 1, item, estimasi: 0, aktual: 0, uangMuka: 0, dibayar: 0, jatuhTempo: '', remarks: '', template: true }))
 
 export const VENDOR_CATEGORIES = [
   { id: 'wo',        label: 'Wedding Organizer' },
