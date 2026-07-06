@@ -198,11 +198,8 @@ async function measure() {
     return
   }
 
-  // Scroll elemen ke tengah viewport, tunggu animasi selesai
-  el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' })
-  await new Promise(r => setTimeout(r, 420))
-
-  // Ukur posisi setelah scroll berhenti
+  // Scroll instant (fixed elements tidak bergerak), ukur langsung
+  el.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'nearest' })
   requestAnimationFrame(() => applySpot(el, s))
 }
 
