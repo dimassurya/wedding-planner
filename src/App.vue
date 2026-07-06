@@ -88,11 +88,6 @@
 
       <!-- ══ Navigasi mobile ══ -->
       <template v-if="isMobile">
-        <div v-if="canInstall && !isBulkActive" class="install-banner" @click="install">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
-          Install Soulmate ke layar utama
-          <span class="install-arrow">↓</span>
-        </div>
         <MobileBottomNav v-show="!isBulkActive" />
         <MobileSidebar :open="mobileMenuOpen || store.tourSidebarOpen" @close="mobileMenuOpen = false" />
       </template>
@@ -140,7 +135,7 @@ import MobileBottomNav from './mobile layout/MobileBottomNav.vue'
 import MobileSidebar   from './mobile layout/MobileSidebar.vue'
 
 const store        = useWeddingStore()
-const { canInstall, install } = useInstallPWA()
+const { canInstall, install } = useInstallPWA() // desktop header only
 const tabBar       = ref(null)
 const importAllRef = ref(null)
 const showBulk     = ref(false)
@@ -307,37 +302,4 @@ onMounted(() => {
   color: var(--plum) !important;
 }
 
-.install-banner {
-  position: fixed;
-  bottom: calc(60px + env(safe-area-inset-bottom));
-  left: 12px;
-  right: 12px;
-  z-index: 200;
-  background: var(--plum);
-  color: #fff;
-  border-radius: 12px;
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0,0,0,.25);
-  animation: slide-up .3s ease;
-}
-.install-banner .install-arrow {
-  margin-left: auto;
-  font-size: 18px;
-  animation: bounce-down 1.2s ease-in-out infinite;
-}
-
-@keyframes slide-up {
-  from { transform: translateY(20px); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-@keyframes bounce-down {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(4px); }
-}
 </style>

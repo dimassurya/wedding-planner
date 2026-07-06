@@ -21,6 +21,10 @@
         </nav>
 
         <div class="m-side-foot">
+          <button v-if="canInstall" class="m-side-act install" @click="onInstall">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
+            Install App
+          </button>
           <button class="m-side-act" @click="onExport">Ekspor Data</button>
           <button class="m-side-act" @click="importRef?.click()">Impor Data</button>
           <input ref="importRef" type="file" accept=".json" hidden @change="onImport">
@@ -35,11 +39,13 @@ import { ref } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { WP_TABS } from '../data/constants'
 import { BOTTOM_TABS } from './mobileNav'
+import { useInstallPWA } from '../composables/useInstallPWA'
 
 defineProps({ open: Boolean })
 const emit = defineEmits(['close'])
 
 const store = useWeddingStore()
+const { canInstall, install } = useInstallPWA()
 const importRef = ref(null)
 
 // Menu yang sudah ada di bottom navbar — sisanya masuk sidebar.
@@ -62,6 +68,11 @@ function onImport(e) {
   const f = e.target.files[0]
   if (f) store.importAll(f)
   e.target.value = ''
+  emit('close')
+}
+
+async function onInstall() {
+  await install()
   emit('close')
 }
 </script>
@@ -152,6 +163,17 @@ function onImport(e) {
   transition: background .15s, border-color .15s;
 }
 .m-side-act:active { background: var(--gold-soft); border-color: var(--gold); }
+.m-side-act.install {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  background: var(--plum);
+  color: #fff;
+  border-color: var(--plum);
+}
+.m-side-act.install:active { background: var(--wine); border-color: var(--wine); }
 
 /* Transisi: overlay fade + panel slide dari kiri */
 .m-drawer-enter-active,
