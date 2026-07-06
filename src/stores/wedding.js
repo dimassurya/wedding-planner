@@ -711,21 +711,11 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   async function acceptPartnerInvite(token) {
-    const { data: inv } = await supabase.from('partner_invitations')
-      .select('*').eq('token', token).eq('status', 'pending')
-      .gt('expires_at', new Date().toISOString()).maybeSingle()
-    if (!inv) throw new Error('Undangan tidak valid atau sudah kedaluwarsa')
-
-    const { data: ownerRow } = await supabase.from('wedding_data')
-      .select('partner_user_id').eq('user_id', inv.owner_user_id).maybeSingle()
-    if (ownerRow?.partner_user_id) throw new Error('Pemilik sudah memiliki pasangan')
-
-    await supabase.from('wedding_data').update({
-      partner_user_id: user.value.id,
-      partner_email: user.value.email,
-    }).eq('user_id', inv.owner_user_id)
-
-    await supabase.from('partner_invitations').update({ status: 'accepted' }).eq('id', inv.id)
+    const { error } = await supabase.rpc('accept_partner_invite', {
+      invite_token: token,
+      partner_email_in: user.value.email,
+    })
+    if (error) throw new Error(error.message || 'Gagal menerima undangan')
     await loadData(user.value.id)
     subscribeRealtime(user.value.id)
   }
