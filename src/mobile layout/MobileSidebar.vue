@@ -21,13 +21,20 @@
         </nav>
 
         <div class="m-side-foot">
-          <button v-if="canInstall" class="m-side-act install" @click="onInstall">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
-            Install App
-          </button>
           <button class="m-side-act" @click="onExport">Ekspor Data</button>
           <button class="m-side-act" @click="importRef?.click()">Impor Data</button>
           <input ref="importRef" type="file" accept=".json" hidden @change="onImport">
+        </div>
+
+        <div class="m-side-bottom">
+          <button v-if="canInstall" class="m-side-row" @click="onInstall">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
+            Install Aplikasi
+          </button>
+          <button class="m-side-row danger" @click="onSignOut">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            Keluar
+          </button>
         </div>
       </aside>
     </div>
@@ -48,7 +55,6 @@ const store = useWeddingStore()
 const { canInstall, install } = useInstallPWA()
 const importRef = ref(null)
 
-// Menu yang sudah ada di bottom navbar — sisanya masuk sidebar.
 const items = WP_TABS.filter(t => !BOTTOM_TABS.includes(t.tab))
 
 function go(tab) {
@@ -73,6 +79,11 @@ function onImport(e) {
 
 async function onInstall() {
   await install()
+  emit('close')
+}
+
+function onSignOut() {
+  store.signOut()
   emit('close')
 }
 </script>
@@ -116,6 +127,7 @@ async function onInstall() {
   cursor: pointer;
 }
 .m-close:active { background: var(--gold-soft); }
+
 .m-side-nav {
   flex: 1;
   overflow-y: auto;
@@ -143,6 +155,7 @@ async function onInstall() {
   color: var(--plum);
   font-weight: 600;
 }
+
 .m-side-foot {
   display: flex;
   gap: 8px;
@@ -163,17 +176,34 @@ async function onInstall() {
   transition: background .15s, border-color .15s;
 }
 .m-side-act:active { background: var(--gold-soft); border-color: var(--gold); }
-.m-side-act.install {
+
+.m-side-bottom {
+  border-top: 1px solid var(--line);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.m-side-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  flex: 1;
-  background: var(--plum);
-  color: #fff;
-  border-color: var(--plum);
+  gap: 10px;
+  width: 100%;
+  padding: 13px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--plum);
+  font-family: 'Jost', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background .15s;
+  text-align: left;
 }
-.m-side-act.install:active { background: var(--wine); border-color: var(--wine); }
+.m-side-row:active { background: var(--ivory); }
+.m-side-row.danger { color: var(--rose); }
+.m-side-row.danger:active { background: #fdf0f0; }
 
 /* Transisi: overlay fade + panel slide dari kiri */
 .m-drawer-enter-active,
