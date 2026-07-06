@@ -1,0 +1,38 @@
+/* ── Skala tipografi GLOBAL untuk kartu mobile (semua tab) ──
+   Ubah nilai di sini → berlaku ke seluruh kartu di semua tab mobile.
+   Hanya dipakai komponen mobile; tampilan PC tidak terpengaruh. */
+:root {
+  --m-title: 13.5px; /* nama / judul kartu */
+  --m-value: 11.5px; /* angka, harga, teks utama */
+  --m-sub:   11px;   /* teks sekunder: alamat, status, keterangan */
+  --m-label: 8.5px;  /* label mikro uppercase */
+  --m-chip:  9.5px;  /* chip status / badge */
+}
+
+/* ── Filter chips (kategori vendor, filter budget, dll) di mobile ──
+   PC tetap wrap multi-baris. Di HP diubah jadi strip horizontal yang
+   bisa di-swipe supaya rapih, tidak menumpuk berbaris-baris. */
+@media (max-width: 680px) {
+  .controls .chips {
+    flex: 1 1 100%;
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 7px;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
+  }
+  .controls .chips::-webkit-scrollbar { display: none; }
+  .controls .chips .fchip {
+    flex: 0 0 auto;
+    font-size: var(--m-value);
+    font-weight: 600;
+    padding: 6px 13px;
+    border-width: 1.5px;
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+}

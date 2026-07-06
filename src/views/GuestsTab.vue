@@ -1,0 +1,218 @@
+<template>
+  <section class="panel active" id="panel-tamu">
+    <!-- Stats -->
+    <div class="stat-grid">
+      <div class="stat"><div class="accent a-plum"></div><div class="num">{{ confirmedList.length }}</div><div class="lbl">Undangan Dikonfirmasi</div></div>
+      <div class="stat"><div class="accent a-gold"></div><div class="num">{{ totalOrang }}</div><div class="lbl">Total Tamu (orang)</div></div>
+      <div class="stat"><div class="accent a-teal"></div><div class="num">{{ pria }}</div><div class="lbl">Pihak Pria (orang)</div></div>
+      <div class="stat"><div class="accent a-rose"></div><div class="num">{{ wanita }}</div><div class="lbl">Pihak Wanita (orang)</div></div>
+    </div>
+
+    <!-- Breakdown -->
+    <div class="gbreakdown">
+      <div class="bg-grid">
+        <div class="bgrp bgrp-pria">
+          <div class="bgrp-head"><span>Pihak Pria</span><b>{{ pria }} org</b></div>
+          <div v-for="k in ['cpp','teman_pria','tetangga_pria']" :key="k" class="bg-row">
+            <span class="bg-dot" :style="{ background: META[k].color }"></span>
+            <span class="bg-type">{{ META[k].group }}</span>
+            <span class="bg-val">{{ byPax[k] || 0 }} org</span>
+            <span class="bg-sub">{{ byCnt[k] || 0 }} und</span>
+          </div>
+        </div>
+        <div class="bgrp bgrp-wanita">
+          <div class="bgrp-head"><span>Pihak Wanita</span><b>{{ wanita }} org</b></div>
+          <div v-for="k in ['cpw','teman_wanita','tetangga_wanita']" :key="k" class="bg-row">
+            <span class="bg-dot" :style="{ background: META[k].color }"></span>
+            <span class="bg-type">{{ META[k].group }}</span>
+            <span class="bg-val">{{ byPax[k] || 0 }} org</span>
+            <span class="bg-sub">{{ byCnt[k] || 0 }} und</span>
+          </div>
+        </div>
+      </div>
+      <div v-if="byPax.lainnya" class="bgrp bgrp-lain">
+        <div class="bg-row">
+          <span class="bg-dot" :style="{ background: META.lainnya.color }"></span>
+          <span class="bg-type">Lainnya (tanpa pihak)</span>
+          <span class="bg-val">{{ byPax.lainnya }} org</span>
+          <span class="bg-sub">{{ byCnt.lainnya }} und</span>
+        </div>
+      </div>
+    </div>
+
+    <p v-if="belumKonfirmasi > 0" id="gConfirmInfo" class="g-confirm-info">
+      Statistik dihitung dari {{ confirmedList.length }} undangan terkonfirmasi · {{ belumKonfirmasi }} belum dikonfirmasi
+    </p>
+    <p v-else class="g-confirm-info">Semua {{ confirmedList.length }} undangan sudah dikonfirmasi</p>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9C7575" stroke-width="2"/><path d="M21 21l-4-4" stroke="#9C7575" stroke-width="2" stroke-linecap="round"/></svg>
+        <input v-model="search" type="text" placeholder="Cari nama tamu...">
+      </div>
+      <select class="filter" v-model="filterStatus">
+        <option value="all">Semua Relasi</option>
+        <option v-for="k in ORDER" :key="k" :value="k">{{ META[k].label }}</option>
+      </select>
+      <button class="icon-btn solid" @click="openAdd">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Tambah Tamu
+      </button>
+      <button class="icon-btn" @click="store.exportGuestsCSV()">Ekspor</button>
+      <button class="icon-btn" @click="store.resetGuests()">Reset</button>
+      <div class="tab-io">
+        <button class="icon-btn tio-btn" @click="store.exportTab('tamu')">Export</button>
+        <button class="icon-btn tio-btn" @click="importRef?.click()">Import</button>
+        <input ref="importRef" type="file" accept=".json,application/json" hidden @change="onImport">
+      </div>
+      <TourBtn :steps="TAMU_STEPS" />
+    </div>
+
+    <!-- Daftar tamu: kartu untuk mobile -->
+    <MobileGuestList v-if="isMobile" :rows="visRows" @edit="openEdit" />
+
+    <!-- Table (PC) -->
+    <div v-else class="card table-card">
+      <div class="t-head">
+        <div><input type="checkbox" class="cbx" :checked="allVisSelected" :indeterminate.prop="someVisSelected && !allVisSelected" @change="toggleAll"></div>
+        <div>No</div><div>Nama Tamu</div><div>Jumlah Orang</div><div>Status Relasi</div><div>Konfirmasi</div><div></div>
+      </div>
+
+      <div v-if="!visRows.length" class="empty">
+        <div class="big">Belum ada tamu</div>
+        <div>{{ search || filterStatus !== 'all' ? 'Tidak ada yang cocok.' : 'Klik Tambah Tamu untuk mulai.' }}</div>
+      </div>
+
+      <div v-for="(g, i) in visRows" :key="g.id" class="t-row" :class="{ sel: store.isSelected(g.id), unconfirmed: !isConf(g) }" :data-id="g.id">
+        <div class="t-cbx"><input type="checkbox" class="cbx rowcbx" :checked="store.isSelected(g.id)" @change="e => store.toggleSelected(g.id, e.target.checked)"></div>
+        <div class="t-no">{{ i + 1 }}</div>
+        <div class="t-name">{{ g.nama }}</div>
+        <div class="t-pax-wrap"><span class="t-pax">{{ g.jumlah }}</span></div>
+        <div class="t-meta">
+          <span class="chip" :style="{ background: META[g.status]?.bg, color: META[g.status]?.text }">
+            <span class="cdot" :style="{ background: META[g.status]?.color }"></span>
+            {{ META[g.status]?.label }}{{ g.undangan && g.undangan !== 'keduanya' ? ` · ${g.undangan}` : '' }}
+          </span>
+        </div>
+        <div class="t-konf">
+          <SwitchToggle :model-value="isConf(g)" title="Konfirmasi undangan" @update:model-value="v => toggleKonfirmasi(g, v)" />
+          <span class="t-konf-lbl">{{ isConf(g) ? 'Dikonfirmasi' : 'Belum' }}</span>
+        </div>
+        <div class="t-actions">
+          <button class="act" @click="store.duplicateGuest(g.id)" title="Duplikasi tamu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#0A1D4B" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="act" @click="openEdit(g.id)" title="Edit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#6E151A" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+          </button>
+          <button class="act del" @click="store.delGuest(g.id)" title="Hapus">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#B32E33" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <GuestModal :show="modalShow" :edit-id="editId" @close="modalShow = false" />
+  </section>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { useWeddingStore } from '../stores/wedding'
+import { META, ORDER } from '../data/constants'
+import SwitchToggle from '../components/SwitchToggle.vue'
+import GuestModal from '../components/modals/GuestModal.vue'
+import { useIsMobile } from '../mobile layout/useIsMobile'
+import MobileGuestList from '../mobile layout/MobileGuestList.vue'
+import TourBtn from '../components/TourBtn.vue'
+
+const store = useWeddingStore()
+const isMobile = useIsMobile()
+
+const TAMU_STEPS = computed(() => [
+  {
+    selector: '#panel-tamu .stat-grid',
+    icon: '📊',
+    title: 'Ringkasan Tamu',
+    desc: 'Empat angka utama di sini: undangan dikonfirmasi, total tamu (orang), dan pembagian antara pihak pria dan wanita.',
+  },
+  {
+    selector: '#panel-tamu .gbreakdown',
+    icon: '👥',
+    title: 'Breakdown per Pihak',
+    desc: 'Rincian per kategori relasi — calon pengantin, teman, tetangga. Angka ini dihitung hanya dari undangan yang sudah dikonfirmasi.',
+  },
+  {
+    selector: '#panel-tamu .controls',
+    icon: '🔍',
+    title: 'Cari, Filter & Tambah',
+    desc: 'Ketik nama untuk mencari, atau filter berdasarkan relasi. Ketuk "Tambah Tamu" untuk mengisi data undangan baru.',
+  },
+  {
+    selector: '.t-row, .mg-card',
+    icon: '📋',
+    title: isMobile.value ? 'Kartu Tamu' : 'Baris Tamu',
+    desc: isMobile.value
+      ? 'Setiap kartu adalah satu undangan. Ketuk ikon pensil untuk edit, atau hapus kalau tidak jadi diundang.'
+      : 'Setiap baris adalah satu undangan. Klik pensil untuk edit, atau duplikasi kalau ada tamu dengan rombongan besar.',
+  },
+  {
+    selector: '.t-konf, .mg-toggle',
+    icon: '✅',
+    title: 'Konfirmasi Kehadiran',
+    desc: 'Aktifkan saat tamu sudah pasti diundang atau sudah membalas konfirmasi. Statistik jumlah tamu hanya menghitung yang aktif di sini.',
+  },
+])
+const search = ref('')
+const filterStatus = ref('all')
+const modalShow = ref(false)
+const editId = ref(null)
+const importRef = ref(null)
+
+const isConf = g => g.konfirmasi !== false
+
+const confirmedList = computed(() => store.guests.filter(isConf))
+const totalOrang    = computed(() => confirmedList.value.reduce((s, g) => s + g.jumlah, 0))
+
+const byPax = computed(() => {
+  const m = {}
+  ORDER.forEach(k => { m[k] = 0 })
+  confirmedList.value.forEach(g => { m[g.status] = (m[g.status] || 0) + g.jumlah })
+  return m
+})
+const byCnt = computed(() => {
+  const m = {}
+  ORDER.forEach(k => { m[k] = 0 })
+  confirmedList.value.forEach(g => { m[g.status] = (m[g.status] || 0) + 1 })
+  return m
+})
+const pria   = computed(() => ['cpp','teman_pria','tetangga_pria'].reduce((s, k) => s + (byPax.value[k] || 0), 0))
+const wanita = computed(() => ['cpw','teman_wanita','tetangga_wanita'].reduce((s, k) => s + (byPax.value[k] || 0), 0))
+const belumKonfirmasi = computed(() => store.guests.length - confirmedList.value.length)
+
+const visRows = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  return store.guests.filter(g => (filterStatus.value === 'all' || g.status === filterStatus.value) && g.nama.toLowerCase().includes(q))
+})
+
+const allVisSelected  = computed(() => visRows.value.length > 0 && visRows.value.every(g => store.isSelected(g.id)))
+const someVisSelected = computed(() => visRows.value.some(g => store.isSelected(g.id)))
+
+function toggleAll(e) {
+  visRows.value.forEach(g => store.toggleSelected(g.id, e.target.checked))
+}
+
+function toggleKonfirmasi(g, val) {
+  g.konfirmasi = val
+  store.saveG()
+}
+
+function openAdd()     { editId.value = null; modalShow.value = true }
+function openEdit(id)  { editId.value = id;   modalShow.value = true }
+
+function onImport(e) {
+  const f = e.target.files[0]
+  if (f) store.importTab('tamu', f)
+  e.target.value = ''
+}
+</script>
