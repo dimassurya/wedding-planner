@@ -43,6 +43,10 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .83c0 1.67-2.5 2.5-2.5 2.5"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>
             Panduan
           </button>
+          <button v-if="canInstall" class="icon-btn install-btn" @click="install" title="Install aplikasi">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
+            Install
+          </button>
           <button class="icon-btn" @click="store.exportAll()">Ekspor</button>
           <button class="icon-btn" @click="importAllRef?.click()">Impor</button>
           <input ref="importAllRef" type="file" accept=".json" hidden @change="onImportAll">
@@ -84,6 +88,11 @@
 
       <!-- ══ Navigasi mobile ══ -->
       <template v-if="isMobile">
+        <div v-if="canInstall && !isBulkActive" class="install-banner" @click="install">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
+          Install Soulmate ke layar utama
+          <span class="install-arrow">↓</span>
+        </div>
         <MobileBottomNav v-show="!isBulkActive" />
         <MobileSidebar :open="mobileMenuOpen || store.tourSidebarOpen" @close="mobileMenuOpen = false" />
       </template>
@@ -105,6 +114,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useWeddingStore } from './stores/wedding'
 import { WP_TABS } from './data/constants'
+import { useInstallPWA } from './composables/useInstallPWA'
 
 import LoginPage      from './views/LoginPage.vue'
 import PaymentPage    from './views/PaymentPage.vue'
@@ -130,6 +140,7 @@ import MobileBottomNav from './mobile layout/MobileBottomNav.vue'
 import MobileSidebar   from './mobile layout/MobileSidebar.vue'
 
 const store        = useWeddingStore()
+const { canInstall, install } = useInstallPWA()
 const tabBar       = ref(null)
 const importAllRef = ref(null)
 const showBulk     = ref(false)
@@ -282,5 +293,51 @@ onMounted(() => {
 .tour-trigger:hover {
   border-color: var(--gold) !important;
   color: var(--plum) !important;
+}
+
+.install-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-color: var(--gold-soft) !important;
+  color: var(--plum) !important;
+}
+.install-btn:hover {
+  background: var(--gold-soft) !important;
+  color: var(--plum) !important;
+}
+
+.install-banner {
+  position: fixed;
+  bottom: calc(60px + env(safe-area-inset-bottom));
+  left: 12px;
+  right: 12px;
+  z-index: 200;
+  background: var(--plum);
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,.25);
+  animation: slide-up .3s ease;
+}
+.install-banner .install-arrow {
+  margin-left: auto;
+  font-size: 18px;
+  animation: bounce-down 1.2s ease-in-out infinite;
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes bounce-down {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(4px); }
 }
 </style>
