@@ -697,6 +697,15 @@ export const useWeddingStore = defineStore('wedding', () => {
         event: 'UPDATE', schema: 'public', table: 'wedding_data',
         filter: `user_id=eq.${listenId}`,
       }, ({ new: d }) => {
+        if (isPartner.value && d.partner_user_id === null) {
+          isPartner.value    = false
+          ownerUserId.value  = user.value.id
+          partnerEmail.value = ''
+          ownerEmail.value   = ''
+          toast('Kamu dikeluarkan dari dashboard bersama')
+          loadData(user.value.id)
+          return
+        }
         if (Array.isArray(d.guests))    guests.value    = d.guests
         if (Array.isArray(d.budget))    budget.value    = d.budget
         if (Array.isArray(d.vendors))   vendors.value   = d.vendors
