@@ -27,6 +27,11 @@
         </div>
 
         <div class="m-side-bottom">
+          <button class="m-side-row" @click="showPartner = true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            {{ store.isPartner ? 'Dashboard Bersama' : store.partnerEmail ? 'Kelola Pasangan' : 'Tambah Pasangan' }}
+            <span v-if="store.partnerEmail || store.isPartner" class="m-partner-dot"></span>
+          </button>
           <button v-if="canInstall" class="m-side-row" @click="onInstall">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
             Install Aplikasi
@@ -36,6 +41,8 @@
             Keluar
           </button>
         </div>
+
+        <AddPartnerCard v-if="showPartner" @close="showPartner = false" />
       </aside>
     </div>
   </transition>
@@ -47,13 +54,15 @@ import { useWeddingStore } from '../stores/wedding'
 import { WP_TABS } from '../data/constants'
 import { BOTTOM_TABS } from './mobileNav'
 import { useInstallPWA } from '../composables/useInstallPWA'
+import AddPartnerCard from '../components/AddPartnerCard.vue'
 
 defineProps({ open: Boolean })
 const emit = defineEmits(['close'])
 
 const store = useWeddingStore()
 const { canInstall, install } = useInstallPWA()
-const importRef = ref(null)
+const importRef   = ref(null)
+const showPartner = ref(false)
 
 const items = WP_TABS.filter(t => !BOTTOM_TABS.includes(t.tab))
 
@@ -204,6 +213,13 @@ function onSignOut() {
 .m-side-row:active { background: var(--ivory); }
 .m-side-row.danger { color: var(--rose); }
 .m-side-row.danger:active { background: #fdf0f0; }
+.m-partner-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--teal, #2a9d8f);
+  margin-left: auto;
+  flex-shrink: 0;
+}
 
 /* Transisi: overlay fade + panel slide dari kiri */
 .m-drawer-enter-active,

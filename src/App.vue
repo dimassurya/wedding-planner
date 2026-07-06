@@ -208,6 +208,13 @@ function onImportAll(e) {
 }
 
 onMounted(() => {
+  // Simpan token invite dari URL sebelum OAuth redirect membersihkannya
+  const inviteToken = new URLSearchParams(window.location.search).get('invite')
+  if (inviteToken) {
+    sessionStorage.setItem('pending_invite', inviteToken)
+    window.history.replaceState({}, '', window.location.pathname)
+  }
+
   store.initAuth()
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { store.clearSelected(); showBulk.value = false }

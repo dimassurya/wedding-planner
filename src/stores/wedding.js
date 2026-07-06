@@ -14,6 +14,11 @@ export const useWeddingStore = defineStore('wedding', () => {
   const loading = ref(true)
   const isPaid  = computed(() => !!profile.value?.paid_at)
 
+  // ── Partner / shared dashboard ───────────────────────────────────
+  const ownerUserId  = ref(null)   // user_id pemilik data (bisa berbeda dari user.id kalau partner)
+  const isPartner    = ref(false)  // true kalau login sebagai pasangan (bukan owner)
+  const partnerEmail = ref('')     // email pasangan (ditampilkan ke owner)
+
   // ── Onboarding / profil pasangan ────────────────────────────────
   const couple = ref({ pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '' })
   const onboarded          = ref(false)   // sudah lewat welcome screen (persist di settings)
@@ -97,8 +102,9 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   async function _upsert(data) {
     if (!user.value) return
+    const uid = ownerUserId.value || user.value.id
     await supabase.from('wedding_data')
-      .upsert({ user_id: user.value.id, ...data }, { onConflict: 'user_id' })
+      .upsert({ user_id: uid, ...data }, { onConflict: 'user_id' })
   }
 
   function scheduleSave(col, val) {
@@ -597,63 +603,86 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   // ── Supabase: load data ────────────────────────────────────────────
-  async function loadData(userId) {
-    const { data } = await supabase.from('wedding_data').select('*').eq('user_id', userId).maybeSingle()
-    if (data) {
-      if (Array.isArray(data.guests))    guests.value    = data.guests
-      if (Array.isArray(data.budget))    budget.value    = data.budget
-      if (Array.isArray(data.vendors))   vendors.value   = data.vendors
-      if (Array.isArray(data.seserahan)) seserahan.value = data.seserahan
-      if (Array.isArray(data.mahar))     mahar.value     = data.mahar
-      if (Array.isArray(data.admin))     admin.value     = data.admin
-      if (Array.isArray(data.checklist)) checklist.value = data.checklist
-      if (Array.isArray(data.timeline))  timeline.value  = data.timeline
-      const s = data.settings || {}
-      if (Array.isArray(s.tabOrder)) tabOrder.value = s.tabOrder
-      if (s.bFilter) bFilter.value = s.bFilter
-      if (s.vFilter) vFilter.value = s.vFilter
-      if (s.couple) couple.value = { ...couple.value, ...s.couple }
-      // Kalau sudah bayar dan punya data, langsung masuk app tanpa onboarding
-      onboarded.value        = !!s.onboarded || isPaid.value
-      showWelcomeGuide.value = !!s.showWelcomeGuide
+  function _applyData(data) {
+    if (Array.isArray(data.guests))    guests.value    = data.guests
+    if (Array.isArray(data.budget))    budget.value    = data.budget
+    if (Array.isArray(data.vendors))   vendors.value   = data.vendors
+    if (Array.isArray(data.seserahan)) seserahan.value = data.seserahan
+    if (Array.isArray(data.mahar))     mahar.value     = data.mahar
+    if (Array.isArray(data.admin))     admin.value     = data.admin
+    if (Array.isArray(data.checklist)) checklist.value = data.checklist
+    if (Array.isArray(data.timeline))  timeline.value  = data.timeline
+    const s = data.settings || {}
+    if (Array.isArray(s.tabOrder)) tabOrder.value = s.tabOrder
+    if (s.bFilter) bFilter.value = s.bFilter
+    if (s.vFilter) vFilter.value = s.vFilter
+    if (s.couple) couple.value = { ...couple.value, ...s.couple }
+    onboarded.value        = !!s.onboarded || isPaid.value
+    showWelcomeGuide.value = !!s.showWelcomeGuide
+    const seedNames = new Set(BUDGET_SEED.map(x => x.item))
+    let changed = false
+    budget.value.forEach(x => {
+      if (x.template === undefined && !x.vendorId && x.id !== 'seserahan_auto' && x.id !== 'mahar_auto' && seedNames.has(x.item)) {
+        x.template = true; changed = true
+      }
+    })
+    if (changed) scheduleSave('budget', budget.value)
+  }
 
-      // Migrate: tandai item template yang belum ada flag-nya
-      const seedNames = new Set(BUDGET_SEED.map(x => x.item))
-      let changed = false
-      budget.value.forEach(x => {
-        if (x.template === undefined && !x.vendorId && x.id !== 'seserahan_auto' && x.id !== 'mahar_auto' && seedNames.has(x.item)) {
-          x.template = true; changed = true
-        }
-      })
-      if (changed) scheduleSave('budget', budget.value)
-    } else {
-      // Pengguna baru — isi data awal
-      isNewUser.value = true
-      guests.value    = []
-      budget.value    = BUDGET_SEED.slice()
-      vendors.value   = []
-      seserahan.value = SESERAHAN_SEED.map((item, i) => ({ id: i+1, item: item.item, status: false, budget: 0, harga: 0, link: '' }))
-      mahar.value     = []
-      admin.value     = JSON.parse(JSON.stringify(ADMIN_SEED))
-      checklist.value = JSON.parse(JSON.stringify(CHECKLIST_SEED))
-      timeline.value  = JSON.parse(JSON.stringify(TIMELINE_SEED))
-      await supabase.from('wedding_data').insert({
-        user_id: userId,
-        guests: guests.value, budget: budget.value, vendors: vendors.value,
-        seserahan: seserahan.value, mahar: mahar.value, admin: admin.value,
-        checklist: checklist.value, timeline: timeline.value, settings: {},
-      })
+  async function loadData(userId) {
+    // Coba load sebagai owner
+    let { data } = await supabase.from('wedding_data').select('*').eq('user_id', userId).maybeSingle()
+
+    if (data) {
+      ownerUserId.value  = userId
+      isPartner.value    = false
+      partnerEmail.value = data.partner_email || ''
+      _applyData(data)
+      return
     }
+
+    // Coba load sebagai partner
+    const { data: pData } = await supabase.from('wedding_data')
+      .select('*').eq('partner_user_id', userId).maybeSingle()
+
+    if (pData) {
+      ownerUserId.value  = pData.user_id
+      isPartner.value    = true
+      partnerEmail.value = user.value?.email || ''
+      _applyData(pData)
+      return
+    }
+
+    // Pengguna baru — isi data awal
+    ownerUserId.value  = userId
+    isPartner.value    = false
+    partnerEmail.value = ''
+    isNewUser.value    = true
+    guests.value    = []
+    budget.value    = BUDGET_SEED.slice()
+    vendors.value   = []
+    seserahan.value = SESERAHAN_SEED.map((item, i) => ({ id: i+1, item: item.item, status: false, budget: 0, harga: 0, link: '' }))
+    mahar.value     = []
+    admin.value     = JSON.parse(JSON.stringify(ADMIN_SEED))
+    checklist.value = JSON.parse(JSON.stringify(CHECKLIST_SEED))
+    timeline.value  = JSON.parse(JSON.stringify(TIMELINE_SEED))
+    await supabase.from('wedding_data').insert({
+      user_id: userId,
+      guests: guests.value, budget: budget.value, vendors: vendors.value,
+      seserahan: seserahan.value, mahar: mahar.value, admin: admin.value,
+      checklist: checklist.value, timeline: timeline.value, settings: {},
+    })
   }
 
   // ── Supabase: realtime sync ────────────────────────────────────────
   let _channel = null
   function subscribeRealtime(userId) {
     _channel?.unsubscribe()
-    _channel = supabase.channel('wd:' + userId)
+    const listenId = ownerUserId.value || userId
+    _channel = supabase.channel('wd:' + listenId)
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'wedding_data',
-        filter: `user_id=eq.${userId}`,
+        filter: `user_id=eq.${listenId}`,
       }, ({ new: d }) => {
         if (Array.isArray(d.guests))    guests.value    = d.guests
         if (Array.isArray(d.budget))    budget.value    = d.budget
@@ -665,6 +694,72 @@ export const useWeddingStore = defineStore('wedding', () => {
         if (Array.isArray(d.timeline))  timeline.value  = d.timeline
       })
       .subscribe()
+  }
+
+  // ── Partner invite ─────────────────────────────────────────────────
+  async function sendPartnerInvite(email) {
+    const { data, error } = await supabase.from('partner_invitations')
+      .insert({ owner_user_id: user.value.id, partner_email: email })
+      .select('token').single()
+    if (error) throw error
+    return data.token
+  }
+
+  async function cancelPartnerInvite(id) {
+    await supabase.from('partner_invitations').update({ status: 'cancelled' }).eq('id', id)
+  }
+
+  async function acceptPartnerInvite(token) {
+    const { data: inv } = await supabase.from('partner_invitations')
+      .select('*').eq('token', token).eq('status', 'pending')
+      .gt('expires_at', new Date().toISOString()).maybeSingle()
+    if (!inv) throw new Error('Undangan tidak valid atau sudah kedaluwarsa')
+
+    const { data: ownerRow } = await supabase.from('wedding_data')
+      .select('partner_user_id').eq('user_id', inv.owner_user_id).maybeSingle()
+    if (ownerRow?.partner_user_id) throw new Error('Pemilik sudah memiliki pasangan')
+
+    await supabase.from('wedding_data').update({
+      partner_user_id: user.value.id,
+      partner_email: user.value.email,
+    }).eq('user_id', inv.owner_user_id)
+
+    await supabase.from('partner_invitations').update({ status: 'accepted' }).eq('id', inv.id)
+    await loadData(user.value.id)
+    subscribeRealtime(user.value.id)
+  }
+
+  async function removePartner() {
+    const uid = ownerUserId.value || user.value.id
+    await supabase.from('wedding_data').update({
+      partner_user_id: null, partner_email: null,
+    }).eq('user_id', uid)
+    partnerEmail.value = ''
+    toast('Pasangan dihapus')
+  }
+
+  async function leavePartnership() {
+    if (!isPartner.value || !ownerUserId.value) return
+    await supabase.from('wedding_data').update({
+      partner_user_id: null, partner_email: null,
+    }).eq('user_id', ownerUserId.value)
+    isPartner.value   = false
+    ownerUserId.value = user.value.id
+    partnerEmail.value = ''
+    await loadData(user.value.id)
+    toast('Kamu keluar dari dashboard bersama')
+  }
+
+  async function _processPendingInvite() {
+    const token = sessionStorage.getItem('pending_invite')
+    if (!token || !user.value) return
+    sessionStorage.removeItem('pending_invite')
+    try {
+      await acceptPartnerInvite(token)
+      toast('Berhasil bergabung sebagai pasangan! 🎉')
+    } catch (e) {
+      toast(e.message || 'Gagal menerima undangan')
+    }
   }
 
   // ── Auth ───────────────────────────────────────────────────────────
@@ -681,6 +776,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       await loadProfile(session.user.id)
       await loadData(session.user.id)
       subscribeRealtime(session.user.id)
+      await _processPendingInvite()
     }
     loading.value = false
 
@@ -692,10 +788,14 @@ export const useWeddingStore = defineStore('wedding', () => {
         await loadProfile(session.user.id)
         await loadData(session.user.id)
         subscribeRealtime(session.user.id)
+        await _processPendingInvite()
         loading.value = false
       } else if (event === 'SIGNED_OUT') {
         user.value = null
         profile.value = null
+        ownerUserId.value = null
+        isPartner.value = false
+        partnerEmail.value = ''
         _channel?.unsubscribe()
         guests.value = []; budget.value = []; vendors.value = []
         seserahan.value = []; mahar.value = []; admin.value = []
@@ -740,6 +840,9 @@ export const useWeddingStore = defineStore('wedding', () => {
     // auth
     user, profile, isPaid, loading,
     initAuth, signInWithGoogle, signOut,
+    // partner
+    ownerUserId, isPartner, partnerEmail,
+    sendPartnerInvite, cancelPartnerInvite, acceptPartnerInvite, removePartner, leavePartnership,
     // onboarding
     couple, onboarded, beginOnboarding, startOnboarding, completeOnboarding,
     showWelcomeGuide, dismissWelcomeGuide, tourSidebarOpen, tourSteps, startTour,
