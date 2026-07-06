@@ -717,12 +717,25 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   async function acceptPartnerInvite(token) {
-    const { error } = await supabase.rpc('accept_partner_invite', {
+    const { data: ownerUid, error } = await supabase.rpc('accept_partner_invite', {
       invite_token: token,
       partner_email_in: user.value.email,
     })
     if (error) throw new Error(error.message || 'Gagal menerima undangan')
-    await loadData(user.value.id)
+
+    if (ownerUid) {
+      // Set partner state langsung dari owner_uid yang dikembalikan RPC
+      ownerUserId.value  = ownerUid
+      isPartner.value    = true
+      partnerEmail.value = user.value.email
+      // Load data owner langsung — RLS partner_select mengizinkan karena
+      // partner_user_id = auth.uid() baru saja di-set oleh RPC
+      const { data } = await supabase.from('wedding_data')
+        .select('*').eq('user_id', ownerUid).maybeSingle()
+      if (data) _applyData(data)
+    } else {
+      await loadData(user.value.id)
+    }
     subscribeRealtime(user.value.id)
   }
 
