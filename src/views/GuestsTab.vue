@@ -2,10 +2,22 @@
   <section class="panel active" id="panel-tamu">
     <!-- Stats -->
     <div class="stat-grid">
-      <div class="stat"><div class="accent a-plum"></div><div class="num">{{ confirmedList.length }}</div><div class="lbl">Undangan Dikonfirmasi</div></div>
-      <div class="stat"><div class="accent a-gold"></div><div class="num">{{ totalOrang }}</div><div class="lbl">Total Tamu (orang)</div></div>
-      <div class="stat"><div class="accent a-teal"></div><div class="num">{{ pria }}</div><div class="lbl">Pihak Pria (orang)</div></div>
-      <div class="stat"><div class="accent a-rose"></div><div class="num">{{ wanita }}</div><div class="lbl">Pihak Wanita (orang)</div></div>
+      <div class="stat a-plum">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="num">{{ confirmedList.length }}</div><div class="lbl">Undangan dikonfirmasi</div>
+      </div>
+      <div class="stat a-gold">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="num">{{ totalOrang }}</div><div class="lbl">Total tamu (orang)</div>
+      </div>
+      <div class="stat a-teal">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 2l3.5 8L21 5l-2 11H5z"/><rect x="5" y="18" width="14" height="2" rx="1"/></svg></div>
+        <div class="num">{{ pria }}</div><div class="lbl">Pihak pria (orang)</div>
+      </div>
+      <div class="stat a-rose">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.5"/><ellipse cx="12" cy="5.5" rx="2" ry="3.5"/><ellipse cx="12" cy="18.5" rx="2" ry="3.5"/><ellipse cx="5.5" cy="12" rx="3.5" ry="2"/><ellipse cx="18.5" cy="12" rx="3.5" ry="2"/><ellipse cx="7.5" cy="7.5" rx="2" ry="3" transform="rotate(-45 7.5 7.5)"/><ellipse cx="16.5" cy="16.5" rx="2" ry="3" transform="rotate(-45 16.5 16.5)"/><ellipse cx="16.5" cy="7.5" rx="2" ry="3" transform="rotate(45 16.5 7.5)"/><ellipse cx="7.5" cy="16.5" rx="2" ry="3" transform="rotate(45 7.5 16.5)"/></svg></div>
+        <div class="num">{{ wanita }}</div><div class="lbl">Pihak wanita (orang)</div>
+      </div>
     </div>
 
     <!-- Breakdown -->

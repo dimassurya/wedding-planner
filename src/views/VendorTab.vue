@@ -2,10 +2,22 @@
   <section class="panel active" id="panel-vendor">
     <!-- Stats -->
     <div class="stat-grid">
-      <div class="stat"><div class="accent a-plum"></div><div class="num">{{ store.vendors.length }}</div><div class="lbl">Total Vendor</div></div>
-      <div class="stat"><div class="accent a-teal"></div><div class="num">{{ dipakaiList.length }}</div><div class="lbl">Vendor Dipakai</div></div>
-      <div class="stat"><div class="accent a-gold"></div><div class="num">{{ fmt(totalBiaya) }}</div><div class="lbl">Total Biaya Vendor</div></div>
-      <div class="stat"><div class="accent a-rose"></div><div class="num">{{ store.vendors.length - dipakaiList.length }}</div><div class="lbl">Belum Diputuskan</div></div>
+      <div class="stat a-plum">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1-5h16l1 5H3z"/><path d="M21 9v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9"/><path d="M9 21V12h6v9"/></svg></div>
+        <div class="num">{{ store.vendors.length }}</div><div class="lbl">Total vendor</div>
+      </div>
+      <div class="stat a-teal">
+        <div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="num">{{ dipakaiList.length }}</div><div class="lbl">Vendor dipakai</div>
+      </div>
+      <div class="stat a-gold">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><circle cx="16" cy="12" r="2"/></svg></div>
+        <div class="num">{{ fmt(totalBiaya) }}</div><div class="lbl">Total biaya vendor</div>
+      </div>
+      <div class="stat a-rose">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg></div>
+        <div class="num">{{ store.vendors.length - dipakaiList.length }}</div><div class="lbl">Belum diputuskan</div>
+      </div>
     </div>
 
     <!-- Used vendors list -->

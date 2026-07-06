@@ -15,8 +15,8 @@
 
           <label class="mse-lbl">Status</label>
           <div class="mse-seg">
-            <button class="mse-seg-btn" :class="{ off: !s.status }" @click="setStatus(false)">Belum</button>
-            <button class="mse-seg-btn" :class="{ on: s.status }" @click="setStatus(true)">Sudah</button>
+            <button class="mse-seg-btn" :class="{ off: !s.status }" @click="setStatus(false)">Belum Dibeli</button>
+            <button class="mse-seg-btn" :class="{ on: s.status }" @click="setStatus(true)">Sudah Dibeli</button>
           </div>
 
           <label class="mse-lbl">Budget</label>

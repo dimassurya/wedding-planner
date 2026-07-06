@@ -15,8 +15,8 @@
 
           <label class="mme-lbl">Status</label>
           <div class="mme-seg">
-            <button class="mme-seg-btn" :class="{ off: !m.status }" @click="setStatus(false)">Belum</button>
-            <button class="mme-seg-btn" :class="{ on: m.status }" @click="setStatus(true)">Sudah</button>
+            <button class="mme-seg-btn" :class="{ off: !m.status }" @click="setStatus(false)">Belum Disiapkan</button>
+            <button class="mme-seg-btn" :class="{ on: m.status }" @click="setStatus(true)">Sudah Disiapkan</button>
           </div>
 
           <label class="mme-lbl">Harga / Nilai</label>

@@ -18,12 +18,12 @@
           <span class="ms-badge">Budget Rp {{ grp(s.budget) }}</span>
         </div>
         <div class="ms-status" :class="{ ok: s.status }">
-          <span class="ms-dot"></span>{{ s.status ? 'Sudah disiapkan' : 'Belum disiapkan' }}
+          <span class="ms-dot"></span>{{ s.status ? 'Sudah Dibeli' : 'Belum Dibeli' }}
         </div>
       </div>
 
       <div class="ms-actions" @click.stop>
-        <SwitchToggle :model-value="!!s.status" title="Sudah disiapkan?" @update:model-value="val => toggleStatus(s, val)" />
+        <SwitchToggle :model-value="!!s.status" title="Sudah dibeli?" @update:model-value="val => toggleStatus(s, val)" />
         <button class="ms-act" title="Edit" @click="emit('update:editId', s.id)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
         </button>

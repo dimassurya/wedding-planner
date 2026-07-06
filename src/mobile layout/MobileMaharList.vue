@@ -10,7 +10,7 @@
         <div class="mm-name">{{ m.item || 'Tanpa nama' }}</div>
         <div class="mm-price">Rp {{ grp(m.harga) }}</div>
         <div class="mm-status" :class="{ ok: m.status }">
-          <span class="mm-dot"></span>{{ m.status ? 'Sudah disiapkan' : 'Belum disiapkan' }}
+          <span class="mm-dot"></span>{{ m.status ? 'Sudah Disiapkan' : 'Belum Disiapkan' }}
         </div>
       </div>
 

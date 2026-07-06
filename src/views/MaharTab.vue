@@ -1,9 +1,18 @@
 <template>
   <section class="panel active" id="panel-mahar">
     <div class="stat-grid">
-      <div class="stat"><div class="accent a-plum"></div><div class="num">{{ store.mahar.length }}</div><div class="lbl">Total Item</div></div>
-      <div class="stat"><div class="accent a-teal"></div><div class="num">{{ sudah }}</div><div class="lbl">Sudah Disiapkan</div></div>
-      <div class="stat"><div class="accent a-rose"></div><div class="num">{{ fmt(tHarga) }}</div><div class="lbl">Total Nilai Mahar</div></div>
+      <div class="stat a-plum">
+        <div class="stat-icon"><svg width="26" height="18" viewBox="0 0 26 18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="9" r="6.5"/><circle cx="17" cy="9" r="6.5"/></svg></div>
+        <div class="num">{{ store.mahar.length }}</div><div class="lbl">Total item</div>
+      </div>
+      <div class="stat a-teal">
+        <div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="num">{{ sudah }}</div><div class="lbl">Sudah disiapkan</div>
+      </div>
+      <div class="stat a-rose">
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+        <div class="num">{{ fmt(tHarga) }}</div><div class="lbl">Total nilai mahar</div>
+      </div>
     </div>
 
     <div class="controls">
