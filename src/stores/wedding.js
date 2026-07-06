@@ -795,18 +795,18 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   async function initAuth() {
-    loading.value = true
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session?.user) {
-      user.value = session.user
-      await loadProfile(session.user.id)
-      await loadData(session.user.id)
-      subscribeRealtime(session.user.id)
-      await _processPendingInvite()
-    }
-    loading.value = false
-
     supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') {
+        if (session?.user) {
+          user.value = session.user
+          await loadProfile(session.user.id)
+          await loadData(session.user.id)
+          subscribeRealtime(session.user.id)
+          await _processPendingInvite()
+        }
+        loading.value = false
+        return
+      }
       if (event === 'SIGNED_IN' && session?.user) {
         if (user.value?.id === session.user.id) return
         loading.value = true

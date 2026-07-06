@@ -11,6 +11,12 @@ if (typeof window !== 'undefined') {
   const mq = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`)
   isMobile.value = mq.matches
   mq.addEventListener('change', e => { isMobile.value = e.matches })
+  // Fallback: resize event untuk DevTools emulation yang kadang tidak trigger matchMedia change
+  let _t
+  window.addEventListener('resize', () => {
+    clearTimeout(_t)
+    _t = setTimeout(() => { isMobile.value = window.innerWidth <= MOBILE_BREAKPOINT }, 50)
+  })
 }
 
 export function useIsMobile() {
