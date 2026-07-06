@@ -141,7 +141,7 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   function _settingsPayload() {
     return {
-      tabOrder: tabOrder.value, bFilter: bFilter.value, vFilter: vFilter.value,
+      tabOrder: tabOrder.value, vFilter: vFilter.value,
       couple: couple.value, onboarded: onboarded.value,
       showWelcomeGuide: showWelcomeGuide.value,
     }
@@ -566,7 +566,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         guests: guests.value, budget: budget.value, vendors: vendors.value,
         seserahan: seserahan.value, mahar: mahar.value, admin: admin.value,
         checklist: checklist.value, timeline: timeline.value,
-        settings: { tabOrder: tabOrder.value, bFilter: bFilter.value, vFilter: vFilter.value },
+        settings: { tabOrder: tabOrder.value, vFilter: vFilter.value },
       })
       toast('Data berhasil diimpor')
     }
@@ -620,7 +620,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (Array.isArray(data.timeline))  timeline.value  = data.timeline
     const s = data.settings || {}
     if (Array.isArray(s.tabOrder)) tabOrder.value = s.tabOrder
-    if (s.bFilter) bFilter.value = s.bFilter
+
     if (s.vFilter) vFilter.value = s.vFilter
     if (s.couple) couple.value = { ...couple.value, ...s.couple }
     onboarded.value        = !!s.onboarded || isPaid.value
