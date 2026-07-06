@@ -636,7 +636,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     } else {
       // Pengguna baru — isi data awal
       isNewUser.value = true
-      guests.value    = GUEST_SEED.slice()
+      guests.value    = []
       budget.value    = BUDGET_SEED.slice()
       vendors.value   = []
       seserahan.value = SESERAHAN_SEED.map((item, i) => ({ id: i+1, item: item.item, status: false, budget: 0, harga: 0, link: '' }))
