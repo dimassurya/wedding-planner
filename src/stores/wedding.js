@@ -766,11 +766,12 @@ export const useWeddingStore = defineStore('wedding', () => {
   async function _processPendingInvite() {
     const token = sessionStorage.getItem('pending_invite')
     if (!token || !user.value) return
-    sessionStorage.removeItem('pending_invite')
     try {
       await acceptPartnerInvite(token)
+      sessionStorage.removeItem('pending_invite')
       toast('Berhasil bergabung sebagai pasangan! 🎉')
     } catch (e) {
+      sessionStorage.removeItem('pending_invite')
       toast(e.message || 'Gagal menerima undangan')
     }
   }
