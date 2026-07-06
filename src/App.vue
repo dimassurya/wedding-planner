@@ -106,7 +106,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useWeddingStore } from './stores/wedding'
 import { WP_TABS } from './data/constants'
 import { useInstallPWA } from './composables/useInstallPWA'
@@ -211,6 +211,28 @@ onMounted(() => {
   store.initAuth()
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { store.clearSelected(); showBulk.value = false }
+  })
+
+  // PWA back button: track tab navigation in browser history
+  history.replaceState({ tab: store.activeTab }, '')
+
+  let _fromPop = false
+  watch(() => store.activeTab, tab => {
+    if (_fromPop) return
+    history.pushState({ tab }, '')
+  })
+
+  window.addEventListener('popstate', e => {
+    const tab = e.state?.tab
+    if (tab) {
+      _fromPop = true
+      store.clearSelected()
+      showBulk.value = false
+      store.activeTab = tab
+      _fromPop = false
+    } else {
+      history.replaceState({ tab: store.activeTab }, '')
+    }
   })
 })
 </script>
