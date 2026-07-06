@@ -59,7 +59,6 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Tambah Tamu
       </button>
       <button class="icon-btn" @click="store.exportGuestsCSV()">Ekspor</button>
-      <button class="icon-btn" @click="store.resetGuests()">Reset</button>
       <div class="tab-io">
         <button class="icon-btn tio-btn" @click="store.exportTab('tamu')">Export</button>
         <button class="icon-btn tio-btn" @click="importRef?.click()">Import</button>

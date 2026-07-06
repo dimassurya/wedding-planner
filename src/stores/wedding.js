@@ -2,7 +2,7 @@ import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref, computed, reactive } from 'vue'
 import { supabase } from '../lib/supabase'
 import {
-  GUEST_SEED, BUDGET_SEED, SESERAHAN_SEED, ADMIN_SEED, CHECKLIST_SEED, TIMELINE_SEED,
+  BUDGET_SEED, SESERAHAN_SEED, ADMIN_SEED, CHECKLIST_SEED, TIMELINE_SEED,
   VENDOR_CATEGORIES,
 } from '../data/constants'
 import { downloadJSON, downloadCSV, dateStamp, toCSV, fmt } from '../utils/index'
@@ -432,13 +432,6 @@ export const useWeddingStore = defineStore('wedding', () => {
     saveA(); toast('Bagian dihapus')
   }
 
-  function resetGuests() {
-    if (!confirm('Kembalikan daftar tamu ke data awal?')) return
-    guests.value = GUEST_SEED.slice()
-    clearSelected()
-    saveG(); toast('Data tamu direset')
-  }
-
   function exportGuestsCSV() {
     const META = { cpp:{label:'Keluarga Pengantin Pria'}, cpw:{label:'Keluarga Pengantin Wanita'}, teman_pria:{label:'Teman Pengantin Pria'}, teman_wanita:{label:'Teman Pengantin Wanita'}, tetangga_pria:{label:'Tetangga Pengantin Pria'}, tetangga_wanita:{label:'Tetangga Pengantin Wanita'}, lainnya:{label:'Lainnya'} }
     const head = ['No','Nama Lengkap','Jumlah Orang','Status Relasi','Undangan Untuk','Konfirmasi']
@@ -770,7 +763,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     // sync
     syncSeserahanToBudget, syncMaharToBudget, handleVendorDecision,
     // guest
-    saveGuest, delGuest, duplicateGuest, resetGuests, exportGuestsCSV, exportBudgetCSV,
+    saveGuest, delGuest, duplicateGuest, exportGuestsCSV, exportBudgetCSV,
     // timeline
     delTimeline, removeEmptyTimeline,
     // vendor
