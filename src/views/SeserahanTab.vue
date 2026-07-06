@@ -41,7 +41,7 @@
         </div>
         <div class="s-stat cStat">
           <SwitchToggle :model-value="!!s.status" title="Sudah Dibeli?" @update:model-value="v => onToggle(s, v)" />
-          <span class="v-lbl">{{ s.status ? 'Sudah' : 'Belum' }}</span>
+          <span class="v-lbl">{{ s.status ? 'Sudah Dibeli' : 'Belum Dibeli' }}</span>
         </div>
         <div class="s-cell cE s-bud">
           <span class="rp">Rp</span>

@@ -227,10 +227,11 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   // ── Sync seserahan / mahar → budget (save dihandle caller) ──────────
   function syncSeserahanToBudget() {
-    const tBudget = seserahan.value.reduce((s, x) => s + (parseInt(x.budget) || 0), 0)
-    const tHarga  = seserahan.value.reduce((s, x) => s + (parseInt(x.harga)  || 0), 0)
+    const active  = seserahan.value.filter(x => x.status)
+    const tBudget = active.reduce((s, x) => s + (parseInt(x.budget) || 0), 0)
+    const tHarga  = active.reduce((s, x) => s + (parseInt(x.harga)  || 0), 0)
     const bIdx = budget.value.findIndex(b => b.id === 'seserahan_auto' || b.item === 'Total Seserahan')
-    if (tBudget === 0 && tHarga === 0) {
+    if (active.length === 0 || (tBudget === 0 && tHarga === 0)) {
       if (bIdx > -1) budget.value.splice(bIdx, 1)
     } else if (bIdx > -1) {
       budget.value[bIdx].estimasi = tBudget
@@ -242,9 +243,10 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   function syncMaharToBudget() {
-    const tHarga = mahar.value.reduce((s, x) => s + (parseInt(x.harga) || 0), 0)
+    const active = mahar.value.filter(x => x.status)
+    const tHarga = active.reduce((s, x) => s + (parseInt(x.harga) || 0), 0)
     const bIdx = budget.value.findIndex(b => b.id === 'mahar_auto' || b.item === 'Total Mahar')
-    if (tHarga === 0) {
+    if (active.length === 0 || tHarga === 0) {
       if (bIdx > -1) budget.value.splice(bIdx, 1)
     } else if (bIdx > -1) {
       budget.value[bIdx].estimasi = tHarga

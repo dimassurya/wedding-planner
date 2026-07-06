@@ -40,7 +40,7 @@
         </div>
         <div class="m-stat cStat">
           <SwitchToggle :model-value="!!m.status" title="Sudah Disiapkan?" @update:model-value="v => onToggle(m, v)" />
-          <span class="v-lbl">{{ m.status ? 'Sudah' : 'Belum' }}</span>
+          <span class="v-lbl">{{ m.status ? 'Sudah Disiapkan' : 'Belum Disiapkan' }}</span>
         </div>
         <div class="m-cell cA m-hrg">
           <span class="rp">Rp</span>

@@ -68,7 +68,7 @@
             </div>
             <div class="adm-stat">
               <SwitchToggle :model-value="!!it.status" title="Sudah lengkap?" @update:model-value="v => onToggle(it, v)" />
-              <span class="v-lbl">{{ it.status ? 'Sudah' : 'Belum' }}</span>
+              <span class="v-lbl">{{ it.status ? 'Sudah Lengkap' : 'Belum Lengkap' }}</span>
             </div>
             <div class="adm-act r">
               <button class="icon-btn" @click="delItem(g, it)" title="Hapus syarat">
