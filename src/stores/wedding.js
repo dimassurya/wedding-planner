@@ -630,18 +630,8 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   async function loadData(userId) {
-    // Coba load sebagai owner
-    let { data } = await supabase.from('wedding_data').select('*').eq('user_id', userId).maybeSingle()
-
-    if (data) {
-      ownerUserId.value  = userId
-      isPartner.value    = false
-      partnerEmail.value = data.partner_email || ''
-      _applyData(data)
-      return
-    }
-
-    // Coba load sebagai partner
+    // Cek partner dulu — kalau user ini terdaftar sebagai partner di akun lain,
+    // prioritaskan data bersama meski user ini punya data sendiri.
     const { data: pData } = await supabase.from('wedding_data')
       .select('*').eq('partner_user_id', userId).maybeSingle()
 
@@ -650,6 +640,17 @@ export const useWeddingStore = defineStore('wedding', () => {
       isPartner.value    = true
       partnerEmail.value = user.value?.email || ''
       _applyData(pData)
+      return
+    }
+
+    // Coba load sebagai owner
+    const { data } = await supabase.from('wedding_data').select('*').eq('user_id', userId).maybeSingle()
+
+    if (data) {
+      ownerUserId.value  = userId
+      isPartner.value    = false
+      partnerEmail.value = data.partner_email || ''
+      _applyData(data)
       return
     }
 
