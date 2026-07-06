@@ -103,7 +103,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   async function _upsert(data) {
     if (!user.value) return
     const uid = ownerUserId.value || user.value.id
-    if (ownerUserId.value) {
+    if (isPartner.value) {
       // Partner: row owner sudah pasti ada, pakai UPDATE bukan upsert
       // karena upsert butuh INSERT permission yang tidak dimiliki partner (RLS)
       await supabase.from('wedding_data').update(data).eq('user_id', uid)
