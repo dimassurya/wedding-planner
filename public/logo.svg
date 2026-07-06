@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5C1A3A"/>
+      <stop offset="100%" stop-color="#2D0812"/>
+    </linearGradient>
+    <linearGradient id="hg" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#E8BA78"/>
+      <stop offset="100%" stop-color="#B8874A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+
+  <!-- Heart -->
+  <path d="M256,358
+    C256,358 92,252 92,162
+    C92,106 140,76 190,76
+    C222,76 246,93 256,114
+    C266,93 290,76 322,76
+    C372,76 420,106 420,162
+    C420,252 256,358 256,358Z"
+    fill="url(#hg)"/>
+
+  <!-- Ring accent below heart -->
+  <circle cx="256" cy="422" r="27" fill="none" stroke="#CD9F65" stroke-width="14" opacity="0.7"/>
+</svg>
