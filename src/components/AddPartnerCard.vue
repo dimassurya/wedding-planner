@@ -31,7 +31,7 @@
           {{ store.isPartner ? 'Dashboard Bersama' : store.partnerEmail ? 'Pasangan Aktif' : 'Undang Pasanganmu' }}
         </h2>
         <p class="apc-sub">
-          {{ store.isPartner ? 'Kamu mengakses data bersama' : store.partnerEmail ? store.partnerEmail : 'Rencanakan pernikahan bersama' }}
+          {{ store.isPartner ? (store.ownerEmail || 'Data bersama') : store.partnerEmail ? store.partnerEmail : 'Rencanakan pernikahan bersama' }}
         </p>
 
         <!-- Garis ornamen -->
@@ -47,8 +47,10 @@
 
         <!-- Partner melihat status -->
         <template v-if="store.isPartner">
-          <p class="apc-note">Kamu mengakses data bersama</p>
-          <p v-if="store.ownerEmail" class="apc-owner-email">{{ store.ownerEmail }}</p>
+          <p class="apc-note">
+            Diundang oleh
+            <strong>{{ store.ownerEmail || store.couple?.pria || 'pemilik dashboard' }}</strong>
+          </p>
           <button class="apc-btn danger" @click="onLeave">Keluar dari Dashboard Bersama</button>
         </template>
 

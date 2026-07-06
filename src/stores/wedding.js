@@ -662,6 +662,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       isPartner.value    = false
       partnerEmail.value = data.partner_email || ''
       _applyData(data)
+      if (!data.settings?.ownerEmail && user.value?.email) saveSettings()
       return
     }
 
