@@ -47,7 +47,8 @@
 
         <!-- Partner melihat status -->
         <template v-if="store.isPartner">
-          <p class="apc-note">Kamu sedang melihat dan mengedit data pernikahan bersama pasangan. Semua perubahan langsung tersinkronisasi.</p>
+          <p class="apc-note">Kamu mengakses data bersama</p>
+          <p v-if="store.ownerEmail" class="apc-owner-email">{{ store.ownerEmail }}</p>
           <button class="apc-btn danger" @click="onLeave">Keluar dari Dashboard Bersama</button>
         </template>
 
@@ -335,6 +336,18 @@ async function onLeave() {
 }
 .apc-note strong { color: #6E151A; }
 .apc-note.pending { color: #7a5c28; }
+
+.apc-owner-email {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6E151A;
+  background: #f9f0ec;
+  border: 1px solid #e8d5cc;
+  border-radius: 8px;
+  padding: 8px 12px;
+  text-align: center;
+  margin-top: -4px;
+}
 
 .apc-input {
   width: 100%;

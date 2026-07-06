@@ -18,6 +18,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   const ownerUserId  = ref(null)   // user_id pemilik data (bisa berbeda dari user.id kalau partner)
   const isPartner    = ref(false)  // true kalau login sebagai pasangan (bukan owner)
   const partnerEmail = ref('')     // email pasangan (ditampilkan ke owner)
+  const ownerEmail   = ref('')     // email owner (ditampilkan ke partner)
 
   // ── Onboarding / profil pasangan ────────────────────────────────
   const couple = ref({ pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '' })
@@ -144,6 +145,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       tabOrder: tabOrder.value, vFilter: vFilter.value,
       couple: couple.value, onboarded: onboarded.value,
       showWelcomeGuide: showWelcomeGuide.value,
+      ownerEmail: user.value?.email || '',
     }
   }
   function saveSettings() { scheduleSave('settings', _settingsPayload()) }
@@ -622,6 +624,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (Array.isArray(s.tabOrder)) tabOrder.value = s.tabOrder
 
     if (s.vFilter) vFilter.value = s.vFilter
+    if (s.ownerEmail) ownerEmail.value = s.ownerEmail
     if (s.couple) couple.value = { ...couple.value, ...s.couple }
     onboarded.value        = !!s.onboarded || isPaid.value
     showWelcomeGuide.value = !!s.showWelcomeGuide
@@ -851,7 +854,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     user, profile, isPaid, loading,
     initAuth, signInWithGoogle, signOut,
     // partner
-    ownerUserId, isPartner, partnerEmail,
+    ownerUserId, isPartner, partnerEmail, ownerEmail,
     sendPartnerInvite, cancelPartnerInvite, acceptPartnerInvite, removePartner, leavePartnership,
     // onboarding
     couple, onboarded, beginOnboarding, startOnboarding, completeOnboarding,
