@@ -103,8 +103,14 @@ export const useWeddingStore = defineStore('wedding', () => {
   async function _upsert(data) {
     if (!user.value) return
     const uid = ownerUserId.value || user.value.id
-    await supabase.from('wedding_data')
-      .upsert({ user_id: uid, ...data }, { onConflict: 'user_id' })
+    if (ownerUserId.value) {
+      // Partner: row owner sudah pasti ada, pakai UPDATE bukan upsert
+      // karena upsert butuh INSERT permission yang tidak dimiliki partner (RLS)
+      await supabase.from('wedding_data').update(data).eq('user_id', uid)
+    } else {
+      await supabase.from('wedding_data')
+        .upsert({ user_id: uid, ...data }, { onConflict: 'user_id' })
+    }
   }
 
   function scheduleSave(col, val) {
