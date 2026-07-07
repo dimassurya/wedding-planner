@@ -84,9 +84,10 @@
 
     <!-- Table (PC) -->
     <div v-else class="card table-card">
+      <div class="table-scroll">
       <div class="t-head">
-        <div><input type="checkbox" class="cbx" :checked="allVisSelected" :indeterminate.prop="someVisSelected && !allVisSelected" @change="toggleAll"></div>
-        <div>No</div><div>Nama Tamu</div><div>Jumlah Orang</div><div>Status Relasi</div><div>Konfirmasi</div><div></div>
+        <div class="t-cbx"><input type="checkbox" class="cbx" :checked="allVisSelected" :indeterminate.prop="someVisSelected && !allVisSelected" @change="toggleAll"></div>
+        <div>No</div><div>Nama Tamu</div><div>Jumlah Orang</div><div>Status Relasi</div><div>Konfirmasi</div><div class="t-actions"></div>
       </div>
 
       <div v-if="!visRows.length" class="empty">
@@ -120,6 +121,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="#B32E33" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
           </button>
         </div>
+      </div>
       </div>
     </div>
 

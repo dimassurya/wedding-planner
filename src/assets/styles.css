@@ -302,11 +302,20 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 .table-card { overflow: hidden; }
 .t-head, .t-row {
   display: grid;
-  grid-template-columns: 34px 32px minmax(0,1fr) 92px minmax(200px,1.2fr) 132px 80px;
+  grid-template-columns: 34px 32px minmax(150px,1fr) 92px minmax(200px,1.2fr) 132px 80px;
   align-items: center;
   gap: 18px;
   padding: 13px 20px;
+  min-width: 868px;
 }
+.t-cbx { position: sticky; left: 0; z-index: 2; background: inherit; }
+.t-actions {
+  position: sticky; right: 0; z-index: 2;
+  display: flex; gap: 6px; justify-content: flex-end; align-items: center;
+  background: inherit;
+  box-shadow: -8px 0 8px -6px rgba(60,12,20,.14);
+}
+.t-head .t-cbx, .t-head .t-actions { background: var(--plum); }
 .t-head {
   background: var(--plum);
   color: #fff;
@@ -316,7 +325,7 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
   font-weight: 500;
 }
 .t-head > div:nth-child(4) { text-align: center; }
-.t-row { border-bottom: 1px solid var(--line); transition: background .15s; }
+.t-row { background: #fff; border-bottom: 1px solid var(--line); transition: background .15s; }
 .t-row:last-child { border-bottom: none; }
 .t-row:hover { background: var(--ivory); }
 .t-row.sel { background: var(--gold-soft); }
@@ -697,15 +706,16 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
     grid-template-areas: "cbx name pax" "cbx meta meta" "cbx konf konf" "cbx act act";
     gap: 5px 12px;
     padding: 14px 16px;
+    min-width: 0;
   }
-  .t-cbx { grid-area: cbx; align-self: start; padding-top: 3px; }
+  .t-cbx { grid-area: cbx; align-self: start; padding-top: 3px; position: static; }
   .t-no { display: none; }
   .t-name { grid-area: name; }
   .t-pax-wrap { grid-area: pax; text-align: right; align-self: start; }
   .t-pax-wrap::after { content: " org"; font-size: 12px; color: var(--muted); font-weight: 400; }
   .t-meta { grid-area: meta; }
   .t-konf { grid-area: konf; margin-top: 6px; }
-  .t-actions { grid-area: act; justify-content: flex-start; margin-top: 8px; }
+  .t-actions { grid-area: act; justify-content: flex-start; margin-top: 8px; position: static; box-shadow: none; }
   .b-head, .b-foot { display: none; }
   .b-row {
     grid-template-columns: 1fr 1fr;
@@ -846,12 +856,21 @@ input:checked + .slider:before { transform: translateX(14px); }
 /* ✨ Seserahan Table ✨ */
 .s-head, .s-row {
   display: grid;
-  grid-template-columns: 36px 1.5fr 110px 130px 130px 1.5fr 40px;
+  grid-template-columns: 36px minmax(160px,1.5fr) 110px 130px 130px minmax(160px,1.5fr) 40px;
   align-items: center;
   gap: 10px;
   padding: 11px 20px;
+  min-width: 866px;
 }
-.s-row { border-bottom: 1px solid var(--line); transition: background .15s; }
+.s-cbx { position: sticky; left: 0; z-index: 2; background: inherit; }
+.s-actions {
+  position: sticky; right: 0; z-index: 2;
+  display: flex; gap: 6px; justify-content: flex-end; align-items: center;
+  background: inherit;
+  box-shadow: -8px 0 8px -6px rgba(60,12,20,.14);
+}
+.s-head .s-cbx, .s-head .s-actions { background: var(--plum); }
+.s-row { background: #fff; border-bottom: 1px solid var(--line); transition: background .15s; }
 .s-row:last-child { border-bottom: none; }
 .s-head {
   background: var(--plum);
@@ -889,20 +908,22 @@ input:checked + .slider:before { transform: translateX(14px); }
   .s-head { display: none; }
   .s-row {
     grid-template-columns: 1fr;
-    grid-template-areas: 
+    grid-template-areas:
       "item item"
       "stat stat"
       "bud hrg"
       "link link"
       "act act";
     gap: 12px;
+    min-width: 0;
   }
+  .s-cbx { position: static; }
   .s-item { grid-area: item; }
   .s-stat { grid-area: stat; display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
   .s-bud { grid-area: bud; }
   .s-hrg { grid-area: hrg; }
   .s-link { grid-area: link; }
-  .s-actions { grid-area: act; }
+  .s-actions { grid-area: act; position: static; box-shadow: none; }
   .s-cell { justify-content: flex-start; }
   .s-cell input { text-align: left; }
 }
@@ -910,12 +931,21 @@ input:checked + .slider:before { transform: translateX(14px); }
 /* ✨ Mahar Table ✨ */
 .m-head, .m-row {
   display: grid;
-  grid-template-columns: 36px 1.5fr 110px 150px 40px;
+  grid-template-columns: 36px minmax(180px,1.5fr) 110px 150px 40px;
   align-items: center;
   gap: 10px;
   padding: 11px 20px;
+  min-width: 600px;
 }
-.m-row { border-bottom: 1px solid var(--line); transition: background .15s; }
+.m-cbx { position: sticky; left: 0; z-index: 2; background: inherit; }
+.m-actions {
+  position: sticky; right: 0; z-index: 2;
+  display: flex; gap: 6px; justify-content: flex-end; align-items: center;
+  background: inherit;
+  box-shadow: -8px 0 8px -6px rgba(60,12,20,.14);
+}
+.m-head .m-cbx, .m-head .m-actions { background: var(--plum); }
+.m-row { background: #fff; border-bottom: 1px solid var(--line); transition: background .15s; }
 .m-row:last-child { border-bottom: none; }
 .m-head {
   background: var(--plum);
@@ -952,17 +982,19 @@ input:checked + .slider:before { transform: translateX(14px); }
   .m-head { display: none; }
   .m-row {
     grid-template-columns: 1fr;
-    grid-template-areas: 
+    grid-template-areas:
       "item item"
       "stat stat"
       "hrg hrg"
       "act act";
     gap: 12px;
+    min-width: 0;
   }
+  .m-cbx { position: static; }
   .m-item { grid-area: item; }
   .m-stat { grid-area: stat; display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
   .m-hrg { grid-area: hrg; }
-  .m-actions { grid-area: act; }
+  .m-actions { grid-area: act; position: static; box-shadow: none; }
   .m-cell { justify-content: flex-start; }
   .m-cell input { text-align: left; }
 }
