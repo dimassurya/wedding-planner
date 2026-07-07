@@ -439,11 +439,20 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 /* ── Budget Table ── */
 .b-head, .b-row {
   display: grid;
-  grid-template-columns: 36px 1.5fr 118px 1fr 1fr 1fr 1fr 120px 76px;
+  grid-template-columns: 36px minmax(160px,1.5fr) 118px minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(120px,1fr) 120px 76px;
   align-items: center;
   gap: 10px;
   padding: 11px 20px;
+  min-width: 1080px;
 }
+.b-cbx { position: sticky; left: 0; z-index: 2; background: inherit; }
+.b-actions {
+  position: sticky; right: 0; z-index: 2;
+  display: flex; gap: 6px; justify-content: flex-end; align-items: center;
+  background: inherit;
+  box-shadow: -8px 0 8px -6px rgba(60,12,20,.14);
+}
+.b-head .b-cbx, .b-head .b-actions { background: var(--plum); }
 .b-head {
   background: var(--plum);
   color: #fff;
@@ -453,7 +462,7 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
   font-weight: 500;
 }
 .b-head .r, .b-row .r { text-align: right; }
-.b-row { border-bottom: 1px solid var(--line); transition: background .15s; }
+.b-row { background: #fff; border-bottom: 1px solid var(--line); transition: background .15s; }
 .b-row:last-child { border-bottom: none; }
 .b-row:hover { background: var(--ivory); }
 .b-item { min-width: 0; }
@@ -482,12 +491,13 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 .b-row.paid:hover { background: rgba(61,80,39,.12); }
 .b-foot {
   display: grid;
-  grid-template-columns: 36px 1.5fr 118px 1fr 1fr 1fr 1fr 120px 76px;
+  grid-template-columns: 36px minmax(160px,1.5fr) 118px minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(120px,1fr) 120px 76px;
   gap: 10px;
   padding: 14px 20px;
   background: var(--ivory);
   font-weight: 600;
   border-top: 2px solid var(--line);
+  min-width: 1080px;
 }
 .b-foot .r { text-align: right; font-variant-numeric: tabular-nums; color: var(--plum); }
 .b-foot .lbl { color: var(--muted); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; align-self: center; }
@@ -702,7 +712,9 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
     grid-template-areas: "item item" "stat stat" "lE lA" "cE cA" "lD lS" "cD cS" "lT lT" "cT cT" "act act";
     gap: 2px 12px;
     padding: 16px;
+    min-width: 0;
   }
+  .b-cbx, .b-actions { position: static; box-shadow: none; }
   .b-item { grid-area: item; margin-bottom: 6px; }
   .bm-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding-left: 2px; }
   .lE { grid-area: lE; } .cE { grid-area: cE; }
@@ -719,14 +731,25 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 @media (min-width: 681px) { .bm-lbl { display: none; } }
 
 /* ✨ Vendor Table & Toggle ✨ */
+.table-scroll { overflow-x: auto; }
 .v-head, .v-row {
   display: grid;
-  grid-template-columns: 36px 1.2fr 1.5fr 120px 140px 1.5fr 100px 76px;
+  grid-template-columns: 36px minmax(150px,1.2fr) minmax(170px,1.5fr) 120px 140px minmax(160px,1.5fr) 110px 76px;
   align-items: center;
   gap: 10px;
   padding: 12px 20px;
   border-bottom: 1px solid var(--line);
+  min-width: 1072px;
 }
+/* Kolom checkbox (kiri) & aksi (kanan) tetap nempel saat tabel di-scroll */
+.v-cbx { position: sticky; left: 0; z-index: 2; background: inherit; }
+.v-actions {
+  position: sticky; right: 0; z-index: 2;
+  display: flex; gap: 6px; justify-content: flex-end; align-items: center;
+  background: inherit;
+  box-shadow: -8px 0 8px -6px rgba(60,12,20,.14);
+}
+.v-head .v-cbx, .v-head .v-actions { background: var(--bg); }
 .v-head { font-weight: 500; color: var(--muted); background: var(--bg); font-size: 13px; }
 .v-row { font-size: 14px; background: #fff; transition: background .2s; }
 .v-row:hover { background: #fdfbfd; }
@@ -747,8 +770,10 @@ input:checked + .slider:before { transform: translateX(14px); }
 @media (max-width: 900px) {
   .v-head, .v-row {
     grid-template-columns: 1fr 1fr 100px 76px;
+    min-width: 0;
   }
   .v-alamat, .v-hp, .v-desc { display: none; }
+  .v-cbx, .v-actions { position: static; box-shadow: none; }
 }
 
 /* ✨ Custom Info Tooltip ✨ */

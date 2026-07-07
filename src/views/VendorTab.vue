@@ -53,9 +53,10 @@
 
     <!-- Table (PC) -->
     <div v-else class="card table-card">
+      <div class="table-scroll">
       <div class="v-head">
-        <div><input type="checkbox" class="cbx" :checked="allVisSel" :indeterminate.prop="someVisSel && !allVisSel" @change="toggleAll"></div>
-        <div>Nama</div><div>Alamat</div><div>No HP</div><div class="r">Harga</div><div>Deskripsi</div><div>Dipakai?</div><div></div>
+        <div class="v-cbx"><input type="checkbox" class="cbx" :checked="allVisSel" :indeterminate.prop="someVisSel && !allVisSel" @change="toggleAll"></div>
+        <div>Nama</div><div>Alamat</div><div>No HP</div><div class="r">Harga</div><div>Deskripsi</div><div>Dipakai?</div><div class="v-actions"></div>
       </div>
 
       <div v-if="!catRows.length" class="empty">
@@ -85,6 +86,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
+      </div>
       </div>
     </div>
 

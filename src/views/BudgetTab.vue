@@ -48,8 +48,9 @@
 
     <!-- Table (PC) -->
     <div v-else class="card table-card">
+      <div class="table-scroll">
       <div class="b-head">
-        <div><input type="checkbox" class="cbx" :checked="allVisSel" :indeterminate.prop="someVisSel && !allVisSel" @change="toggleAll"></div>
+        <div class="b-cbx"><input type="checkbox" class="cbx" :checked="allVisSel" :indeterminate.prop="someVisSel && !allVisSel" @change="toggleAll"></div>
         <div>Item</div>
         <div class="r">Status</div>
         <div class="lE r">Estimasi</div>
@@ -57,7 +58,7 @@
         <div class="lD r">Dibayar</div>
         <div class="lS r">Belum Dibayar</div>
         <div class="lT r">Jatuh Tempo</div>
-        <div></div>
+        <div class="b-actions"></div>
       </div>
 
       <div v-if="!visRows.length" class="empty">
@@ -107,6 +108,7 @@
         <div class="fAkt r">{{ fmt(tAkt) }}</div>
         <div class="fDib r">{{ fmt(tDib) }}</div>
         <div class="fSis r">{{ fmt(tSis) }}</div>
+      </div>
       </div>
     </div>
 
