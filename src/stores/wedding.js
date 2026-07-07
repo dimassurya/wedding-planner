@@ -799,6 +799,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   async function initAuth() {
+    let initialDone = false
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'INITIAL_SESSION') {
         try {
@@ -812,11 +813,15 @@ export const useWeddingStore = defineStore('wedding', () => {
         } catch (e) {
           console.error('[initAuth] INITIAL_SESSION error:', e)
         } finally {
+          initialDone = true
           loading.value = false
         }
         return
       }
       if (event === 'SIGNED_IN' && session?.user) {
+        // SIGNED_IN dari _recoverAndRefresh bisa fire sebelum INITIAL_SESSION —
+        // skip dulu, biarkan INITIAL_SESSION yang handle initial load.
+        if (!initialDone) return
         if (user.value?.id === session.user.id) return
         loading.value = true
         try {
