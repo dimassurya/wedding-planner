@@ -756,23 +756,63 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   async function removePartner() {
     const uid = ownerUserId.value || user.value.id
-    await supabase.from('wedding_data').update({
-      partner_user_id: null, partner_email: null,
-    }).eq('user_id', uid)
+    // .select() mengembalikan baris yang BENAR-BENAR ter-update (dgn RLS).
+    // Kalau kosong/eror, berarti gagal — jangan klaim sukses.
+    const { data, error } = await supabase.from('wedding_data')
+      .update({ partner_user_id: null, partner_email: null })
+      .eq('user_id', uid)
+      .select('user_id')
+    if (error || !data?.length) {
+      toast('Gagal menghapus pasangan, coba lagi')
+      return
+    }
+    // Batalkan undangan yang masih aktif supaya link lama tak bisa dipakai join ulang
+    await supabase.from('partner_invitations')
+      .update({ status: 'cancelled' })
+      .eq('owner_user_id', uid).in('status', ['pending', 'accepted'])
     partnerEmail.value = ''
     toast('Pasangan dihapus')
   }
 
   async function leavePartnership() {
     if (!isPartner.value || !ownerUserId.value) return
+    // Best-effort: lepaskan diri dari row owner. Kalau owner sudah menghapus
+    // duluan, update ini no-op — tak apa, kita tetap reset diri sendiri.
     await supabase.from('wedding_data').update({
       partner_user_id: null, partner_email: null,
     }).eq('user_id', ownerUserId.value)
-    isPartner.value   = false
-    ownerUserId.value = user.value.id
+    isPartner.value    = false
+    ownerUserId.value  = user.value.id
     partnerEmail.value = ''
+    ownerEmail.value   = ''
     await loadData(user.value.id)
+    subscribeRealtime(user.value.id)   // pindah channel ke dashboard sendiri
     toast('Kamu keluar dari dashboard bersama')
+  }
+
+  // Sinkronkan status kemitraan dgn DB — dipakai saat app kembali aktif,
+  // karena realtime tak selalu sampai (RLS memblokir event pemutusan).
+  async function revalidateMembership() {
+    if (!user.value || loading.value) return
+    if (isPartner.value) {
+      // Masih terdaftar sbg partner di row owner?
+      const { data } = await supabase.from('wedding_data')
+        .select('user_id').eq('partner_user_id', user.value.id).maybeSingle()
+      if (!data) {
+        isPartner.value    = false
+        ownerUserId.value  = user.value.id
+        partnerEmail.value = ''
+        ownerEmail.value   = ''
+        toast('Kamu dikeluarkan dari dashboard bersama')
+        await loadData(user.value.id)
+        subscribeRealtime(user.value.id)
+      }
+    } else {
+      // Owner: refresh status pasangan terkini
+      const { data } = await supabase.from('wedding_data')
+        .select('partner_email').eq('user_id', user.value.id).maybeSingle()
+      if (data) partnerEmail.value = data.partner_email || ''
+    }
   }
 
   async function _processPendingInvite() {
@@ -796,6 +836,13 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   async function initAuth() {
     let initialDone = false
+    // Saat app kembali ke depan, sinkronkan status kemitraan dgn DB.
+    // Menutup celah realtime: partner yg dikeluarkan tak dpt event (RLS),
+    // jadi cek ulang di sini biar statusnya ikut update tanpa perlu refresh.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') revalidateMembership()
+    })
+    window.addEventListener('focus', () => revalidateMembership())
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'INITIAL_SESSION') {
         try {
@@ -883,7 +930,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     initAuth, signInWithGoogle, signOut,
     // partner
     ownerUserId, isPartner, partnerEmail, ownerEmail,
-    sendPartnerInvite, cancelPartnerInvite, acceptPartnerInvite, removePartner, leavePartnership,
+    sendPartnerInvite, cancelPartnerInvite, acceptPartnerInvite, removePartner, leavePartnership, revalidateMembership,
     // onboarding
     couple, onboarded, beginOnboarding, startOnboarding, completeOnboarding,
     showWelcomeGuide, dismissWelcomeGuide, tourSidebarOpen, tourSteps, startTour,
