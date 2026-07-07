@@ -7,6 +7,7 @@
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" fill="#B32E33" stroke="#B32E33" stroke-width="1.5" stroke-linejoin="round"/>
         </svg>
         <div class="auth-loading-dot"></div>
+        <div class="auth-loading-hint">Menghubungkan ke server…</div>
       </div>
     </div>
 
@@ -273,6 +274,13 @@ onMounted(() => {
 @keyframes loadpulse {
   0%, 100% { opacity: .3; transform: scale(.8); }
   50%       { opacity: 1;  transform: scale(1.2); }
+}
+.auth-loading-hint {
+  font-family: 'Jost', sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+  animation: loadpulse 2s ease-in-out infinite;
 }
 
 .app-user {
