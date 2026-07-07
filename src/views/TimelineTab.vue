@@ -40,6 +40,7 @@
 
     <!-- Web: tabel -->
     <div v-else class="card table-card">
+      <div class="table-scroll">
       <div class="tl-head">
         <div>No</div><div>Tugas</div>
         <div class="ld">Deadline</div>
@@ -47,7 +48,7 @@
         <div class="lp">P.Jawab</div>
         <div class="lf">Tgl Selesai</div>
         <div class="lc">Catatan</div>
-        <div></div>
+        <div class="tl-act"></div>
       </div>
 
       <div v-if="!rows.length" class="empty">
@@ -118,6 +119,7 @@
           </div>
         </div>
       </template>
+      </div>
     </div>
   </section>
 </template>
