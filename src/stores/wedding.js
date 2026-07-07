@@ -797,25 +797,35 @@ export const useWeddingStore = defineStore('wedding', () => {
   async function initAuth() {
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'INITIAL_SESSION') {
-        if (session?.user) {
-          user.value = session.user
-          await loadProfile(session.user.id)
-          await loadData(session.user.id)
-          subscribeRealtime(session.user.id)
-          await _processPendingInvite()
+        try {
+          if (session?.user) {
+            user.value = session.user
+            await loadProfile(session.user.id)
+            await loadData(session.user.id)
+            subscribeRealtime(session.user.id)
+            await _processPendingInvite()
+          }
+        } catch (e) {
+          console.error('[initAuth] INITIAL_SESSION error:', e)
+        } finally {
+          loading.value = false
         }
-        loading.value = false
         return
       }
       if (event === 'SIGNED_IN' && session?.user) {
         if (user.value?.id === session.user.id) return
         loading.value = true
-        user.value = session.user
-        await loadProfile(session.user.id)
-        await loadData(session.user.id)
-        subscribeRealtime(session.user.id)
-        await _processPendingInvite()
-        loading.value = false
+        try {
+          user.value = session.user
+          await loadProfile(session.user.id)
+          await loadData(session.user.id)
+          subscribeRealtime(session.user.id)
+          await _processPendingInvite()
+        } catch (e) {
+          console.error('[initAuth] SIGNED_IN error:', e)
+        } finally {
+          loading.value = false
+        }
       } else if (event === 'SIGNED_OUT') {
         user.value = null
         profile.value = null
