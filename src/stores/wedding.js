@@ -776,11 +776,11 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   async function leavePartnership() {
     if (!isPartner.value || !ownerUserId.value) return
-    // Best-effort: lepaskan diri dari row owner. Kalau owner sudah menghapus
-    // duluan, update ini no-op — tak apa, kita tetap reset diri sendiri.
-    await supabase.from('wedding_data').update({
-      partner_user_id: null, partner_email: null,
-    }).eq('user_id', ownerUserId.value)
+    // Lewat RPC security-definer: partner tak punya izin RLS utk mengubah
+    // kolom kepemilikan langsung. Kalau owner sudah menghapus duluan,
+    // RPC no-op — tak apa, kita tetap reset diri sendiri.
+    const { error } = await supabase.rpc('leave_partnership')
+    if (error) { toast('Gagal keluar, coba lagi'); return }
     isPartner.value    = false
     ownerUserId.value  = user.value.id
     partnerEmail.value = ''
