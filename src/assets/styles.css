@@ -1324,7 +1324,7 @@ input:checked + .slider:before { transform: translateX(14px); }
 /* ── Vue App Header ── */
 .app-header {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 14px 24px;
@@ -1334,10 +1334,7 @@ input:checked + .slider:before { transform: translateX(14px); }
   position: sticky;
   top: 0;
   z-index: 100;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-.app-header::-webkit-scrollbar { display: none; }
 .app-brand {
   display: flex;
   align-items: center;
@@ -1349,9 +1346,93 @@ input:checked + .slider:before { transform: translateX(14px); }
   white-space: nowrap;
   justify-self: start;
 }
-.tabs-nav { justify-self: center; display: flex; justify-content: center; }
-.app-header .tabs { margin: 0; }
-.app-actions { display: flex; gap: 8px; justify-self: end; }
+.tabs-nav {
+  justify-self: stretch;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  position: relative;
+}
+.app-header .tabs {
+  margin: 0;
+  overflow: visible;
+  max-width: none;
+}
+.app-actions { display: flex; align-items: center; gap: 10px; justify-self: end; }
+
+/* ── Tombol/menu "Lainnya" untuk tab yang tidak muat ── */
+.tab-more { position: relative; flex: none; }
+.tab-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tab-more-btn svg { transition: transform .2s; }
+
+/* ── Menu kebab aksi (Panduan/Ekspor/Impor/Keluar) ── */
+.act-menu { position: relative; }
+.act-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  color: var(--muted);
+}
+.act-menu-btn.open, .act-menu-btn:hover { color: var(--plum); border-color: var(--gold); }
+
+/* ── Dropdown bersama ── */
+.pop-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  min-width: 180px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(60, 12, 20, .16);
+  padding: 6px;
+  z-index: 200;
+  animation: popfade .14s ease;
+}
+.tab-more-menu { left: 0; }
+.act-menu-pop  { right: 0; }
+@keyframes popfade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; }
+}
+.pop-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-family: 'Jost', sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink, #3a2530);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.pop-item svg { flex: none; color: var(--muted); }
+.pop-item:hover { background: var(--rose-soft); color: var(--plum); }
+.pop-item:hover svg { color: var(--plum); }
+.pop-item.active { background: var(--plum); color: #fff; }
+.pop-item.active svg { color: #fff; }
+.pop-item.danger { color: var(--rose); }
+.pop-item.danger svg { color: var(--rose); }
+.pop-item.danger:hover { background: var(--rose-soft); color: var(--wine); }
+.pop-sep { height: 1px; background: var(--line); margin: 5px 8px; }
+
+@media (max-width: 720px) {
+  .app-brand span { display: none; }
+}
 
 /* ── Budget summary bar ── */
 .b-summary {

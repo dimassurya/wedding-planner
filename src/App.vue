@@ -23,10 +23,10 @@
           <span>Wedding Planner</span>
         </div>
 
-        <nav class="tabs-nav">
+        <nav class="tabs-nav" ref="tabsNav">
           <div class="tabs" ref="tabBar" @dragover.prevent="onTabBarDragOver">
             <button
-              v-for="tab in orderedTabs"
+              v-for="tab in visibleTabs"
               :key="tab.tab"
               class="tab"
               :class="{ active: store.activeTab === tab.tab }"
@@ -37,27 +37,59 @@
               @dragend="onTabDragEnd"
             >{{ tab.label }}</button>
           </div>
+
+          <!-- Tab yang tidak muat dipindah ke sini -->
+          <div v-if="overflowTabs.length" class="tab-more" ref="moreWrap">
+            <button class="tab tab-more-btn" :class="{ active: overflowActive }" @click="showMoreMenu = !showMoreMenu">
+              Lainnya
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" :style="{ transform: showMoreMenu ? 'rotate(180deg)' : '' }"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div v-if="showMoreMenu" class="pop-menu tab-more-menu">
+              <button
+                v-for="tab in overflowTabs"
+                :key="tab.tab"
+                class="pop-item"
+                :class="{ active: store.activeTab === tab.tab }"
+                @click="switchTab(tab.tab); showMoreMenu = false"
+              >{{ tab.label }}</button>
+            </div>
+          </div>
         </nav>
 
         <div class="app-actions">
-          <button class="icon-btn tour-trigger" @click="store.startTour()" title="Panduan aplikasi">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .83c0 1.67-2.5 2.5-2.5 2.5"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>
-            Panduan
-          </button>
-          <button v-if="canInstall" class="icon-btn install-btn" @click="install" title="Install aplikasi">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
-            Install
-          </button>
-          <button class="icon-btn" @click="store.exportAll()">Ekspor</button>
-          <button class="icon-btn" @click="importAllRef?.click()">Impor</button>
-          <input ref="importAllRef" type="file" accept=".json" hidden @change="onImportAll">
           <div class="app-user">
             <img v-if="userAvatar" :src="userAvatar" class="user-avatar" :alt="userName" :title="store.user?.email">
             <span v-else class="user-initial" :title="store.user?.email">{{ userName?.[0]?.toUpperCase() }}</span>
-            <button class="icon-btn user-signout" @click="store.signOut()" title="Keluar">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-            </button>
           </div>
+          <div class="act-menu" ref="actMenu">
+            <button class="icon-btn act-menu-btn" :class="{ open: showActMenu }" @click="showActMenu = !showActMenu" title="Menu">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+            </button>
+            <div v-if="showActMenu" class="pop-menu act-menu-pop">
+              <button class="pop-item" @click="store.startTour(); showActMenu = false">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .83c0 1.67-2.5 2.5-2.5 2.5"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>
+                Panduan
+              </button>
+              <button v-if="canInstall" class="pop-item" @click="install(); showActMenu = false">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
+                Install aplikasi
+              </button>
+              <button class="pop-item" @click="store.exportAll(); showActMenu = false">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
+                Ekspor data
+              </button>
+              <button class="pop-item" @click="importAllRef?.click(); showActMenu = false">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 16V3M8 7l4-4 4 4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
+                Impor data
+              </button>
+              <div class="pop-sep"></div>
+              <button class="pop-item danger" @click="store.signOut()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                Keluar
+              </button>
+            </div>
+          </div>
+          <input ref="importAllRef" type="file" accept=".json" hidden @change="onImportAll">
         </div>
       </header>
 
@@ -107,7 +139,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useWeddingStore } from './stores/wedding'
 import { WP_TABS } from './data/constants'
 import { useInstallPWA } from './composables/useInstallPWA'
@@ -138,8 +170,14 @@ import MobileSidebar   from './mobile layout/MobileSidebar.vue'
 const store        = useWeddingStore()
 const { canInstall, install } = useInstallPWA() // desktop header only
 const tabBar       = ref(null)
+const tabsNav      = ref(null)
+const moreWrap     = ref(null)
+const actMenu      = ref(null)
 const importAllRef = ref(null)
 const showBulk     = ref(false)
+const showMoreMenu = ref(false)
+const showActMenu  = ref(false)
+const visibleCount = ref(WP_TABS.length)
 
 const isMobile       = useIsMobile()
 const mobileMenuOpen = ref(false)
@@ -161,6 +199,39 @@ const orderedTabs = computed(() => {
   const rest  = WP_TABS.filter(t => !order.includes(t.tab))
   return [...known, ...rest]
 })
+
+// Tab yang muat vs yang dipindah ke menu "Lainnya" (dihitung dari lebar header)
+const visibleTabs    = computed(() => orderedTabs.value.slice(0, visibleCount.value))
+const overflowTabs   = computed(() => orderedTabs.value.slice(visibleCount.value))
+const overflowActive = computed(() => overflowTabs.value.some(t => t.tab === store.activeTab))
+
+// Lebar tiap tab (px), diukur dari DOM. Dipakai untuk hitung berapa yang muat.
+let tabWidths = []
+
+async function measureTabs() {
+  if (isMobile.value || !store.onboarded) return
+  visibleCount.value = orderedTabs.value.length   // tampilkan semua dulu utk diukur
+  await nextTick()
+  if (!tabBar.value) return
+  const gap = 6
+  tabWidths = [...tabBar.value.querySelectorAll('.tab')]
+    .map(el => el.getBoundingClientRect().width + gap)
+  recompute()
+}
+
+function recompute() {
+  if (!tabsNav.value || !tabWidths.length) return
+  const navW = tabsNav.value.clientWidth
+  const PILL = 18    // padding + border pill .tabs
+  const MORE = 112   // ruang tombol "Lainnya"
+  const total = tabWidths.reduce((a, b) => a + b, 0) + PILL
+  if (total <= navW) { visibleCount.value = tabWidths.length; return }
+  let used = PILL + MORE, count = 0
+  for (const w of tabWidths) {
+    if (used + w <= navW) { used += w; count++ } else break
+  }
+  visibleCount.value = Math.max(count, 1)
+}
 
 function switchTab(tab) {
   if (tabJustDragged) return
@@ -194,8 +265,10 @@ function onTabDragEnd(e) {
   e.currentTarget?.classList.remove('dragging')
   tabBar.value?.classList.remove('reordering')
   if (tabBar.value) {
-    const order = [...tabBar.value.querySelectorAll('.tab')].map(t => t.dataset.tab)
-    store.saveTabOrder(order)
+    // Gabung urutan tab yg terlihat (dari DOM) + tab di menu "Lainnya" (di akhir)
+    const visibleOrder  = [...tabBar.value.querySelectorAll('.tab')].map(t => t.dataset.tab).filter(Boolean)
+    const overflowOrder = overflowTabs.value.map(t => t.tab)
+    store.saveTabOrder([...visibleOrder, ...overflowOrder])
   }
   dragTabId = null
   tabJustDragged = true
@@ -208,6 +281,25 @@ function onImportAll(e) {
   e.target.value = ''
 }
 
+let _ro = null
+
+function onDocClick(e) {
+  if (showMoreMenu.value && moreWrap.value && !moreWrap.value.contains(e.target)) showMoreMenu.value = false
+  if (showActMenu.value && actMenu.value && !actMenu.value.contains(e.target)) showActMenu.value = false
+}
+
+// Re-observe & ukur ulang tiap header muncul (mis. pindah dari mobile ke desktop)
+watch(() => store.onboarded && !isMobile.value, ok => {
+  if (!ok) { _ro?.disconnect(); return }
+  nextTick(() => {
+    measureTabs()
+    if (_ro && tabsNav.value) _ro.observe(tabsNav.value)
+  })
+}, { immediate: true })
+
+// Susunan tab berubah (reorder) → ukur ulang
+watch(orderedTabs, () => nextTick(measureTabs))
+
 onMounted(() => {
   // Simpan token invite dari URL sebelum OAuth redirect membersihkannya
   const inviteToken = new URLSearchParams(window.location.search).get('invite')
@@ -218,8 +310,21 @@ onMounted(() => {
 
   store.initAuth()
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { store.clearSelected(); showBulk.value = false }
+    if (e.key === 'Escape') {
+      store.clearSelected()
+      showBulk.value = false
+      showMoreMenu.value = false
+      showActMenu.value = false
+    }
   })
+
+  // Tutup dropdown header saat klik di luar
+  document.addEventListener('click', onDocClick)
+
+  // Hitung ulang overflow tab saat lebar header berubah
+  _ro = new ResizeObserver(() => recompute())
+  measureTabs()
+  document.fonts?.ready.then(() => measureTabs())
 
   // PWA back button: track tab navigation in browser history
   history.replaceState({ tab: store.activeTab }, '')
@@ -242,6 +347,11 @@ onMounted(() => {
       history.replaceState({ tab: store.activeTab }, '')
     }
   })
+})
+
+onBeforeUnmount(() => {
+  _ro?.disconnect()
+  document.removeEventListener('click', onDocClick)
 })
 </script>
 
