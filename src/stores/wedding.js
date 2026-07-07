@@ -643,8 +643,8 @@ export const useWeddingStore = defineStore('wedding', () => {
   async function loadData(userId) {
     // Cek partner dulu — kalau user ini terdaftar sebagai partner di akun lain,
     // prioritaskan data bersama meski user ini punya data sendiri.
-    const { data: pData } = await supabase.from('wedding_data')
-      .select('*').eq('partner_user_id', userId).maybeSingle()
+    const { data: pData } = await withTimeout(supabase.from('wedding_data')
+      .select('*').eq('partner_user_id', userId).maybeSingle())
 
     if (pData) {
       ownerUserId.value  = pData.user_id
@@ -655,7 +655,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     }
 
     // Coba load sebagai owner
-    const { data } = await supabase.from('wedding_data').select('*').eq('user_id', userId).maybeSingle()
+    const { data } = await withTimeout(supabase.from('wedding_data').select('*').eq('user_id', userId).maybeSingle())
 
     if (data) {
       ownerUserId.value  = userId
@@ -789,8 +789,12 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   // ── Auth ───────────────────────────────────────────────────────────
+  function withTimeout(promise, ms = 12000) {
+    return Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))])
+  }
+
   async function loadProfile(id) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', id).single()
+    const { data } = await withTimeout(supabase.from('profiles').select('*').eq('id', id).single())
     profile.value = data
   }
 
