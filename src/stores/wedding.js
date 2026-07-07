@@ -790,12 +790,18 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   // ── Auth ───────────────────────────────────────────────────────────
   async function loadProfile(id) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', id).single()
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('loadProfile timeout')), 10000))
+    const { data } = await Promise.race([
+      supabase.from('profiles').select('*').eq('id', id).single(),
+      timeout,
+    ])
     profile.value = data
   }
 
   async function initAuth() {
+    console.log('[auth] initAuth called')
     supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[auth] event:', event, 'user:', session?.user?.email ?? null)
       if (event === 'INITIAL_SESSION') {
         try {
           if (session?.user) {
