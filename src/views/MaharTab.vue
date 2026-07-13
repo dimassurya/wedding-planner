@@ -133,9 +133,9 @@ function toggleAll(e) {
 }
 
 async function addItem() {
-  const id = Date.now()
-  store.mahar.push({ id, item: '', status: false, harga: 0 })
-  store.saveM()
+  const row = await store.addMaharItem()
+  if (!row) return
+  const id = row.id
   // Mobile: langsung buka popup edit untuk item baru
   if (isMobile.value) { mobileEditId.value = id; return }
   await nextTick()

@@ -134,7 +134,7 @@ function onHarga(e) {
   form.value.harga = num(e.target.value)
 }
 
-function save() {
+async function save() {
   if (!form.value.nama.trim()) return
   const vData = { ...form.value, nama: form.value.nama.trim(), alamat: form.value.alamat.trim(), hp: form.value.hp.trim(), email: form.value.email.trim(), website: form.value.website.trim(), deskripsi: form.value.deskripsi.trim(), harga: form.value.harga }
   if (props.editId) {
@@ -144,11 +144,12 @@ function save() {
       store.vendors[idx] = { ...vData, id: old.id, jadi: old.jadi }
       if (vData.jadi) store.handleVendorDecision(store.vendors[idx], true)
     }
+    store.saveV()
   } else {
-    const id = store.vendors.length ? Math.max(...store.vendors.map(x => x.id)) + 1 : 1
-    store.vendors.push({ ...vData, id, jadi: false })
+    // PK vendors di-generate server — insert dulu & tunggu id aslinya balik
+    const row = await store.addVendor(vData)
+    if (!row) return
   }
-  store.saveV()
   store.toast(props.editId ? 'Vendor disimpan' : 'Vendor ditambahkan')
   emit('close')
 }

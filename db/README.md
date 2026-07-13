@@ -41,23 +41,44 @@ folder ini **berurutan** lewat Supabase Dashboard → SQL Editor (atau
    sebelum dihapus", bukan seluruh kolom. INSERT/UPDATE tidak kena
    masalah ini karena data barunya selalu lengkap.
 
+10. `010_wave2_schema.sql` — Wave 2 migrasi normalisasi: tabel `vendors`,
+    `budget_items`, `seserahan_items`, `mahar_items`. Dimigrasi bareng
+    (bukan satu-satu) karena saling terkait — seserahan/mahar nyinkron
+    otomatis ke budget, dan `budget_items."vendorId"` adalah FK ke
+    `vendors`. Kolom sentinel lama (`id === 'seserahan_auto'`/`'mahar_auto'`)
+    diganti kolom `"originType"` eksplisit, karena id sekarang selalu
+    numerik asli dari server (tidak bisa lagi dobel fungsi sebagai
+    penanda + id unik).
+11. `011_wave2_rls.sql` — RLS untuk keempat tabel di atas, pola sama
+    seperti `005_wave1_rls.sql`.
+12. `012_wave2_backfill.sql` — pindahkan data lama dari kolom JSONB ke
+    tabel baru. **Urutan di dalam file ini penting: vendors harus masuk
+    duluan** (budget_items."vendorId" di-resolve lewat join ke
+    vendors.legacy_id). **Sebelum menjalankan ini di database production,
+    export data lewat tombol Ekspor di aplikasi dan simpan sebagai
+    cadangan.**
+13. `013_wave2_realtime.sql` — daftarkan keempat tabel ke publication
+    `supabase_realtime` + set `replica identity full`. **Wajib
+    dijalankan** (sama seperti `008`+`009` di Wave 1, digabung jadi satu
+    file di sini).
+
 Semua file idempoten (aman dijalankan ulang) — policy/fungsi lama dibersihkan
 dulu sebelum dibuat ulang, tabel pakai `create table if not exists`.
 
-**Catatan buat Wave 2/3 nanti:** setiap tabel baru butuh KETIGA hal ini,
-bukan cuma create table + RLS — kelewat salah satu bikin realtime
-setengah jalan seperti yang kejadian di Wave 1:
-1. Daftarkan ke publication `supabase_realtime` (pola `008`).
-2. Set `replica identity full` (pola `009`) — supaya event DELETE bisa
-   difilter dengan benar.
-3. RLS policy (pola `005`).
+**Checklist wajib tiap tabel baru** (pelajaran dari Wave 1, diterapkan
+dari awal di Wave 2 — jangan sampai balik nemuin bug ini satu-satu lagi):
+1. RLS policy (pola `005`/`011`).
+2. Daftarkan ke publication `supabase_realtime` (pola `008`/`013`).
+3. Set `replica identity full` (pola `009`/`013`) — supaya event DELETE
+   bisa difilter dengan benar (tanpa ini DELETE nggak pernah realtime).
 
-**Migrasi bertahap sedang berjalan:** `wedding_data` masih menyimpan
-`budget`/`vendors`/`seserahan`/`mahar`/`admin`/`checklist` sebagai kolom
-JSONB (belum dinormalisasi — itu Wave 2 & 3 di masa depan). Kolom
-`wedding_data.guests`/`wedding_data.timeline` yang lama SENGAJA tidak
-dihapus setelah Wave 1 — dibiarkan sebagai jaring pengaman rollback,
-tidak lagi dibaca/ditulis oleh kode aplikasi.
+**Migrasi bertahap sedang berjalan:** setelah Wave 2, `wedding_data`
+tinggal menyimpan `admin`/`checklist`/`settings` sebagai kolom JSONB
+(admin/checklist itu Wave 3 — struktur nested grup→item, paling
+kompleks). Kolom lama (`guests`/`timeline`/`budget`/`vendors`/
+`seserahan`/`mahar`) SENGAJA tidak dihapus dari `wedding_data` —
+dibiarkan sebagai jaring pengaman rollback, tidak lagi dibaca/ditulis
+oleh kode aplikasi.
 
 **Belum ada di sini:** integrasi pembayaran (Stripe dkk). `profiles.paid_at`
 sengaja tidak punya policy UPDATE untuk client (lihat komentar di

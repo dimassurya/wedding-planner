@@ -217,7 +217,8 @@ function toggleAll(e) {
 }
 
 async function addItem() {
-  const id = store.addBudgetItem()
+  const id = await store.addBudgetItem()
+  if (!id) return
   newItemId.value = id
   // Mobile: langsung buka detail untuk item baru
   if (isMobile.value) {

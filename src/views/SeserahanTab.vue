@@ -154,9 +154,9 @@ function toggleAll(e) {
 }
 
 async function addItem() {
-  const id = Date.now()
-  store.seserahan.push({ id, item: '', status: false, budget: 0, harga: 0, link: '' })
-  store.saveS()
+  const row = await store.addSeserahanItem()
+  if (!row) return
+  const id = row.id
   // Mobile: langsung buka popup edit untuk item baru
   if (isMobile.value) { mobileEditId.value = id; return }
   await nextTick()
