@@ -111,14 +111,8 @@
           <span class="t-konf-lbl">{{ isConf(g) ? 'Dikonfirmasi' : 'Belum' }}</span>
         </div>
         <div class="t-actions">
-          <button class="act" @click="store.duplicateGuest(g.id)" title="Duplikasi tamu">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#0A1D4B" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
-          <button class="act" @click="openEdit(g.id)" title="Edit">
+          <button class="act item-action-btn" @click="openEdit(g.id)" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6E151A" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
-          </button>
-          <button class="act del" @click="store.delGuest(g.id)" title="Hapus">
-            <svg viewBox="0 0 24 24" fill="none" stroke="#B32E33" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
           </button>
         </div>
       </div>
@@ -130,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { META, ORDER } from '../data/constants'
 import SwitchToggle from '../components/SwitchToggle.vue'
@@ -141,6 +135,11 @@ import TourBtn from '../components/TourBtn.vue'
 
 const store = useWeddingStore()
 const isMobile = useIsMobile()
+
+// Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
+watch(() => store.quickAddNonce, () => {
+  if (store.quickAddTarget === 'tamu') openAdd()
+})
 
 const TAMU_STEPS = computed(() => [
   {

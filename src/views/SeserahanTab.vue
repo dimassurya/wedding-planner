@@ -66,12 +66,12 @@
         </div>
         <div class="s-link">
           <input type="text" :value="s.link" placeholder="https://..." @change="e => onText(s, 'link', e.target.value)">
-          <button class="icon-btn" :disabled="!s.link" :style="{ opacity: s.link ? 1 : 0.5 }" @click="openLink(s.link)" title="Buka Link">
+          <button class="icon-btn item-action-btn" :disabled="!s.link" :style="{ opacity: s.link ? 1 : 0.5 }" @click="openLink(s.link)" title="Buka Link">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
           </button>
         </div>
         <div class="s-actions r">
-          <button class="icon-btn" @click="delItem(s)" title="Hapus">
+          <button class="icon-btn item-action-btn del" @click="delItem(s)" title="Hapus">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -83,7 +83,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { fmt, grp, num, openLink } from '../utils/index'
 import SwitchToggle from '../components/SwitchToggle.vue'
@@ -95,6 +95,11 @@ const store        = useWeddingStore()
 const importRef    = ref(null)
 const isMobile     = useIsMobile()
 const mobileEditId = ref(null)
+
+// Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
+watch(() => store.quickAddNonce, () => {
+  if (store.quickAddTarget === 'seserahan') addItem()
+})
 
 const SESERAHAN_STEPS = computed(() => [
   {

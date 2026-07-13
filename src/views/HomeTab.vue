@@ -15,6 +15,56 @@
       <TourBtn :steps="HOME_STEPS" class="hm-tour-corner" />
     </div>
 
+    <!-- Partner Section -->
+    <div class="hm-partner-banner" @click="showPartnerCard = true">
+      <div class="hm-partner-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+      </div>
+      <div class="hm-partner-text">
+        <div class="hm-partner-title">
+          {{ store.isPartner ? 'Dashboard Bersama' : store.partnerEmail ? 'Pasangan Aktif' : 'Kolaborasi Pasangan' }}
+        </div>
+        <div class="hm-partner-desc">
+          {{
+            store.isPartner
+              ? `Diundang oleh ${store.ownerEmail || 'pemilik'}`
+              : store.partnerEmail
+                ? `Terhubung dengan ${store.partnerEmail}`
+                : 'Rencanakan pernikahan bersama pasanganmu'
+          }}
+        </div>
+      </div>
+      <div class="hm-partner-arrow">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Actionable insights -->
+    <div class="hm-alerts">
+      <button
+        v-for="a in alerts" :key="a.id"
+        class="hm-alert" :class="'hm-alert-' + a.severity"
+        @click="a.action?.()"
+      >
+        <span class="hm-alert-ico">{{ a.icon }}</span>
+        <span class="hm-alert-body">
+          <span class="hm-alert-title">{{ a.title }}</span>
+          <span class="hm-alert-desc">{{ a.desc }}</span>
+        </span>
+        <span class="hm-alert-cta">
+          {{ a.cta }}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+        </span>
+      </button>
+      <div v-if="!alerts.length" class="hm-alert-empty">
+        <span>✅</span> Aman, belum ada hal mendesak.
+      </div>
+    </div>
+
     <!-- Metrics -->
     <div class="hm-metrics">
       <div class="hm-metric">
@@ -120,19 +170,42 @@
         </div>
       </div>
     </div>
+
+    <!-- Partner Card Modal -->
+    <AddPartnerCard v-if="showPartnerCard" @close="showPartnerCard = false" />
   </section>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { fmt, fmtDate } from '../utils/index'
 import { META, WEDDING_DATE } from '../data/constants'
 import { useIsMobile } from '../mobile layout/useIsMobile'
+import { useReminderNotifications } from '../composables/useReminderNotifications'
 import TourBtn from '../components/TourBtn.vue'
+import AddPartnerCard from '../components/AddPartnerCard.vue'
 
 const store = useWeddingStore()
 const isMobile = useIsMobile()
+const showPartnerCard = ref(false)
+
+const { supported: notifSupported, permission: notifPermission, requestPermission } = useReminderNotifications()
+
+async function enableReminders() {
+  if (!notifSupported.value) { store.toast('Browser ini tidak mendukung notifikasi'); return }
+  if (notifPermission.value === 'denied') {
+    store.toast('Notifikasi diblokir. Izinkan lewat pengaturan situs di browser.')
+    return
+  }
+  const result = await requestPermission()
+  if (result === 'granted') {
+    store.saveReminderSettings({ enabled: true })
+    store.toast('Pengingat deadline diaktifkan')
+  } else if (result === 'denied') {
+    store.toast('Izin notifikasi ditolak')
+  }
+}
 
 const HOME_STEPS = computed(() => [
   {
@@ -140,6 +213,12 @@ const HOME_STEPS = computed(() => [
     icon: '📅',
     title: 'Hitung Mundur',
     desc: 'Sisa hari menuju hari pernikahan ada di sebelah kanan. Informasi nama pasangan, tanggal, dan waktu acara bisa diatur dari menu Pengaturan (ikon gear di header).',
+  },
+  {
+    selector: '#panel-home .hm-partner-banner',
+    icon: '💑',
+    title: 'Kolaborasi Pasangan',
+    desc: 'Undang pasanganmu untuk mengedit data bersama secara real-time. Klik banner ini untuk mengirim undangan atau kelola akses pasangan.',
   },
   {
     selector: '#panel-home .hm-metrics',
@@ -254,6 +333,163 @@ const daysLeft = date => {
   return Math.round((d - t) / 86400000)
 }
 
+// ── Actionable insights ─────────────────────────────────────────────
+function summarize(items, getLabel, max = 2) {
+  const names = items.slice(0, max).map(getLabel)
+  const rest  = items.length - names.length
+  return names.join(', ') + (rest > 0 ? `, +${rest} lainnya` : '')
+}
+
+function goBudget(items) {
+  store.activeTab = 'budget'
+  const keys = new Set(items.map(b => store.bStatus(b).key))
+  store.bFilter = keys.size === 1 ? [...keys][0] : 'all'
+}
+
+const alerts = computed(() => {
+  const list = []
+
+  const budgetOverdue = store.budget.filter(b => b.jatuhTempo && store.bStatus(b).key !== 'lunas' && daysLeft(b.jatuhTempo) < 0)
+  if (budgetOverdue.length) {
+    list.push({
+      id: 'budget-overdue', severity: 'danger', icon: '⚠️',
+      title: `${budgetOverdue.length} pembayaran lewat jatuh tempo`,
+      desc: summarize(budgetOverdue, b => b.item || 'Item'),
+      cta: 'Lihat Budget', action: () => goBudget(budgetOverdue),
+    })
+  }
+
+  const budgetSoon = store.budget.filter(b => b.jatuhTempo && store.bStatus(b).key !== 'lunas' && daysLeft(b.jatuhTempo) >= 0 && daysLeft(b.jatuhTempo) <= 7)
+  if (budgetSoon.length) {
+    list.push({
+      id: 'budget-soon', severity: 'warning', icon: '⏰',
+      title: `${budgetSoon.length} pembayaran jatuh tempo minggu ini`,
+      desc: summarize(budgetSoon, b => b.item || 'Item'),
+      cta: 'Lihat Budget', action: () => goBudget(budgetSoon),
+    })
+  }
+
+  const tlOverdue = store.timeline.filter(t => t.deadline && t.status !== 'selesai' && daysLeft(t.deadline) < 0)
+  if (tlOverdue.length) {
+    list.push({
+      id: 'timeline-overdue', severity: 'danger', icon: '🚨',
+      title: `${tlOverdue.length} tugas timeline terlambat`,
+      desc: summarize(tlOverdue, t => t.tugas || 'Tugas'),
+      cta: 'Lihat Timeline', action: () => { store.activeTab = 'timeline' },
+    })
+  }
+
+  const tlSoon = store.timeline.filter(t => t.deadline && t.status !== 'selesai' && daysLeft(t.deadline) >= 0 && daysLeft(t.deadline) <= 7)
+  if (tlSoon.length) {
+    list.push({
+      id: 'timeline-soon', severity: 'warning', icon: '📅',
+      title: `${tlSoon.length} tugas timeline deadline minggu ini`,
+      desc: summarize(tlSoon, t => t.tugas || 'Tugas'),
+      cta: 'Lihat Timeline', action: () => { store.activeTab = 'timeline' },
+    })
+  }
+
+  // Belum dibayar tapi tidak punya jatuh tempo — tidak ke-cover 2 alert di atas
+  const budgetUnpaidNoDate = store.budget.filter(b => store.bStatus(b).key !== 'lunas' && (b.aktual || 0) > 0 && !b.jatuhTempo)
+  if (budgetUnpaidNoDate.length) {
+    list.push({
+      id: 'budget-unpaid-nodate', severity: 'info', icon: '💰',
+      title: `${budgetUnpaidNoDate.length} item budget belum dibayar`,
+      desc: `Total sisa ${fmt(budgetUnpaidNoDate.reduce((s, b) => s + store.bSisa(b), 0))} — belum ada jatuh tempo diisi.`,
+      cta: 'Lihat Budget', action: () => goBudget(budgetUnpaidNoDate),
+    })
+  }
+
+  const unconfirmed = store.guests.filter(g => g.konfirmasi === false)
+  if (unconfirmed.length) {
+    list.push({
+      id: 'tamu-unconfirmed', severity: 'info', icon: '👥',
+      title: `${unconfirmed.length} tamu belum dikonfirmasi`,
+      desc: 'Follow up konfirmasi kehadiran biar data makin akurat.',
+      cta: 'Lihat Tamu', action: () => { store.activeTab = 'tamu' },
+    })
+  }
+
+  if (tEst.value > 0 && tAkt.value > tEst.value) {
+    list.push({
+      id: 'budget-overspent', severity: 'warning', icon: '💸',
+      title: 'Anggaran aktual melebihi estimasi',
+      desc: `Aktual ${fmt(tAkt.value)} vs estimasi ${fmt(tEst.value)} — selisih ${fmt(tAkt.value - tEst.value)}.`,
+      cta: 'Lihat Budget', action: () => { store.activeTab = 'budget'; store.bFilter = 'all' },
+    })
+  }
+
+  if (store.vendors.length > 0 && vJadi.value === 0) {
+    list.push({
+      id: 'vendor-undecided', severity: 'info', icon: '🤝',
+      title: 'Belum ada vendor yang diputuskan',
+      desc: `${store.vendors.length} kandidat vendor menunggu keputusan.`,
+      cta: 'Lihat Vendor', action: () => { store.activeTab = 'vendor' },
+    })
+  }
+
+  const maharPending = store.mahar.filter(m => !m.status)
+  if (maharPending.length) {
+    list.push({
+      id: 'mahar-pending', severity: 'info', icon: '💍',
+      title: `${maharPending.length} item mahar belum disiapkan`,
+      desc: summarize(maharPending, m => m.item || 'Item'),
+      cta: 'Lihat Mahar', action: () => { store.activeTab = 'mahar' },
+    })
+  }
+
+  const seserahanPending = store.seserahan.filter(s => !s.status)
+  if (seserahanPending.length) {
+    list.push({
+      id: 'seserahan-pending', severity: 'info', icon: '🎁',
+      title: `${seserahanPending.length} item seserahan belum dibeli`,
+      desc: summarize(seserahanPending, s => s.item || 'Item'),
+      cta: 'Lihat Seserahan', action: () => { store.activeTab = 'seserahan' },
+    })
+  }
+
+  const adminPending = []
+  store.admin.forEach(g => (g.items || []).forEach(it => { if (!it.status) adminPending.push(it) }))
+  if (adminPending.length) {
+    list.push({
+      id: 'admin-pending', severity: 'info', icon: '📄',
+      title: `${adminPending.length} syarat dokumen nikah belum lengkap`,
+      desc: summarize(adminPending, it => it.syarat || 'Syarat'),
+      cta: 'Lihat Dokumen Nikah', action: () => { store.activeTab = 'admin' },
+    })
+  }
+
+  const checklistPending = []
+  store.checklist.forEach(g => (g.items || []).forEach(it => { if (!it.status) checklistPending.push(it) }))
+  if (checklistPending.length) {
+    list.push({
+      id: 'checklist-pending', severity: 'info', icon: '✅',
+      title: `${checklistPending.length} tugas checklist belum selesai`,
+      desc: summarize(checklistPending, it => it.tugas || 'Tugas'),
+      cta: 'Lihat Checklist', action: () => { store.activeTab = 'checklist' },
+    })
+  }
+
+  const order = { danger: 0, warning: 1, info: 2 }
+  const sorted = list.sort((a, b) => order[a.severity] - order[b.severity]).slice(0, 5)
+
+  // Ajakan aktifkan reminder ditampilkan terpisah dari alert data, selalu ikut
+  // tampil selama belum diaktifkan (tidak ikut terpotong slice 5 di atas).
+  if (!store.reminders?.enabled) {
+    sorted.push({
+      id: 'reminder-setup', severity: 'info', icon: '🔔',
+      title: 'Aktifkan pengingat deadline',
+      desc: notifPermission.value === 'denied'
+        ? 'Browser memblokir notifikasi. Izinkan lewat pengaturan browser untuk mengaktifkan.'
+        : 'Dapatkan notifikasi saat pembayaran atau tugas mendekati deadline.',
+      cta: notifPermission.value === 'denied' ? 'Diblokir' : 'Aktifkan',
+      action: enableReminders,
+    })
+  }
+
+  return sorted
+})
+
 function donutArcs(segments, top, bottom) {
   const cx = 80, cy = 80, r = 58, sw = 20, C = 2 * Math.PI * r
   const total = segments.reduce((s, x) => s + x.value, 0)
@@ -352,5 +588,184 @@ function donutArcs(segments, top, bottom) {
   border-radius: 50%;
   margin-right: 5px;
   vertical-align: middle;
+}
+
+/* ── Partner Banner ── */
+.hm-partner-banner {
+  background: linear-gradient(135deg, #6E151A 0%, #810100 100%);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s;
+  box-shadow: 0 4px 20px rgba(110, 21, 26, .25);
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hm-partner-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(205, 159, 101, .08));
+  opacity: 0;
+  transition: opacity .3s;
+}
+
+.hm-partner-banner:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(110, 21, 26, .35);
+}
+
+.hm-partner-banner:hover::before {
+  opacity: 1;
+}
+
+.hm-partner-banner:active {
+  transform: translateY(0);
+}
+
+.hm-partner-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(205, 159, 101, .2);
+  border: 1.5px solid rgba(205, 159, 101, .4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #E8BA78;
+  flex-shrink: 0;
+}
+
+.hm-partner-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.hm-partner-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: #E8BA78;
+  letter-spacing: .01em;
+}
+
+.hm-partner-desc {
+  font-size: 13px;
+  color: rgba(232, 186, 120, .7);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hm-partner-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(205, 159, 101, .15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(232, 186, 120, .8);
+  flex-shrink: 0;
+  transition: background .2s, transform .2s;
+}
+
+.hm-partner-banner:hover .hm-partner-arrow {
+  background: rgba(205, 159, 101, .25);
+  transform: translateX(2px);
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+  .hm-partner-banner {
+    padding: 14px 16px;
+  }
+
+  .hm-partner-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .hm-partner-title {
+    font-size: 16px;
+  }
+
+  .hm-partner-desc {
+    font-size: 12px;
+  }
+}
+
+/* ── Actionable insights ── */
+.hm-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.hm-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 13px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  box-shadow: 0 1px 3px rgba(36,8,8,.04);
+}
+.hm-alert:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(36,8,8,.10); }
+.hm-alert:active { transform: translateY(0); }
+
+.hm-alert-ico { font-size: 20px; flex-shrink: 0; line-height: 1; }
+
+.hm-alert-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hm-alert-title { font-family: 'Jost', sans-serif; font-weight: 600; font-size: 14px; color: var(--ink); }
+.hm-alert-desc {
+  font-size: 12.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hm-alert-cta {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--plum);
+  white-space: nowrap;
+}
+
+.hm-alert-danger  { border-left: 3px solid var(--rose); }
+.hm-alert-danger  .hm-alert-title { color: var(--rose); }
+.hm-alert-warning { border-left: 3px solid var(--gold); }
+.hm-alert-info    { border-left: 3px solid var(--teal); }
+
+.hm-alert-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 16px;
+  border-radius: 14px;
+  background: var(--ivory);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13.5px;
 }
 </style>

@@ -121,6 +121,7 @@
 
       <!-- ══ Navigasi mobile ══ -->
       <template v-if="isMobile">
+        <MobileQuickAddFab v-show="!isBulkActive" />
         <MobileBottomNav v-show="!isBulkActive" />
         <MobileSidebar :open="mobileMenuOpen || store.tourSidebarOpen" @close="mobileMenuOpen = false" />
       </template>
@@ -165,10 +166,13 @@ import ConfirmDialog from './components/ConfirmDialog.vue'
 import { useIsMobile } from './mobile layout/useIsMobile'
 import MobileHeader    from './mobile layout/MobileHeader.vue'
 import MobileBottomNav from './mobile layout/MobileBottomNav.vue'
+import MobileQuickAddFab from './mobile layout/MobileQuickAddFab.vue'
 import MobileSidebar   from './mobile layout/MobileSidebar.vue'
+import { useReminderNotifications } from './composables/useReminderNotifications'
 
 const store        = useWeddingStore()
 const { canInstall, install } = useInstallPWA() // desktop header only
+const { checkReminders } = useReminderNotifications()
 const tabBar       = ref(null)
 const tabsNav      = ref(null)
 const moreWrap     = ref(null)
@@ -347,11 +351,26 @@ onMounted(() => {
       history.replaceState({ tab: store.activeTab }, '')
     }
   })
+
+  // Reminder: cek deadline dekat begitu data selesai dimuat, lalu tiap kali
+  // app kembali aktif (tab difokus lagi / app dibuka dari background)
+  watch(() => store.loading, done => {
+    if (!done && store.user) checkReminders(store)
+  })
+  document.addEventListener('visibilitychange', onReminderVisible)
+  window.addEventListener('focus', onReminderFocus)
 })
+
+function onReminderVisible() {
+  if (document.visibilityState === 'visible') checkReminders(store)
+}
+function onReminderFocus() { checkReminders(store) }
 
 onBeforeUnmount(() => {
   _ro?.disconnect()
   document.removeEventListener('click', onDocClick)
+  document.removeEventListener('visibilitychange', onReminderVisible)
+  window.removeEventListener('focus', onReminderFocus)
 })
 </script>
 

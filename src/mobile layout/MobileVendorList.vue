@@ -22,13 +22,13 @@
 
       <div class="mv-actions" @click.stop>
         <SwitchToggle :model-value="!!v.jadi" title="Dipakai?" @update:model-value="val => toggleJadi(v, val)" />
-        <button class="mv-act wa" :disabled="!waLink(v.hp)" title="WhatsApp" @click="openWa(v)">
+        <button class="mv-act wa item-action-btn" :disabled="!waLink(v.hp)" title="WhatsApp" @click="openWa(v)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2m5.8 14.16c-.24.68-1.42 1.3-1.96 1.35-.5.05-1.14.07-1.84-.12-.42-.13-.97-.31-1.67-.61-2.94-1.27-4.86-4.23-5.01-4.43-.15-.2-1.2-1.59-1.2-3.03s.76-2.15 1.03-2.45c.27-.29.58-.37.78-.37.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.59.83 2.03.9 2.18.07.15.12.32.02.51-.09.2-.14.32-.28.49-.14.17-.29.38-.42.51-.14.14-.28.29-.12.56.16.27.71 1.17 1.53 1.9 1.05.93 1.94 1.22 2.21 1.36.27.14.43.12.58-.07.15-.2.67-.78.85-1.05.18-.27.36-.22.61-.13.24.09 1.54.73 1.81.86.27.14.44.2.51.31.06.11.06.66-.18 1.34"/></svg>
         </button>
-        <button class="mv-act" title="Edit" @click="$emit('edit', v.id)">
+        <button class="mv-act item-action-btn" title="Edit" @click="$emit('edit', v.id)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
         </button>
-        <button class="mv-act del" title="Hapus" @click="store.delVendor(v.id)">
+        <button class="mv-act del item-action-btn" title="Hapus" @click="store.delVendor(v.id)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
         </button>
       </div>
@@ -169,14 +169,15 @@ function onDetailEdit(id) {
 .mv-act {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1.5px solid var(--line);
   border-radius: 8px;
-  background: transparent;
+  background: var(--ivory);
   color: var(--plum);
   cursor: pointer;
-  transition: background .15s, opacity .15s;
+  transition: background .15s, border-color .15s, opacity .15s;
 }
 .mv-act:active { background: var(--gold-soft); }
 .mv-act.wa { color: #25a35a; }

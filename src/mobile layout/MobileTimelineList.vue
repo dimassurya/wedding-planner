@@ -27,7 +27,7 @@
           <span class="mtl-dl-val">{{ fmtDate(r.deadline) }}</span>
         </div>
         <template v-if="!r.auto">
-          <button class="mtl-del" title="Hapus" @click.stop="store.delTimeline(r.id)">
+          <button class="mtl-del item-action-btn" title="Hapus" @click.stop="store.delTimeline(r.id)">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
           </button>
           <span class="mtl-arrow">
@@ -165,14 +165,15 @@ function onCardClick(r) {
 .mtl-del {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1.5px solid var(--rose-soft);
   border-radius: 8px;
-  background: transparent;
+  background: var(--ivory);
   color: var(--rose);
   cursor: pointer;
-  transition: background .15s;
+  transition: background .15s, border-color .15s;
 }
 .mtl-del:active { background: var(--rose-soft); }
 .mtl-arrow {

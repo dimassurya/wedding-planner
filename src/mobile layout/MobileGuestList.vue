@@ -47,10 +47,10 @@
           title="Konfirmasi undangan"
           @update:model-value="v => toggleKonfirmasi(g, v)"
         />
-        <button class="mg-act" title="Edit" @click="$emit('edit', g.id)">
+        <button class="mg-act item-action-btn" title="Edit" @click="$emit('edit', g.id)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
         </button>
-        <button class="mg-act del" title="Hapus" @click="store.delGuest(g.id)">
+        <button class="mg-act del item-action-btn" title="Hapus" @click="store.delGuest(g.id)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
         </button>
       </div>
@@ -230,14 +230,15 @@ function toggleKonfirmasi(g, val) {
 .mg-act {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1.5px solid var(--line);
   border-radius: 8px;
-  background: transparent;
+  background: var(--ivory);
   color: var(--plum);
   cursor: pointer;
-  transition: background .15s;
+  transition: background .15s, border-color .15s;
 }
 
 .mg-act:active { background: var(--gold-soft); }

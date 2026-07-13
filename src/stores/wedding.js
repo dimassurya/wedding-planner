@@ -29,6 +29,16 @@ export const useWeddingStore = defineStore('wedding', () => {
   const tourSidebarOpen    = ref(false)   // dibuka sementara oleh product tour
   const tourSteps          = ref(null)    // null = global tour, array = tab-specific tour
 
+  // ── Quick add / reminders ────────────────────────────────────────
+  const quickAddTarget = ref('')
+  const quickAddNonce  = ref(0)
+  const reminders = ref({
+    enabled: false,
+    daysBeforeBudget: 3,
+    daysBeforeTimeline: 7,
+    lastNotified: {},
+  })
+
   // ── App state ───────────────────────────────────────────────────
   const guests    = ref([])
   const budget    = ref([])
@@ -101,9 +111,16 @@ export const useWeddingStore = defineStore('wedding', () => {
   // ── Debounced Supabase save ────────────────────────────────────────
   const _timers = {}
 
+  // Kapan terakhir tiap kolom ditulis dari sini. Dipakai realtime handler
+  // supaya echo dari tulisan sendiri (yang bisa berisi snapshot basi kalau
+  // user masih lanjut mengetik/toggle) tidak menimpa balik state lokal.
+  const _lastWriteAt = {}
+  const REALTIME_ECHO_GRACE_MS = 3000
+
   async function _upsert(data) {
     if (!user.value) return
     const uid = ownerUserId.value || user.value.id
+    Object.keys(data).forEach(col => { _lastWriteAt[col] = Date.now() })
     if (isPartner.value) {
       // Partner: row owner sudah pasti ada, pakai UPDATE bukan upsert
       // karena upsert butuh INSERT permission yang tidak dimiliki partner (RLS)
@@ -142,16 +159,75 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   function _settingsPayload() {
     return {
-      tabOrder: tabOrder.value, vFilter: vFilter.value,
-      couple: couple.value, onboarded: onboarded.value,
+      tabOrder: tabOrder.value,
+      bFilter: bFilter.value,
+      vFilter: vFilter.value,
+      couple: couple.value,
+      onboarded: onboarded.value,
       showWelcomeGuide: showWelcomeGuide.value,
-      ownerEmail: user.value?.email || '',
+      ownerEmail: user.value?.email || ownerEmail.value || '',
+      reminders: reminders.value,
+    }
+  }
+
+  function _applySettingsPayload(settings = {}) {
+    if (!settings || typeof settings !== 'object') return
+    if (Array.isArray(settings.tabOrder)) tabOrder.value = settings.tabOrder
+    if (settings.bFilter) bFilter.value = settings.bFilter
+    if (settings.vFilter) vFilter.value = settings.vFilter
+    if (settings.couple && typeof settings.couple === 'object') {
+      couple.value = { ...couple.value, ...settings.couple }
+    }
+    if (typeof settings.onboarded === 'boolean') onboarded.value = settings.onboarded
+    if (typeof settings.showWelcomeGuide === 'boolean') showWelcomeGuide.value = settings.showWelcomeGuide
+    if (settings.ownerEmail) ownerEmail.value = settings.ownerEmail
+    if (settings.reminders && typeof settings.reminders === 'object') {
+      reminders.value = {
+        enabled: false,
+        daysBeforeBudget: 3,
+        daysBeforeTimeline: 7,
+        lastNotified: {},
+        ...settings.reminders,
+        lastNotified: settings.reminders.lastNotified || {},
+      }
     }
   }
   function saveSettings() { scheduleSave('settings', _settingsPayload()) }
 
   function saveTabOrder(order) {
     tabOrder.value = order
+    saveSettings()
+  }
+
+  function requestQuickAdd(tab) {
+    quickAddTarget.value = tab
+    quickAddNonce.value++
+  }
+
+  function saveReminderSettings(patch = {}) {
+    reminders.value = {
+      enabled: false,
+      daysBeforeBudget: 3,
+      daysBeforeTimeline: 7,
+      lastNotified: {},
+      ...reminders.value,
+      ...patch,
+      lastNotified: {
+        ...(reminders.value?.lastNotified || {}),
+        ...(patch.lastNotified || {}),
+      },
+    }
+    saveSettings()
+  }
+
+  function markReminderNotified(key) {
+    reminders.value = {
+      ...reminders.value,
+      lastNotified: {
+        ...(reminders.value?.lastNotified || {}),
+        [key]: true,
+      },
+    }
     saveSettings()
   }
 
@@ -204,7 +280,7 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   // ── Budget helpers ─────────────────────────────────────────────────
   function bStatus(b) {
-    if (b.aktual <= 0) return { key: 'belum', label: 'Belum Diisi',  color: '#9C7575', bg: '#EDE5E2', text: '#6b4848' }
+    if (b.aktual <= 0) return { key: 'kosong', label: 'Belum Diisi',  color: '#9C7575', bg: '#EDE5E2', text: '#6b4848' }
     if (b.dibayar >= b.aktual) return { key: 'lunas', label: 'Lunas',   color: '#E5C99A', bg: '#CD9F65', text: '#3a2a10' }
     if (b.dibayar > 0)  return { key: 'dp',    label: 'Sebagian',  color: '#CD9F65', bg: '#F0E6CB', text: '#7a5c28' }
     return                     { key: 'belum', label: 'Belum Bayar', color: '#B32E33', bg: '#F8E8E8', text: '#7a1a1a' }
@@ -528,7 +604,19 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (!ok) return
     if (tab === 'tamu') { guests.value = guests.value.filter(x => !isSelected(x.id)); saveG() }
     else if (tab === 'vendor') { vendors.value = vendors.value.filter(x => !isSelected(x.id)); saveV() }
-    else if (tab === 'budget') { budget.value = budget.value.filter(x => !isSelected(x.id)); saveB() }
+    else if (tab === 'budget') {
+      const selected = budget.value.filter(x => isSelected(x.id))
+      const blocked = selected.filter(x => budgetOrigin(x)?.managed)
+      const deletable = selected.filter(x => !budgetOrigin(x)?.managed)
+      if (!deletable.length) {
+        clearSelected()
+        toast('Item Budget terpilih dikelola otomatis — tidak bisa dihapus dari sini')
+        return
+      }
+      budget.value = budget.value.filter(x => !isSelected(x.id) || budgetOrigin(x)?.managed)
+      saveB()
+      if (blocked.length) toast(`${blocked.length} item otomatis tidak dihapus`)
+    }
     else if (tab === 'seserahan') { seserahan.value = seserahan.value.filter(x => !isSelected(x.id)); saveS() }
     else if (tab === 'mahar') { mahar.value = mahar.value.filter(x => !isSelected(x.id)); saveM() }
     clearSelected()
@@ -538,9 +626,20 @@ export const useWeddingStore = defineStore('wedding', () => {
   // ── Export / Import all ────────────────────────────────────────────
   function exportAll() {
     downloadJSON({
-      app: 'wedding-planner', version: 1, exportedAt: new Date().toISOString(),
-      data: { guests: guests.value, budget: budget.value, vendors: vendors.value, seserahan: seserahan.value, mahar: mahar.value, admin: admin.value, checklist: checklist.value, timeline: timeline.value },
-      settings: { tabOrder: tabOrder.value },
+      app: 'wedding-planner',
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      data: {
+        guests: guests.value,
+        budget: budget.value,
+        vendors: vendors.value,
+        seserahan: seserahan.value,
+        mahar: mahar.value,
+        admin: admin.value,
+        checklist: checklist.value,
+        timeline: timeline.value,
+      },
+      settings: _settingsPayload(),
     }, `wedding-planner-${dateStamp()}.json`)
     toast('Semua data diekspor')
   }
@@ -554,7 +653,9 @@ export const useWeddingStore = defineStore('wedding', () => {
       const d = payload.data
       const counts = [['guests','tamu'],['budget','budget'],['vendors','vendor'],['seserahan','seserahan'],['mahar','mahar'],['admin','administrasi'],['checklist','checklist'],['timeline','timeline']].map(([k,l]) => Array.isArray(d[k]) ? `${d[k].length} ${l}` : null).filter(Boolean)
       const when = payload.exportedAt ? new Date(payload.exportedAt).toLocaleDateString('id-ID') : 'tidak diketahui'
-      if (!confirm(`Impor data dari file (dibuat ${when})?\n\nIsi: ${counts.join(', ')}.\n\nSEMUA data kamu saat ini akan DIGANTI.`)) return
+      const hasSettings = payload.settings && Object.keys(payload.settings).length > 0
+      const settingsNote = hasSettings ? '\nSettings aplikasi juga akan dipulihkan (profil pasangan, onboarding, filter, reminder, dan urutan tab).' : ''
+      if (!confirm(`Impor data dari file (dibuat ${when})?\n\nIsi: ${counts.join(', ')}.${settingsNote}\n\nSEMUA data kamu saat ini akan DIGANTI.`)) return
 
       if (Array.isArray(d.guests))    guests.value    = d.guests
       if (Array.isArray(d.budget))    budget.value    = d.budget
@@ -564,14 +665,21 @@ export const useWeddingStore = defineStore('wedding', () => {
       if (Array.isArray(d.admin))     admin.value     = d.admin
       if (Array.isArray(d.checklist)) checklist.value = d.checklist
       if (Array.isArray(d.timeline))  timeline.value  = d.timeline
-      if (Array.isArray(payload.settings?.tabOrder)) tabOrder.value = payload.settings.tabOrder
+      _applySettingsPayload(payload.settings)
 
       await _upsert({
-        guests: guests.value, budget: budget.value, vendors: vendors.value,
-        seserahan: seserahan.value, mahar: mahar.value, admin: admin.value,
-        checklist: checklist.value, timeline: timeline.value,
-        settings: { tabOrder: tabOrder.value, vFilter: vFilter.value },
+        guests: guests.value,
+        budget: budget.value,
+        vendors: vendors.value,
+        seserahan: seserahan.value,
+        mahar: mahar.value,
+        admin: admin.value,
+        checklist: checklist.value,
+        timeline: timeline.value,
+        settings: _settingsPayload(),
       })
+      clearSelected()
+      activeTab.value = 'home'
       toast('Data berhasil diimpor')
     }
     reader.readAsText(file)
@@ -623,13 +731,8 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (Array.isArray(data.checklist)) checklist.value = data.checklist
     if (Array.isArray(data.timeline))  timeline.value  = data.timeline
     const s = data.settings || {}
-    if (Array.isArray(s.tabOrder)) tabOrder.value = s.tabOrder
-
-    if (s.vFilter) vFilter.value = s.vFilter
-    if (s.ownerEmail) ownerEmail.value = s.ownerEmail
-    if (s.couple) couple.value = { ...couple.value, ...s.couple }
-    onboarded.value        = !!s.onboarded || isPaid.value
-    showWelcomeGuide.value = !!s.showWelcomeGuide
+    _applySettingsPayload(s)
+    onboarded.value = onboarded.value || isPaid.value
     const seedNames = new Set(BUDGET_SEED.map(x => x.item))
     let changed = false
     budget.value.forEach(x => {
@@ -706,14 +809,15 @@ export const useWeddingStore = defineStore('wedding', () => {
           loadData(user.value.id)
           return
         }
-        if (Array.isArray(d.guests))    guests.value    = d.guests
-        if (Array.isArray(d.budget))    budget.value    = d.budget
-        if (Array.isArray(d.vendors))   vendors.value   = d.vendors
-        if (Array.isArray(d.seserahan)) seserahan.value = d.seserahan
-        if (Array.isArray(d.mahar))     mahar.value     = d.mahar
-        if (Array.isArray(d.admin))     admin.value     = d.admin
-        if (Array.isArray(d.checklist)) checklist.value = d.checklist
-        if (Array.isArray(d.timeline))  timeline.value  = d.timeline
+        const recentlyWrote = col => Date.now() - (_lastWriteAt[col] || 0) < REALTIME_ECHO_GRACE_MS
+        if (Array.isArray(d.guests)    && !recentlyWrote('guests'))    guests.value    = d.guests
+        if (Array.isArray(d.budget)    && !recentlyWrote('budget'))    budget.value    = d.budget
+        if (Array.isArray(d.vendors)   && !recentlyWrote('vendors'))   vendors.value   = d.vendors
+        if (Array.isArray(d.seserahan) && !recentlyWrote('seserahan')) seserahan.value = d.seserahan
+        if (Array.isArray(d.mahar)     && !recentlyWrote('mahar'))     mahar.value     = d.mahar
+        if (Array.isArray(d.admin)     && !recentlyWrote('admin'))     admin.value     = d.admin
+        if (Array.isArray(d.checklist) && !recentlyWrote('checklist')) checklist.value = d.checklist
+        if (Array.isArray(d.timeline)  && !recentlyWrote('timeline'))  timeline.value  = d.timeline
       })
       .subscribe()
   }
@@ -934,6 +1038,9 @@ export const useWeddingStore = defineStore('wedding', () => {
     // onboarding
     couple, onboarded, beginOnboarding, startOnboarding, completeOnboarding,
     showWelcomeGuide, dismissWelcomeGuide, tourSidebarOpen, tourSteps, startTour,
+    // quick add / reminders
+    quickAddTarget, quickAddNonce, requestQuickAdd,
+    reminders, saveReminderSettings, markReminderNotified,
     // state
     guests, budget, vendors, seserahan, mahar, admin, checklist, timeline,
     activeTab, tabOrder, bFilter, vFilter, selectedMap,

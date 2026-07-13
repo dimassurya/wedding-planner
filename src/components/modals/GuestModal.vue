@@ -49,6 +49,16 @@
         <label>Catatan <span class="lbl-opt">(opsional)</span></label>
         <textarea v-model="form.catatan" rows="2" placeholder="cth: vegetarian, alergi kacang, perlu kamar menginap..."></textarea>
       </div>
+      <div v-if="editId" class="modal-quick-row">
+        <span class="modal-quick-lbl">Aksi lain</span>
+        <button type="button" class="item-action-btn" title="Duplikasi tamu" @click="handleDuplicate">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+        <button type="button" class="item-action-btn del" title="Hapus tamu" @click="handleDelete">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+
       <div class="modal-actions">
         <button class="btn btn-ghost" @click="$emit('close')">Batal</button>
         <button class="btn" @click="save">Simpan</button>
@@ -95,8 +105,33 @@ function save() {
   store.toast(props.editId ? 'Perubahan tersimpan' : 'Tamu ditambahkan')
   emit('close')
 }
+
+function handleDuplicate() {
+  if (!props.editId) return
+  store.duplicateGuest(props.editId)
+  emit('close')
+}
+
+async function handleDelete() {
+  if (!props.editId) return
+  const id = props.editId
+  await store.delGuest(id)
+  // delGuest membatalkan diam-diam kalau user cancel di dialog konfirmasi —
+  // cek datanya beneran hilang dulu sebelum modal ditutup.
+  if (!store.guests.some(g => g.id === id)) emit('close')
+}
 </script>
 
 <style scoped>
 .lbl-opt { font-weight: 400; color: var(--muted); font-size: 11px; }
+
+.modal-quick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 14px;
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.modal-quick-lbl { font-size: 12px; color: var(--muted); margin-right: auto; }
 </style>

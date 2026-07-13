@@ -80,7 +80,7 @@
               <span class="v-lbl">{{ it.status ? 'Sudah Lengkap' : 'Belum Lengkap' }}</span>
             </div>
             <div class="adm-act r">
-              <button class="icon-btn" @click="delItem(g, it)" title="Hapus syarat">
+              <button class="icon-btn item-action-btn" @click="delItem(g, it)" title="Hapus syarat">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
             </div>

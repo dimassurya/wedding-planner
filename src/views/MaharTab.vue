@@ -57,7 +57,7 @@
           <input type="text" inputmode="numeric" :value="grp(m.harga)" @input="e => onCur(m, e)">
         </div>
         <div class="m-actions r">
-          <button class="icon-btn" @click="delItem(m)" title="Hapus">
+          <button class="icon-btn item-action-btn del" @click="delItem(m)" title="Hapus">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
@@ -69,7 +69,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { fmt, grp, num } from '../utils/index'
 import SwitchToggle from '../components/SwitchToggle.vue'
@@ -81,6 +81,11 @@ const store        = useWeddingStore()
 const importRef    = ref(null)
 const isMobile     = useIsMobile()
 const mobileEditId = ref(null)
+
+// Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
+watch(() => store.quickAddNonce, () => {
+  if (store.quickAddTarget === 'mahar') addItem()
+})
 
 const MAHAR_STEPS = computed(() => [
   {

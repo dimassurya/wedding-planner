@@ -302,11 +302,11 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 .table-card { overflow: hidden; }
 .t-head, .t-row {
   display: grid;
-  grid-template-columns: 34px 32px minmax(150px,1fr) 92px minmax(200px,1.2fr) 132px 80px;
+  grid-template-columns: 34px 32px minmax(160px,260px) 92px minmax(200px,1.2fr) 132px 56px;
   align-items: center;
   gap: 18px;
   padding: 13px 20px;
-  min-width: 868px;
+  min-width: 820px;
   padding-right: 0;
 }
 .t-actions {
@@ -360,21 +360,58 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 /* ── Action Buttons ── */
 .t-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .act {
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border: none;
-  border-radius: 8px;
+  border-radius: 50%;
   cursor: pointer;
   display: grid;
   place-items: center;
   background: var(--ivory);
   transition: .18s;
+  flex: none;
+  padding: 0;
 }
 .act:hover { background: var(--gold-soft); }
 .act.del:hover { background: var(--rose-soft); }
 .act.del.locked { cursor: not-allowed; background: #F5F1F3; opacity: .85; }
 .act.del.locked:hover { background: #F5F1F3; }
-.act svg { width: 15px; height: 15px; }
+.act svg { width: 13px; height: 13px; }
+.item-action-btn,
+.act.item-action-btn,
+.icon-btn.item-action-btn {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid var(--line);
+  border-radius: 50%;
+  background: var(--ivory);
+  color: var(--plum);
+  cursor: pointer;
+  transition: .18s;
+}
+.item-action-btn:hover,
+.act.item-action-btn:hover,
+.icon-btn.item-action-btn:hover { background: var(--gold-soft); border-color: var(--gold); }
+.item-action-btn.del,
+.act.item-action-btn.del,
+.icon-btn.item-action-btn.del,
+.del-tugas-btn.item-action-btn,
+.adm-act .item-action-btn { color: var(--rose); border-color: var(--rose-soft); }
+.item-action-btn.del:hover,
+.act.item-action-btn.del:hover,
+.icon-btn.item-action-btn.del:hover,
+.del-tugas-btn.item-action-btn:hover,
+.adm-act .item-action-btn:hover { background: var(--rose-soft); border-color: var(--rose); }
+.item-action-btn:disabled,
+.act.item-action-btn:disabled,
+.icon-btn.item-action-btn:disabled { cursor: not-allowed; opacity: .55; }
+.item-action-btn svg,
+.act.item-action-btn svg,
+.icon-btn.item-action-btn svg { width: 13px; height: 13px; margin: 0; }
 
 /* ── Empty State ── */
 .empty { padding: 50px 20px; text-align: center; color: var(--muted); }

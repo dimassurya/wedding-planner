@@ -89,13 +89,13 @@
         <div class="bm-lbl lT">Jatuh Tempo</div>
         <div class="cT r" :style="{ fontSize: '13px', color: b.jatuhTempo ? 'var(--ink)' : 'var(--muted)' }">{{ fmtDate(b.jatuhTempo) }}</div>
         <div class="b-actions r">
-          <button class="act" @click="openDetail(b.id)" title="Detail">
+          <button class="act item-action-btn" @click="openDetail(b.id)" title="Detail">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6E151A" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1" stroke-linecap="round"/></svg>
           </button>
-          <button v-if="store.budgetOrigin(b)?.managed" class="act del locked" disabled :title="store.budgetOrigin(b)?.tipDel">
+          <button v-if="store.budgetOrigin(b)?.managed" class="act del locked item-action-btn" disabled :title="store.budgetOrigin(b)?.tipDel">
             <svg viewBox="0 0 24 24" fill="none" stroke="#D4B0B0" stroke-width="2"><rect x="5" y="10" width="14" height="9" rx="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
           </button>
-          <button v-else class="act del" @click="store.delBudget(b.id)" title="Hapus">
+          <button v-else class="act del item-action-btn" @click="store.delBudget(b.id)" title="Hapus">
             <svg viewBox="0 0 24 24" fill="none" stroke="#B32E33" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
           </button>
         </div>
@@ -117,7 +117,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { fmt, grp, num, fmtDate } from '../utils/index'
 import BudgetDetailModal from '../components/modals/BudgetDetailModal.vue'
@@ -132,6 +132,11 @@ const detailId    = ref(null)
 const newItemId   = ref(null)
 const isMobile    = useIsMobile()
 const detailIsNew = ref(false)
+
+// Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
+watch(() => store.quickAddNonce, () => {
+  if (store.quickAddTarget === 'budget') addItem()
+})
 
 const BUDGET_STEPS = computed(() => [
   {
@@ -187,10 +192,11 @@ const BUDGET_STEPS = computed(() => [
 ])
 
 const CHIPS = [
-  { f: 'all',   label: 'Semua' },
-  { f: 'belum', label: 'Belum Bayar' },
-  { f: 'dp',    label: 'Sebagian (DP)' },
-  { f: 'lunas', label: 'Lunas' },
+  { f: 'all',    label: 'Semua' },
+  { f: 'kosong', label: 'Belum Diisi' },
+  { f: 'belum',  label: 'Belum Bayar' },
+  { f: 'dp',     label: 'Sebagian (DP)' },
+  { f: 'lunas',  label: 'Lunas' },
 ]
 
 const tEst = computed(() => store.budget.reduce((s, b) => s + (b.estimasi || 0), 0))

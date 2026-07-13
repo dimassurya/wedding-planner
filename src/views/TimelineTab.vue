@@ -113,7 +113,7 @@
             <input type="text" :value="r.catatan" placeholder="—" @input="e => onText(r, 'catatan', e.target.value)">
           </div>
           <div class="tl-act">
-            <button class="icon-btn" @click="delTask(r)" title="Hapus tugas">
+            <button class="icon-btn item-action-btn del" @click="delTask(r)" title="Hapus tugas">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
           </div>
@@ -125,7 +125,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { fmtDate } from '../utils/index'
 import { TL_STATUS, TL_PIC } from '../data/constants'
@@ -137,6 +137,11 @@ const store        = useWeddingStore()
 const importRef    = ref(null)
 const isMobile     = useIsMobile()
 const mobileEditId = ref(null)
+
+// Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
+watch(() => store.quickAddNonce, () => {
+  if (store.quickAddTarget === 'timeline') addTask()
+})
 
 const TIMELINE_STEPS = computed(() => [
   {

@@ -130,9 +130,10 @@ function originStyle(o) {
   user-select: none;
 }
 
-.mb-card.st-lunas { border-left-color: #CD9F65; }
-.mb-card.st-dp    { border-left-color: #CD9F65; }
-.mb-card.st-belum { border-left-color: #B32E33; }
+.mb-card.st-lunas  { border-left-color: #CD9F65; }
+.mb-card.st-dp     { border-left-color: #CD9F65; }
+.mb-card.st-belum  { border-left-color: #B32E33; }
+.mb-card.st-kosong { border-left-color: #9C7575; }
 
 .mb-card.mb-sel {
   border-color: var(--wine);
