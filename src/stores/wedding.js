@@ -147,24 +147,45 @@ export const useWeddingStore = defineStore('wedding', () => {
   const _shadow = {
     guests: new Map(), timeline: new Map(),
     budget: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
+    adminGroups: new Map(), adminItems: new Map(),
+    checklistGroups: new Map(), checklistItems: new Map(),
   }
 
-  function _seedShadow(col, rows) {
+  function _seedShadow(col, rows, stripKeys = []) {
     _shadow[col].clear()
-    rows.forEach(r => { if (r.id != null) _shadow[col].set(r.id, JSON.parse(JSON.stringify(r))) })
+    const strip = r => {
+      if (!stripKeys.length) return r
+      const rest = { ...r }
+      stripKeys.forEach(k => delete rest[k])
+      return rest
+    }
+    rows.forEach(r => { if (r.id != null) _shadow[col].set(r.id, JSON.parse(JSON.stringify(strip(r)))) })
   }
 
-  async function _diffAndSync(col, table, rows) {
+  // opts.stripKeys: field yang dikecualikan dari perbandingan DAN payload ke
+  // server (dipakai grup admin/checklist buat exclude field "items" nested-nya
+  // sendiri — tanpa ini tiap edit item bakal keliatan kayak "grup berubah" dan
+  // salah kirim UPDATE ke tabel grup yang isinya nggak nyambung). Default []
+  // -> perilaku persis sama seperti sebelumnya buat 6 entity flat yang sudah ada.
+  async function _diffAndSync(col, table, rows, opts = {}) {
     if (!user.value) return
+    const stripKeys = opts.stripKeys || []
     const shadow = _shadow[col]
     const uid = ownerUserId.value || user.value.id
     const seen = new Set()
     const toInsert = [], toUpdate = []
 
+    const _stripKeys = row => {
+      if (!stripKeys.length) return row
+      const rest = { ...row }
+      stripKeys.forEach(k => delete rest[k])
+      return rest
+    }
+
     for (const row of rows) {
       if (row.id == null || !shadow.has(row.id)) { toInsert.push(row); continue }
       seen.add(row.id)
-      if (JSON.stringify(shadow.get(row.id)) !== JSON.stringify(row)) toUpdate.push(row)
+      if (JSON.stringify(shadow.get(row.id)) !== JSON.stringify(_stripKeys(row))) toUpdate.push(row)
     }
     const toDeleteIds = [...shadow.keys()].filter(id => !seen.has(id) && !rows.some(r => r.id === id))
 
@@ -174,7 +195,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     // eksplisit (generated always as identity); sisanya harus otoritatif
     // dari server/konteks saat ini, bukan dari objek yang lagi di-diff.
     const _stripSystem = row => {
-      const { id, owner_user_id, created_at, updated_at, ...rest } = row
+      const { id, owner_user_id, created_at, updated_at, ...rest } = _stripKeys(row)
       return rest
     }
 
@@ -187,7 +208,7 @@ export const useWeddingStore = defineStore('wedding', () => {
           // sebelum insert-nya sendiri selesai (baris/id-nya belum ada).
           _lastRowWriteAt[col]?.set(data.id, Date.now())
           Object.assign(row, data)
-          shadow.set(data.id, JSON.parse(JSON.stringify(row)))
+          shadow.set(data.id, JSON.parse(JSON.stringify(_stripKeys(row))))
         } else if (error) {
           console.error(`[_diffAndSync] insert ${table} gagal:`, error)
         }
@@ -199,7 +220,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         _lastRowWriteAt[col]?.set(row.id, Date.now())
         const { error } = await supabase.from(table)
           .update(_stripSystem(row)).eq('id', row.id).eq('owner_user_id', uid)
-        if (!error) shadow.set(row.id, JSON.parse(JSON.stringify(row)))
+        if (!error) shadow.set(row.id, JSON.parse(JSON.stringify(_stripKeys(row))))
         else console.error(`[_diffAndSync] update ${table} gagal:`, error)
       }),
       ...toDeleteIds.map(async id => {
@@ -217,12 +238,35 @@ export const useWeddingStore = defineStore('wedding', () => {
     _timers[col] = setTimeout(() => _diffAndSync(col, table, rowsRef.value), 600)
   }
 
+  // ── Grup bersarang (Wave 3: admin, checklist) ───────────────────────
+  // Grup WAJIB selesai duluan (di-await, bukan Promise.all) — item baru
+  // butuh id ASLI grup (group_id) yang cuma ada setelah insert grupnya
+  // selesai. it.group_id = g.id memutasi object item yang BENERAN (bukan
+  // salinan .map()) karena _diffAndSync's insert path menulis id asli
+  // balik ke object lewat Object.assign, dan itu harus kena ke object yang
+  // sama yang dipakai di sini buat nge-set group_id-nya item.
+  async function _diffAndSyncNested(groupsCol, groupsTable, itemsCol, itemsTable, groups) {
+    await _diffAndSync(groupsCol, groupsTable, groups, { stripKeys: ['items'] })
+    const flatItems = []
+    groups.forEach(g => (g.items || []).forEach(it => { it.group_id = g.id; flatItems.push(it) }))
+    await _diffAndSync(itemsCol, itemsTable, flatItems)
+  }
+
+  function scheduleDiffSyncNested(timerKey, groupsCol, groupsTable, itemsCol, itemsTable, groupsRef) {
+    if (!user.value) return
+    clearTimeout(_timers[timerKey])
+    _timers[timerKey] = setTimeout(
+      () => _diffAndSyncNested(groupsCol, groupsTable, itemsCol, itemsTable, groupsRef.value),
+      600
+    )
+  }
+
   // ── Save functions ─────────────────────────────────────────────────
   const saveG  = () => scheduleDiffSync('guests',   'guests',        guests)
   const saveB  = () => scheduleDiffSync('budget',   'budget_items',  budget)
   const saveV  = () => scheduleDiffSync('vendors',  'vendors',       vendors)
-  const saveA  = () => scheduleSave('admin',     admin.value)
-  const saveCK = () => scheduleSave('checklist', checklist.value)
+  const saveA  = () => scheduleDiffSyncNested('admin',     'adminGroups',     'admin_groups',     'adminItems',     'admin_items',     admin)
+  const saveCK = () => scheduleDiffSyncNested('checklist', 'checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist)
   const saveTL = () => scheduleDiffSync('timeline', 'timeline_tasks', timeline)
 
   function saveS() {
@@ -331,12 +375,13 @@ export const useWeddingStore = defineStore('wedding', () => {
     // lewat _diffAndSync langsung (di bawah), bukan lagi lewat payload
     // wedding_data.
     let clearedTimeline = false, clearedBudget = false, clearedSeserahan = false
+    let clearedAdmin = false, clearedChecklist = false
     if (isNewUser.value) {
       const t = data.templates || {}
       if (!t.budget)    { budget.value = [];    clearedBudget = true }
       if (!t.timeline)  { timeline.value = [];  clearedTimeline = true }
-      if (!t.admin)     { admin.value = [];     payload.admin = admin.value }
-      if (!t.checklist) { checklist.value = []; payload.checklist = checklist.value }
+      if (!t.admin)     { admin.value = [];     clearedAdmin = true }
+      if (!t.checklist) { checklist.value = []; clearedChecklist = true }
       if (!t.seserahan) { seserahan.value = []; clearedSeserahan = true }
     }
     onboarded.value = true
@@ -352,6 +397,8 @@ export const useWeddingStore = defineStore('wedding', () => {
       clearedTimeline  ? _diffAndSync('timeline', 'timeline_tasks', timeline.value)     : Promise.resolve(),
       clearedBudget    ? _diffAndSync('budget', 'budget_items', budget.value)           : Promise.resolve(),
       clearedSeserahan ? _diffAndSync('seserahan', 'seserahan_items', seserahan.value)  : Promise.resolve(),
+      clearedAdmin     ? _diffAndSyncNested('adminGroups', 'admin_groups', 'adminItems', 'admin_items', admin.value) : Promise.resolve(),
+      clearedChecklist ? _diffAndSyncNested('checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist.value) : Promise.resolve(),
     ])
     isNewUser.value = false
   }
@@ -679,6 +726,55 @@ export const useWeddingStore = defineStore('wedding', () => {
     saveA(); toast('Bagian dihapus')
   }
 
+  async function addAdminGroup() {
+    const uid = ownerUserId.value || user.value.id
+    const { data: row, error } = await supabase.from('admin_groups')
+      .insert({ owner_user_id: uid, grup: '' }).select().single()
+    if (error || !row) { toast('Gagal menambah bagian, coba lagi'); return null }
+    row.items = []
+    admin.value.push(row)
+    const { items, ...groupSnap } = row
+    _shadow.adminGroups.set(row.id, JSON.parse(JSON.stringify(groupSnap)))
+    return row
+  }
+
+  async function addAdminItem(groupId) {
+    const g = admin.value.find(x => x.id === groupId)
+    if (!g) return null
+    const uid = ownerUserId.value || user.value.id
+    const { data: row, error } = await supabase.from('admin_items')
+      .insert({ owner_user_id: uid, group_id: groupId, syarat: '', status: false }).select().single()
+    if (error || !row) { toast('Gagal menambah syarat, coba lagi'); return null }
+    g.items.push(row)
+    _shadow.adminItems.set(row.id, JSON.parse(JSON.stringify(row)))
+    return row
+  }
+
+  async function addChecklistGroup(name) {
+    const uid = ownerUserId.value || user.value.id
+    const position = checklist.value.length
+    const { data: row, error } = await supabase.from('checklist_groups')
+      .insert({ owner_user_id: uid, fase: name, position }).select().single()
+    if (error || !row) { toast('Gagal menambah fase, coba lagi'); return null }
+    row.items = []
+    checklist.value.push(row)
+    const { items, ...groupSnap } = row
+    _shadow.checklistGroups.set(row.id, JSON.parse(JSON.stringify(groupSnap)))
+    return row
+  }
+
+  async function addChecklistItem(groupId) {
+    const g = checklist.value.find(x => x.id === groupId)
+    if (!g) return null
+    const uid = ownerUserId.value || user.value.id
+    const { data: row, error } = await supabase.from('checklist_items')
+      .insert({ owner_user_id: uid, group_id: groupId, tugas: '', status: false }).select().single()
+    if (error || !row) { toast('Gagal menambah tugas, coba lagi'); return null }
+    g.items.push(row)
+    _shadow.checklistItems.set(row.id, JSON.parse(JSON.stringify(row)))
+    return row
+  }
+
   function exportGuestsCSV() {
     const META = { cpp:{label:'Keluarga Pengantin Pria'}, cpw:{label:'Keluarga Pengantin Wanita'}, teman_pria:{label:'Teman Pengantin Pria'}, teman_wanita:{label:'Teman Pengantin Wanita'}, tetangga_pria:{label:'Tetangga Pengantin Pria'}, tetangga_wanita:{label:'Tetangga Pengantin Wanita'}, lainnya:{label:'Lainnya'} }
     const head = ['No','Nama Lengkap','Jumlah Orang','Status Relasi','Undangan Untuk','Konfirmasi']
@@ -836,21 +932,18 @@ export const useWeddingStore = defineStore('wedding', () => {
       }
       _applySettingsPayload(payload.settings)
 
-      // guests/timeline/budget/vendors/seserahan/mahar sudah pindah ke
-      // tabel sendiri — sinkron lewat diff engine, bukan lagi lewat
-      // payload wedding_data (cuma admin/checklist/settings yang masih JSONB)
+      // Semua 8 entity sudah pindah ke tabel sendiri — sinkron lewat diff
+      // engine, `_upsert` di sini cuma bawa settings.
       await Promise.all([
-        _upsert({
-          admin: admin.value,
-          checklist: checklist.value,
-          settings: _settingsPayload(),
-        }),
+        _upsert({ settings: _settingsPayload() }),
         _diffAndSync('guests', 'guests', guests.value),
         _diffAndSync('timeline', 'timeline_tasks', timeline.value),
         _diffAndSync('budget', 'budget_items', budget.value),
         _diffAndSync('vendors', 'vendors', vendors.value),
         _diffAndSync('seserahan', 'seserahan_items', seserahan.value),
         _diffAndSync('mahar', 'mahar_items', mahar.value),
+        _diffAndSyncNested('adminGroups', 'admin_groups', 'adminItems', 'admin_items', admin.value),
+        _diffAndSyncNested('checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist.value),
       ])
       clearSelected()
       activeTab.value = 'home'
@@ -944,9 +1037,24 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (changed) scheduleDiffSync('budget', 'budget_items', budget)
   }
 
+  // Wave 3: admin/checklist juga sudah pindah ke tabel sendiri — nested
+  // (grup berisi array item), direkonstruksi di sini dari 4 tabel flat.
+  async function _loadAdminAndChecklist(ownerId) {
+    const [{ data: ag }, { data: ai }, { data: cg }, { data: ci }] = await Promise.all([
+      supabase.from('admin_groups').select('*').eq('owner_user_id', ownerId).order('id'),
+      supabase.from('admin_items').select('*').eq('owner_user_id', ownerId).order('id'),
+      supabase.from('checklist_groups').select('*').eq('owner_user_id', ownerId).order('position'),
+      supabase.from('checklist_items').select('*').eq('owner_user_id', ownerId).order('id'),
+    ])
+    admin.value     = (ag || []).map(g => ({ ...g, items: (ai || []).filter(it => it.group_id === g.id) }))
+    checklist.value = (cg || []).map(g => ({ ...g, items: (ci || []).filter(it => it.group_id === g.id) }))
+    _seedShadow('adminGroups', admin.value, ['items'])
+    _seedShadow('adminItems', ai || [])
+    _seedShadow('checklistGroups', checklist.value, ['items'])
+    _seedShadow('checklistItems', ci || [])
+  }
+
   function _applyData(data) {
-    if (Array.isArray(data.admin))     admin.value     = data.admin
-    if (Array.isArray(data.checklist)) checklist.value = data.checklist
     const s = data.settings || {}
     _applySettingsPayload(s)
     onboarded.value = onboarded.value || isPaid.value
@@ -966,6 +1074,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       await Promise.all([
         _loadGuestsAndTimeline(pData.user_id),
         _loadBudgetVendorsSeserahanMahar(pData.user_id),
+        _loadAdminAndChecklist(pData.user_id),
       ])
       return
     }
@@ -981,6 +1090,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       await Promise.all([
         _loadGuestsAndTimeline(userId),
         _loadBudgetVendorsSeserahanMahar(userId),
+        _loadAdminAndChecklist(userId),
       ])
       if (!data.settings?.ownerEmail && user.value?.email) saveSettings()
       return
@@ -991,12 +1101,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     isPartner.value    = false
     partnerEmail.value = ''
     isNewUser.value    = true
-    admin.value     = JSON.parse(JSON.stringify(ADMIN_SEED))
-    checklist.value = JSON.parse(JSON.stringify(CHECKLIST_SEED))
-    await supabase.from('wedding_data').insert({
-      user_id: userId,
-      admin: admin.value, checklist: checklist.value, settings: {},
-    })
+    await supabase.from('wedding_data').insert({ user_id: userId, settings: {} })
     // guests & vendors & mahar: array kosong, tidak ada seed
     guests.value  = []; vendors.value = []; mahar.value = []
     _seedShadow('guests', []); _seedShadow('vendors', []); _seedShadow('mahar', [])
@@ -1036,6 +1141,49 @@ export const useWeddingStore = defineStore('wedding', () => {
       seserahan.value = []
     }
     _seedShadow('seserahan', seserahan.value)
+
+    // admin: grup dulu (dapat id asli), baru item — di-resolve via legacy_id
+    // (BUKAN asumsi urutan array balik dari RETURNING sama dengan urutan
+    // insert, Postgres nggak menjamin itu).
+    const adminGroupRows = ADMIN_SEED.map(g => ({ owner_user_id: userId, legacy_id: g.id, grup: g.grup }))
+    const { data: insertedAdminGroups } = await supabase.from('admin_groups').insert(adminGroupRows).select()
+    const adminItemRows = []
+    ;(insertedAdminGroups || []).forEach(ag => {
+      const seedGroup = ADMIN_SEED.find(g => g.id === ag.legacy_id)
+      ;(seedGroup?.items || []).forEach(it => {
+        adminItemRows.push({ owner_user_id: userId, group_id: ag.id, syarat: it.syarat, status: !!it.status })
+      })
+    })
+    const { data: insertedAdminItems } = adminItemRows.length
+      ? await supabase.from('admin_items').insert(adminItemRows).select()
+      : { data: [] }
+    admin.value = (insertedAdminGroups || []).map(ag => ({
+      ...ag, items: (insertedAdminItems || []).filter(it => it.group_id === ag.id),
+    }))
+    _seedShadow('adminGroups', admin.value, ['items'])
+    _seedShadow('adminItems', insertedAdminItems || [])
+
+    // checklist: pola sama, plus position dari urutan asli CHECKLIST_SEED.
+    const checklistGroupRows = CHECKLIST_SEED.map((g, i) => ({
+      owner_user_id: userId, legacy_id: g.id, fase: g.fase, position: i,
+    }))
+    const { data: insertedChecklistGroups } = await supabase.from('checklist_groups').insert(checklistGroupRows).select()
+    const checklistItemRows = []
+    ;(insertedChecklistGroups || []).forEach(cg => {
+      const seedGroup = CHECKLIST_SEED.find(g => g.id === cg.legacy_id)
+      ;(seedGroup?.items || []).forEach(it => {
+        checklistItemRows.push({ owner_user_id: userId, group_id: cg.id, tugas: it.tugas, status: !!it.status })
+      })
+    })
+    const { data: insertedChecklistItems } = checklistItemRows.length
+      ? await supabase.from('checklist_items').insert(checklistItemRows).select()
+      : { data: [] }
+    checklist.value = (insertedChecklistGroups || [])
+      .slice()
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+      .map(cg => ({ ...cg, items: (insertedChecklistItems || []).filter(it => it.group_id === cg.id) }))
+    _seedShadow('checklistGroups', checklist.value, ['items'])
+    _seedShadow('checklistItems', insertedChecklistItems || [])
   }
 
   // ── Supabase: realtime sync ────────────────────────────────────────
@@ -1057,6 +1205,8 @@ export const useWeddingStore = defineStore('wedding', () => {
   const _lastRowWriteAt = {
     guests: new Map(), timeline: new Map(),
     budget: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
+    adminGroups: new Map(), adminItems: new Map(),
+    checklistGroups: new Map(), checklistItems: new Map(),
   }
 
   function _applyRowChange(col, arrRef, payload) {
@@ -1072,6 +1222,61 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (local?.updated_at && n.updated_at && n.updated_at <= local.updated_at) return
     if (local) Object.assign(local, n)
     else arrRef.value.push(n)
+    _shadow[col].set(n.id, JSON.parse(JSON.stringify(n)))
+  }
+
+  // Buffer event item yang nyampe SEBELUM grup induknya ada di array lokal.
+  // Harusnya jarang terjadi (grup selalu di-insert & di-await duluan sebelum
+  // item bisa dibuat), tapi murah buat dijamin daripada dianggep pasti aman.
+  const _pendingItems = { adminItems: new Map(), checklistItems: new Map() }
+
+  function _applyGroupChange(col, itemsCol, arrRef, payload) {
+    const { eventType, new: n, old: o } = payload
+    const rid = eventType === 'DELETE' ? o.id : n.id
+    if (Date.now() - (_lastRowWriteAt[col].get(rid) || 0) < REALTIME_ECHO_GRACE_MS) return
+    if (eventType === 'DELETE') {
+      arrRef.value = arrRef.value.filter(g => g.id !== o.id)
+      _shadow[col].delete(o.id)
+      return
+    }
+    const local = arrRef.value.find(g => g.id === n.id)
+    if (local?.updated_at && n.updated_at && n.updated_at <= local.updated_at) return
+    if (local) {
+      Object.assign(local, n)
+    } else {
+      // Baris admin_groups/checklist_groups dari realtime nggak pernah bawa
+      // field "items" (itu murni konstruksi client) — wajib di-attach manual.
+      n.items = []
+      arrRef.value.push(n)
+      // Flush item yang mungkin sudah nyampe lebih dulu nungguin grup ini.
+      const pending = _pendingItems[itemsCol]
+      for (const [itemId, itemPayload] of [...pending.entries()]) {
+        const pgid = itemPayload.eventType === 'DELETE' ? itemPayload.old.group_id : itemPayload.new.group_id
+        if (pgid === n.id) { pending.delete(itemId); _applyItemChange(itemsCol, arrRef, itemPayload) }
+      }
+    }
+    const merged = local || n
+    if (typeof merged.position === 'number') arrRef.value.sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+    const { items, ...groupSnap } = merged
+    _shadow[col].set(n.id, JSON.parse(JSON.stringify(groupSnap)))
+  }
+
+  function _applyItemChange(col, groupsArrRef, payload) {
+    const { eventType, new: n, old: o } = payload
+    const rid = eventType === 'DELETE' ? o.id : n.id
+    if (Date.now() - (_lastRowWriteAt[col].get(rid) || 0) < REALTIME_ECHO_GRACE_MS) return
+    const gid = eventType === 'DELETE' ? o.group_id : n.group_id
+    const group = groupsArrRef.value.find(g => g.id === gid)
+    if (!group) { _pendingItems[col].set(rid, payload); return }
+    if (eventType === 'DELETE') {
+      group.items = group.items.filter(it => it.id !== o.id)
+      _shadow[col].delete(o.id)
+      return
+    }
+    const local = group.items.find(it => it.id === n.id)
+    if (local?.updated_at && n.updated_at && n.updated_at <= local.updated_at) return
+    if (local) Object.assign(local, n)
+    else group.items.push(n)
     _shadow[col].set(n.id, JSON.parse(JSON.stringify(n)))
   }
 
@@ -1092,12 +1297,10 @@ export const useWeddingStore = defineStore('wedding', () => {
           loadData(user.value.id)
           return
         }
-        // guests/timeline/budget/vendors/seserahan/mahar sudah pindah ke
-        // tabel sendiri (lihat binding di bawah) — kolom wedding_data yang
-        // sama namanya sudah tidak dibaca lagi di sini, cuma admin/checklist.
-        const recentlyWrote = col => Date.now() - (_lastWriteAt[col] || 0) < REALTIME_ECHO_GRACE_MS
-        if (Array.isArray(d.admin)     && !recentlyWrote('admin'))     admin.value     = d.admin
-        if (Array.isArray(d.checklist) && !recentlyWrote('checklist')) checklist.value = d.checklist
+        // Semua 8 entity (guests/timeline/budget/vendors/seserahan/mahar/
+        // admin/checklist) sudah pindah ke tabel sendiri (lihat binding di
+        // bawah) — kolom wedding_data yang sama namanya sudah tidak dibaca
+        // lagi di sini. Handler ini sekarang cuma urus kickout partner.
       })
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'guests',
@@ -1123,6 +1326,22 @@ export const useWeddingStore = defineStore('wedding', () => {
         event: '*', schema: 'public', table: 'mahar_items',
         filter: `owner_user_id=eq.${listenId}`,
       }, p => _applyRowChange('mahar', mahar, p))
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'admin_groups',
+        filter: `owner_user_id=eq.${listenId}`,
+      }, p => _applyGroupChange('adminGroups', 'adminItems', admin, p))
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'admin_items',
+        filter: `owner_user_id=eq.${listenId}`,
+      }, p => _applyItemChange('adminItems', admin, p))
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'checklist_groups',
+        filter: `owner_user_id=eq.${listenId}`,
+      }, p => _applyGroupChange('checklistGroups', 'checklistItems', checklist, p))
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'checklist_items',
+        filter: `owner_user_id=eq.${listenId}`,
+      }, p => _applyItemChange('checklistItems', checklist, p))
       .subscribe()
   }
 
@@ -1159,6 +1378,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       await Promise.all([
         _loadGuestsAndTimeline(ownerUid),
         _loadBudgetVendorsSeserahanMahar(ownerUid),
+        _loadAdminAndChecklist(ownerUid),
       ])
     } else {
       await loadData(user.value.id)
@@ -1384,7 +1604,9 @@ export const useWeddingStore = defineStore('wedding', () => {
     // mahar
     addMaharItem, delMahar, removeEmptyMahar,
     // admin
-    delAdminGroup,
+    delAdminGroup, addAdminGroup, addAdminItem,
+    // checklist
+    addChecklistGroup, addChecklistItem,
     // bulk
     applyBulk, bulkDelete,
     // io

@@ -62,21 +62,47 @@ folder ini **berurutan** lewat Supabase Dashboard → SQL Editor (atau
     dijalankan** (sama seperti `008`+`009` di Wave 1, digabung jadi satu
     file di sini).
 
+14. `014_wave3_schema.sql` — Wave 3 migrasi normalisasi (yang terakhir &
+    paling kompleks): tabel `admin_groups`/`admin_items` dan
+    `checklist_groups`/`checklist_items`. Beda dari Wave 1/2 yang semua
+    flat, ini struktur NESTED — satu grup punya banyak item, item butuh
+    `group_id` (FK on delete cascade) yang cuma ada setelah grupnya
+    selesai di-insert. `checklist_groups` punya kolom `position` (dipakai
+    fitur drag-reorder fase yang beneran ada di UI); `admin_groups` dan
+    semua tabel item sengaja tidak punya kolom itu (tidak ada UI reorder
+    untuk itu).
+15. `015_wave3_rls.sql` — RLS untuk keempat tabel di atas, pola sama
+    seperti `005_wave1_rls.sql`/`011_wave2_rls.sql`.
+16. `016_wave3_backfill.sql` — pindahkan data lama dari kolom JSONB ke
+    tabel baru. **Urutan wajib: grup dulu, baru item** (item perlu
+    `group_id` asli dari grup yang baru saja di-backfill). **Penting:**
+    idempotency check untuk item di-scope ke `group_id` yang baru
+    (bukan cuma `legacy_id` global) — id item di skema lama cuma unik
+    di dalam satu grup (restart dari 1 tiap grup), jadi kalau dicek
+    global bisa salah cocokin item dari grup berbeda. **Sebelum
+    menjalankan ini di database production, export data lewat tombol
+    Ekspor di aplikasi dan simpan sebagai cadangan.**
+17. `017_wave3_realtime.sql` — daftarkan keempat tabel ke publication
+    `supabase_realtime` + set `replica identity full`. **Wajib
+    dijalankan.**
+
 Semua file idempoten (aman dijalankan ulang) — policy/fungsi lama dibersihkan
 dulu sebelum dibuat ulang, tabel pakai `create table if not exists`.
 
 **Checklist wajib tiap tabel baru** (pelajaran dari Wave 1, diterapkan
-dari awal di Wave 2 — jangan sampai balik nemuin bug ini satu-satu lagi):
-1. RLS policy (pola `005`/`011`).
-2. Daftarkan ke publication `supabase_realtime` (pola `008`/`013`).
-3. Set `replica identity full` (pola `009`/`013`) — supaya event DELETE
-   bisa difilter dengan benar (tanpa ini DELETE nggak pernah realtime).
+dari awal di Wave 2 & 3 — jangan sampai balik nemuin bug ini satu-satu lagi):
+1. RLS policy (pola `005`/`011`/`015`).
+2. Daftarkan ke publication `supabase_realtime` (pola `008`/`013`/`017`).
+3. Set `replica identity full` (pola `009`/`013`/`017`) — supaya event
+   DELETE bisa difilter dengan benar (tanpa ini DELETE nggak pernah
+   realtime).
 
-**Migrasi bertahap sedang berjalan:** setelah Wave 2, `wedding_data`
-tinggal menyimpan `admin`/`checklist`/`settings` sebagai kolom JSONB
-(admin/checklist itu Wave 3 — struktur nested grup→item, paling
-kompleks). Kolom lama (`guests`/`timeline`/`budget`/`vendors`/
-`seserahan`/`mahar`) SENGAJA tidak dihapus dari `wedding_data` —
+**Migrasi JSONB → tabel ternormalisasi SELESAI TOTAL** untuk semua 8
+entity (guests, timeline, vendors, budget, seserahan, mahar, admin,
+checklist) setelah Wave 3. `wedding_data` sekarang cuma menyimpan
+`settings` yang masih relevan dibaca/ditulis kode aplikasi. Kolom JSONB
+lama (`guests`/`timeline`/`budget`/`vendors`/`seserahan`/`mahar`/
+`admin`/`checklist`) SENGAJA tidak dihapus dari `wedding_data` —
 dibiarkan sebagai jaring pengaman rollback, tidak lagi dibaca/ditulis
 oleh kode aplikasi.
 

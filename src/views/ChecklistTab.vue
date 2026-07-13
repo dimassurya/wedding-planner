@@ -148,19 +148,15 @@ const total = computed(() => store.checklist.reduce((s, g) => s + g.items.length
 const done  = computed(() => store.checklist.reduce((s, g) => s + g.items.filter(i => i.status).length, 0))
 const pct   = computed(() => total.value ? Math.round(done.value / total.value * 100) : 0)
 
-function nextFaseId()    { return store.checklist.length ? Math.max(...store.checklist.map(g => g.id)) + 1 : 1 }
-function nextTugasId(g)  { return g.items.length ? Math.max(...g.items.map(i => i.id)) + 1 : 1 }
-
-function addFase() {
+async function addFase() {
   const name = prompt('Nama fase baru (cth: Hari-H, H-1 Minggu, dll):')
   if (!name?.trim()) return
-  store.checklist.push({ id: nextFaseId(), fase: name.trim(), items: [] })
-  store.saveCK()
+  await store.addChecklistGroup(name.trim())
 }
 
 async function addTugas(g) {
-  g.items.push({ id: nextTugasId(g), tugas: '', status: false })
-  store.saveCK()
+  const row = await store.addChecklistItem(g.id)
+  if (!row) return
   await nextTick()
   const inputs = document.querySelectorAll(`.ck-fase[data-gid="${g.id}"] .ck-row input`)
   if (inputs.length) { const last = inputs[inputs.length - 1]; last.scrollIntoView({ block: 'center' }); last.focus() }
@@ -223,6 +219,7 @@ function onDragEnd() {
   if (ckGrid.value) {
     const ids = [...ckGrid.value.querySelectorAll('.ck-fase')].map(c => parseInt(c.dataset.gid))
     store.checklist.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
+    store.checklist.forEach((g, i) => { g.position = i })
     store.saveCK()
   }
 }

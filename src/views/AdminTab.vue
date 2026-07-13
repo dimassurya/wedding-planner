@@ -152,13 +152,10 @@ const total = computed(() => store.admin.reduce((s, g) => s + g.items.length, 0)
 const done  = computed(() => store.admin.reduce((s, g) => s + g.items.filter(i => i.status).length, 0))
 const pct   = computed(() => total.value ? Math.round(done.value / total.value * 100) : 0)
 
-function nextGroupId() { return store.admin.length ? Math.max(...store.admin.map(g => g.id)) + 1 : 1 }
-function nextItemId(g) { return g.items.length ? Math.max(...g.items.map(i => i.id)) + 1 : 1 }
-
 async function addGroup() {
-  const id = nextGroupId()
-  store.admin.push({ id, grup: '', items: [] })
-  store.saveA()
+  const row = await store.addAdminGroup()
+  if (!row) return
+  const id = row.id
   await nextTick()
   const sel = isMobile.value
     ? `.mad-group[data-gid="${id}"] .mad-grup-name`
@@ -175,8 +172,8 @@ function onGrupBlur(g) {
 }
 
 async function addItem(g) {
-  g.items.push({ id: nextItemId(g), syarat: '', status: false })
-  store.saveA()
+  const row = await store.addAdminItem(g.id)
+  if (!row) return
   await nextTick()
   const inputs = document.querySelectorAll(`.adm-group[data-gid="${g.id}"] .adm-row input[data-af='syarat'], .adm-group[data-gid="${g.id}"] .adm-syarat input`)
   if (inputs.length) { const last = inputs[inputs.length - 1]; last.scrollIntoView({ block: 'center' }); last.focus() }

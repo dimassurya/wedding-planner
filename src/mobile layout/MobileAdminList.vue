@@ -58,8 +58,6 @@ function grupAccent(name) {
   return ''
 }
 
-function nextItemId(g) { return g.items.length ? Math.max(...g.items.map(i => i.id)) + 1 : 1 }
-
 function onGrup(g, val) {
   g.grup = val
   store.saveA()
@@ -73,8 +71,8 @@ function onGrupBlur(g) {
 }
 
 async function addItem(g) {
-  g.items.push({ id: nextItemId(g), syarat: '', status: false })
-  store.saveA()
+  const row = await store.addAdminItem(g.id)
+  if (!row) return
   await nextTick()
   const inputs = document.querySelectorAll(`.mad-group[data-gid="${g.id}"] .mad-syarat`)
   if (inputs.length) { const last = inputs[inputs.length - 1]; last.scrollIntoView({ block: 'center' }); last.focus() }
