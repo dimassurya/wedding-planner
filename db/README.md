@@ -20,6 +20,14 @@ folder ini **berurutan** lewat Supabase Dashboard → SQL Editor (atau
    `wedding_data.guests`/`wedding_data.timeline` ke tabel baru. **Sebelum
    menjalankan ini di database production, export data lewat tombol
    Ekspor di aplikasi dan simpan sebagai cadangan.**
+7. `007_fix_accept_invite_token_type.sql` — perbaikan khusus project ini:
+   tabel `partner_invitations` ternyata sudah ada sebelum `001_schema.sql`
+   pernah dijalankan (kolom `id`/`token` aslinya `uuid`, bukan
+   `bigint`/`text` seperti asumsi awal), bikin `accept_partner_invite`
+   gagal dengan "operator does not exist: uuid = text". Kalau kamu pasang
+   app ini di project Supabase yang benar-benar baru (bukan project ini),
+   kemungkinan besar file ini tidak dibutuhkan — cek dulu tipe kolom
+   `partner_invitations` sebelum menjalankannya.
 
 Semua file idempoten (aman dijalankan ulang) — policy/fungsi lama dibersihkan
 dulu sebelum dibuat ulang, tabel pakai `create table if not exists`.

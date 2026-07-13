@@ -165,23 +165,37 @@ export const useWeddingStore = defineStore('wedding', () => {
     }
     const toDeleteIds = [...shadow.keys()].filter(id => !seen.has(id) && !rows.some(r => r.id === id))
 
+    // Field yang server-managed — jangan pernah dikirim dari nilai lokal
+    // (mis. duplicateGuest nyalin seluruh objek lama, ikut bawa created_at/
+    // updated_at/owner_user_id basi). id ditolak Postgres kalau di-SET
+    // eksplisit (generated always as identity); sisanya harus otoritatif
+    // dari server/konteks saat ini, bukan dari objek yang lagi di-diff.
+    const _stripSystem = row => {
+      const { id, owner_user_id, created_at, updated_at, ...rest } = row
+      return rest
+    }
+
     await Promise.all([
       ...toInsert.map(async row => {
-        const { id, ...rest } = row   // id lama (kalau ada) tidak dikirim — server yang generate PK asli
         const { data, error } = await supabase.from(table)
-          .insert({ owner_user_id: uid, ...rest }).select().single()
+          .insert({ owner_user_id: uid, ..._stripSystem(row) }).select().single()
         if (!error && data) {
           Object.assign(row, data)
           shadow.set(data.id, JSON.parse(JSON.stringify(row)))
+        } else if (error) {
+          console.error(`[_diffAndSync] insert ${table} gagal:`, error)
         }
       }),
       ...toUpdate.map(async row => {
-        const { error } = await supabase.from(table).update(row).eq('id', row.id).eq('owner_user_id', uid)
+        const { error } = await supabase.from(table)
+          .update(_stripSystem(row)).eq('id', row.id).eq('owner_user_id', uid)
         if (!error) shadow.set(row.id, JSON.parse(JSON.stringify(row)))
+        else console.error(`[_diffAndSync] update ${table} gagal:`, error)
       }),
       ...toDeleteIds.map(async id => {
         const { error } = await supabase.from(table).delete().eq('id', id).eq('owner_user_id', uid)
         if (!error) shadow.delete(id)
+        else console.error(`[_diffAndSync] delete ${table} gagal:`, error)
       }),
     ])
   }
