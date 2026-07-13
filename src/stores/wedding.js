@@ -180,6 +180,9 @@ export const useWeddingStore = defineStore('wedding', () => {
         const { data, error } = await supabase.from(table)
           .insert({ owner_user_id: uid, ..._stripSystem(row) }).select().single()
         if (!error && data) {
+          // Tandai SEBELUM apapun lagi — echo baris ini nggak mungkin nyampe
+          // sebelum insert-nya sendiri selesai (baris/id-nya belum ada).
+          _lastRowWriteAt[col]?.set(data.id, Date.now())
           Object.assign(row, data)
           shadow.set(data.id, JSON.parse(JSON.stringify(row)))
         } else if (error) {
@@ -187,12 +190,17 @@ export const useWeddingStore = defineStore('wedding', () => {
         }
       }),
       ...toUpdate.map(async row => {
+        // Tandai SEBELUM network call — biar echo yang balik (yg pasti
+        // updated_at-nya lebih baru dari cache) nggak nimpa ketikan/klik
+        // yang terjadi SELAMA request ini masih di jalan.
+        _lastRowWriteAt[col]?.set(row.id, Date.now())
         const { error } = await supabase.from(table)
           .update(_stripSystem(row)).eq('id', row.id).eq('owner_user_id', uid)
         if (!error) shadow.set(row.id, JSON.parse(JSON.stringify(row)))
         else console.error(`[_diffAndSync] update ${table} gagal:`, error)
       }),
       ...toDeleteIds.map(async id => {
+        _lastRowWriteAt[col]?.set(id, Date.now())
         const { error } = await supabase.from(table).delete().eq('id', id).eq('owner_user_id', uid)
         if (!error) shadow.delete(id)
         else console.error(`[_diffAndSync] delete ${table} gagal:`, error)
@@ -927,8 +935,19 @@ export const useWeddingStore = defineStore('wedding', () => {
   // update masuk buat tamu B/C, dan baris yang genuinely diedit bersamaan
   // dari 2 device tetap resolve secara deterministik (yang updated_at-nya
   // lebih baru menang), bukan silent whole-array clobber seperti dulu.
+  // Kapan terakhir KITA nulis baris tertentu (per col, per row id).
+  // updated_at echo SELALU lebih baru dari cache lokal (karena echo itu
+  // ya snapshot hasil tulisan kita sendiri), jadi bandingin updated_at
+  // doang nggak cukup buat nyaring echo dari tulisan sendiri — kalau
+  // masih ngetik/klik lagi sebelum echo nyampe, echo itu bisa nimpa
+  // balik ke kondisi lama. Ini versi per-baris dari _lastWriteAt (yang
+  // masih dipakai kolom wedding_data lain yang belum dinormalisasi).
+  const _lastRowWriteAt = { guests: new Map(), timeline: new Map() }
+
   function _applyRowChange(col, arrRef, payload) {
     const { eventType, new: n, old: o } = payload
+    const rid = eventType === 'DELETE' ? o.id : n.id
+    if (Date.now() - (_lastRowWriteAt[col].get(rid) || 0) < REALTIME_ECHO_GRACE_MS) return
     if (eventType === 'DELETE') {
       arrRef.value = arrRef.value.filter(r => r.id !== o.id)
       _shadow[col].delete(o.id)

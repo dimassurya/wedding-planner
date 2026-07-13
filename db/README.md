@@ -28,9 +28,29 @@ folder ini **berurutan** lewat Supabase Dashboard → SQL Editor (atau
    app ini di project Supabase yang benar-benar baru (bukan project ini),
    kemungkinan besar file ini tidak dibutuhkan — cek dulu tipe kolom
    `partner_invitations` sebelum menjalankannya.
+8. `008_enable_realtime_wave1.sql` — daftarkan `guests`/`timeline_tasks`
+   ke publication `supabase_realtime`. **Wajib dijalankan** — bikin tabel
+   baru lewat SQL tidak otomatis membuatnya ikut disiarkan realtime
+   (beda dari `wedding_data` yang realtime-nya diaktifkan manual lewat
+   toggle Dashboard di sesi yang jauh lebih awal). Tanpa ini, perubahan
+   dari device lain baru kelihatan setelah refresh manual.
+9. `009_fix_delete_realtime.sql` — set `REPLICA IDENTITY FULL` di
+   `guests`/`timeline_tasks`. **Wajib dijalankan** — tanpa ini, event
+   DELETE gagal cocok dengan filter realtime (`owner_user_id=eq...`)
+   karena Postgres cuma menyertakan kolom primary key di data "row
+   sebelum dihapus", bukan seluruh kolom. INSERT/UPDATE tidak kena
+   masalah ini karena data barunya selalu lengkap.
 
 Semua file idempoten (aman dijalankan ulang) — policy/fungsi lama dibersihkan
 dulu sebelum dibuat ulang, tabel pakai `create table if not exists`.
+
+**Catatan buat Wave 2/3 nanti:** setiap tabel baru butuh KETIGA hal ini,
+bukan cuma create table + RLS — kelewat salah satu bikin realtime
+setengah jalan seperti yang kejadian di Wave 1:
+1. Daftarkan ke publication `supabase_realtime` (pola `008`).
+2. Set `replica identity full` (pola `009`) — supaya event DELETE bisa
+   difilter dengan benar.
+3. RLS policy (pola `005`).
 
 **Migrasi bertahap sedang berjalan:** `wedding_data` masih menyimpan
 `budget`/`vendors`/`seserahan`/`mahar`/`admin`/`checklist` sebagai kolom
