@@ -92,9 +92,9 @@ watch(() => props.show, open => {
   nextTick(() => namaInput.value?.focus())
 })
 
-function save() {
+async function save() {
   if (!form.value.nama.trim()) { store.toast('Nama belum diisi'); return }
-  store.saveGuest({
+  const ok = await store.saveGuest({
     nama:       form.value.nama.trim(),
     jumlah:     form.value.jumlah,
     undangan:   form.value.undangan,
@@ -102,6 +102,7 @@ function save() {
     konfirmasi: form.value.konfirmasi !== 'tidak',
     catatan:    form.value.catatan.trim(),
   }, props.editId)
+  if (!ok) return   // saveGuest sudah toast pesan errornya sendiri
   store.toast(props.editId ? 'Perubahan tersimpan' : 'Tamu ditambahkan')
   emit('close')
 }

@@ -205,11 +205,10 @@ const rows = computed(() => {
 const isOverdue = r => r.deadline && r.deadline < today && r.status !== 'selesai'
 
 async function addTask() {
-  const id = store.timeline.length ? Math.max(...store.timeline.map(t => t.id)) + 1 : 1
-  store.timeline.push({ id, tugas: '', deadline: '', status: 'belum', pic: '', tanggalSelesai: '', catatan: '' })
-  store.saveTL()
+  const row = await store.addTimelineTask()
+  if (!row) return
   // Mobile: langsung buka popup edit untuk tugas baru
-  if (isMobile.value) { mobileEditId.value = id; return }
+  if (isMobile.value) { mobileEditId.value = row.id; return }
   await nextTick()
   const inputs = document.querySelectorAll('.tl-row[data-id] input[type="text"]')
   if (inputs.length) { const last = inputs[inputs.length - 1]; last.scrollIntoView({ block: 'center' }); last.focus() }
@@ -226,7 +225,11 @@ function onText(r, field, val) {
 
 function onChange(r, field, val) {
   const o = realRow(r); if (!o) return
-  o[field] = val
+  // kolom deadline/tanggalSelesai di DB bertipe date — string kosong dari
+  // <input type="date"> yang di-clear harus jadi null, bukan '' (Postgres
+  // menolak '' sbg nilai date)
+  const isDateField = field === 'deadline' || field === 'tanggalSelesai'
+  o[field] = isDateField ? (val || null) : val
   store.saveTL()
 }
 

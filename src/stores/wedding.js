@@ -114,6 +114,8 @@ export const useWeddingStore = defineStore('wedding', () => {
   // Kapan terakhir tiap kolom ditulis dari sini. Dipakai realtime handler
   // supaya echo dari tulisan sendiri (yang bisa berisi snapshot basi kalau
   // user masih lanjut mengetik/toggle) tidak menimpa balik state lokal.
+  // Ini masih dipakai untuk kolom wedding_data yang belum dinormalisasi
+  // (budget, vendors, seserahan, mahar, admin, checklist, settings).
   const _lastWriteAt = {}
   const REALTIME_ECHO_GRACE_MS = 3000
 
@@ -137,13 +139,66 @@ export const useWeddingStore = defineStore('wedding', () => {
     _timers[col] = setTimeout(() => _upsert({ [col]: val }), 600)
   }
 
+  // ── Tabel ternormalisasi (Wave 1: guests, timeline) ─────────────────
+  // Snapshot terakhir yang sudah sinkron ke server, per kolom, key = row id.
+  // Dipakai _diffAndSync buat tahu baris mana yang baru/berubah/terhapus,
+  // tanpa perlu mengubah cara komponen memanggil saveG()/saveTL() (tetap
+  // "mutasi array lalu panggil saveX() tanpa argumen" seperti sebelumnya).
+  const _shadow = { guests: new Map(), timeline: new Map() }
+
+  function _seedShadow(col, rows) {
+    _shadow[col].clear()
+    rows.forEach(r => { if (r.id != null) _shadow[col].set(r.id, JSON.parse(JSON.stringify(r))) })
+  }
+
+  async function _diffAndSync(col, table, rows) {
+    if (!user.value) return
+    const shadow = _shadow[col]
+    const uid = ownerUserId.value || user.value.id
+    const seen = new Set()
+    const toInsert = [], toUpdate = []
+
+    for (const row of rows) {
+      if (row.id == null || !shadow.has(row.id)) { toInsert.push(row); continue }
+      seen.add(row.id)
+      if (JSON.stringify(shadow.get(row.id)) !== JSON.stringify(row)) toUpdate.push(row)
+    }
+    const toDeleteIds = [...shadow.keys()].filter(id => !seen.has(id) && !rows.some(r => r.id === id))
+
+    await Promise.all([
+      ...toInsert.map(async row => {
+        const { id, ...rest } = row   // id lama (kalau ada) tidak dikirim — server yang generate PK asli
+        const { data, error } = await supabase.from(table)
+          .insert({ owner_user_id: uid, ...rest }).select().single()
+        if (!error && data) {
+          Object.assign(row, data)
+          shadow.set(data.id, JSON.parse(JSON.stringify(row)))
+        }
+      }),
+      ...toUpdate.map(async row => {
+        const { error } = await supabase.from(table).update(row).eq('id', row.id).eq('owner_user_id', uid)
+        if (!error) shadow.set(row.id, JSON.parse(JSON.stringify(row)))
+      }),
+      ...toDeleteIds.map(async id => {
+        const { error } = await supabase.from(table).delete().eq('id', id).eq('owner_user_id', uid)
+        if (!error) shadow.delete(id)
+      }),
+    ])
+  }
+
+  function scheduleDiffSync(col, table, rowsRef) {
+    if (!user.value) return
+    clearTimeout(_timers[col])
+    _timers[col] = setTimeout(() => _diffAndSync(col, table, rowsRef.value), 600)
+  }
+
   // ── Save functions ─────────────────────────────────────────────────
-  const saveG  = () => scheduleSave('guests',    guests.value)
+  const saveG  = () => scheduleDiffSync('guests',   'guests',        guests)
   const saveB  = () => scheduleSave('budget',    budget.value)
   const saveV  = () => scheduleSave('vendors',   vendors.value)
   const saveA  = () => scheduleSave('admin',     admin.value)
   const saveCK = () => scheduleSave('checklist', checklist.value)
-  const saveTL = () => scheduleSave('timeline',  timeline.value)
+  const saveTL = () => scheduleDiffSync('timeline', 'timeline_tasks', timeline)
 
   function saveS() {
     syncSeserahanToBudget()
@@ -247,10 +302,13 @@ export const useWeddingStore = defineStore('wedding', () => {
     const payload = {}
     // Pembersihan template yang tidak dipilih HANYA untuk user baru,
     // biar data user lama tidak terhapus kalau melewati onboarding.
+    let clearedTimeline = false
     if (isNewUser.value) {
       const t = data.templates || {}
       if (!t.budget)    { budget.value = [];    payload.budget = budget.value }
-      if (!t.timeline)  { timeline.value = [];  payload.timeline = timeline.value }
+      // timeline sudah pindah ke tabel timeline_tasks — tidak lagi lewat
+      // payload wedding_data, tapi lewat _diffAndSync langsung (di bawah)
+      if (!t.timeline)  { timeline.value = [];  clearedTimeline = true }
       if (!t.admin)     { admin.value = [];     payload.admin = admin.value }
       if (!t.checklist) { checklist.value = []; payload.checklist = checklist.value }
       if (!t.seserahan) { seserahan.value = []; payload.seserahan = seserahan.value }
@@ -263,7 +321,10 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (isNewUser.value) showWelcomeGuide.value = true
     clearTimeout(_timers.settings)
     payload.settings = _settingsPayload()
-    await _upsert(payload)
+    await Promise.all([
+      _upsert(payload),
+      clearedTimeline ? _diffAndSync('timeline', 'timeline_tasks', timeline.value) : Promise.resolve(),
+    ])
     isNewUser.value = false
   }
 
@@ -393,15 +454,23 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   // ── Guest CRUD ─────────────────────────────────────────────────────
-  function saveGuest(data, editId) {
+  async function saveGuest(data, editId) {
     if (editId) {
       const g = guests.value.find(x => x.id === editId)
       if (g) Object.assign(g, data)
-    } else {
-      const id = guests.value.length ? Math.max(...guests.value.map(g => g.id)) + 1 : 1
-      guests.value.push({ id, ...data })
+      saveG()
+      return true
     }
-    saveG()
+    // Tamu baru: PK di tabel `guests` di-generate server (identity column),
+    // jadi harus insert dulu & tunggu id aslinya balik — tidak bisa minting
+    // id lokal seperti dulu (max+1).
+    const uid = ownerUserId.value || user.value.id
+    const { data: row, error } = await supabase.from('guests')
+      .insert({ owner_user_id: uid, ...data }).select().single()
+    if (error || !row) { toast('Gagal menambah tamu, coba lagi'); return false }
+    guests.value.push(row)
+    _shadow.guests.set(row.id, JSON.parse(JSON.stringify(row)))
+    return true
   }
 
   async function delGuest(id) {
@@ -426,6 +495,22 @@ export const useWeddingStore = defineStore('wedding', () => {
     guests.value.splice(idx + 1, 0, { ...g, id: newId, nama: g.nama + ' (salin)' })
     saveG()
     toast('Tamu diduplikasi')
+  }
+
+  async function addTimelineTask() {
+    // Sama seperti guests: PK di tabel timeline_tasks di-generate server,
+    // jadi insert dulu & tunggu id aslinya balik, bukan minting max+1 lokal.
+    const uid = ownerUserId.value || user.value.id
+    const { data: row, error } = await supabase.from('timeline_tasks')
+      .insert({
+        owner_user_id: uid, tugas: '', deadline: null, status: 'belum',
+        pic: '', tanggalSelesai: null, catatan: '',
+      })
+      .select().single()
+    if (error || !row) { toast('Gagal menambah tugas, coba lagi'); return null }
+    timeline.value.push(row)
+    _shadow.timeline.set(row.id, JSON.parse(JSON.stringify(row)))
+    return row
   }
 
   function removeEmptyTimeline(id) {
@@ -667,17 +752,21 @@ export const useWeddingStore = defineStore('wedding', () => {
       if (Array.isArray(d.timeline))  timeline.value  = d.timeline
       _applySettingsPayload(payload.settings)
 
-      await _upsert({
-        guests: guests.value,
-        budget: budget.value,
-        vendors: vendors.value,
-        seserahan: seserahan.value,
-        mahar: mahar.value,
-        admin: admin.value,
-        checklist: checklist.value,
-        timeline: timeline.value,
-        settings: _settingsPayload(),
-      })
+      // guests & timeline sudah pindah ke tabel sendiri — sinkron lewat
+      // diff engine (_diffAndSync), bukan lagi lewat payload wedding_data
+      await Promise.all([
+        _upsert({
+          budget: budget.value,
+          vendors: vendors.value,
+          seserahan: seserahan.value,
+          mahar: mahar.value,
+          admin: admin.value,
+          checklist: checklist.value,
+          settings: _settingsPayload(),
+        }),
+        _diffAndSync('guests', 'guests', guests.value),
+        _diffAndSync('timeline', 'timeline_tasks', timeline.value),
+      ])
       clearSelected()
       activeTab.value = 'home'
       toast('Data berhasil diimpor')
@@ -721,15 +810,26 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   // ── Supabase: load data ────────────────────────────────────────────
+  // guests & timeline sudah pindah ke tabel sendiri — dimuat terpisah lewat
+  // _loadGuestsAndTimeline(), bukan lagi dari kolom JSONB wedding_data.
+  async function _loadGuestsAndTimeline(ownerId) {
+    const [{ data: g }, { data: t }] = await Promise.all([
+      supabase.from('guests').select('*').eq('owner_user_id', ownerId).order('id'),
+      supabase.from('timeline_tasks').select('*').eq('owner_user_id', ownerId).order('id'),
+    ])
+    guests.value   = g || []
+    timeline.value = t || []
+    _seedShadow('guests', guests.value)
+    _seedShadow('timeline', timeline.value)
+  }
+
   function _applyData(data) {
-    if (Array.isArray(data.guests))    guests.value    = data.guests
     if (Array.isArray(data.budget))    budget.value    = data.budget
     if (Array.isArray(data.vendors))   vendors.value   = data.vendors
     if (Array.isArray(data.seserahan)) seserahan.value = data.seserahan
     if (Array.isArray(data.mahar))     mahar.value     = data.mahar
     if (Array.isArray(data.admin))     admin.value     = data.admin
     if (Array.isArray(data.checklist)) checklist.value = data.checklist
-    if (Array.isArray(data.timeline))  timeline.value  = data.timeline
     const s = data.settings || {}
     _applySettingsPayload(s)
     onboarded.value = onboarded.value || isPaid.value
@@ -754,6 +854,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       isPartner.value    = true
       partnerEmail.value = user.value?.email || ''
       _applyData(pData)
+      await _loadGuestsAndTimeline(pData.user_id)
       return
     }
 
@@ -765,6 +866,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       isPartner.value    = false
       partnerEmail.value = data.partner_email || ''
       _applyData(data)
+      await _loadGuestsAndTimeline(userId)
       if (!data.settings?.ownerEmail && user.value?.email) saveSettings()
       return
     }
@@ -781,17 +883,50 @@ export const useWeddingStore = defineStore('wedding', () => {
     mahar.value     = []
     admin.value     = JSON.parse(JSON.stringify(ADMIN_SEED))
     checklist.value = JSON.parse(JSON.stringify(CHECKLIST_SEED))
-    timeline.value  = JSON.parse(JSON.stringify(TIMELINE_SEED))
     await supabase.from('wedding_data').insert({
       user_id: userId,
-      guests: guests.value, budget: budget.value, vendors: vendors.value,
+      budget: budget.value, vendors: vendors.value,
       seserahan: seserahan.value, mahar: mahar.value, admin: admin.value,
-      checklist: checklist.value, timeline: timeline.value, settings: {},
+      checklist: checklist.value, settings: {},
     })
+    // guests: array kosong, tidak ada seed — insert-nya cukup lewat _seedShadow saja
+    _seedShadow('guests', [])
+    // timeline: seed di-insert ke timeline_tasks (bukan lagi ke kolom JSONB),
+    // id lokal dari TIMELINE_SEED dibuang, biar server yang generate PK asli
+    const seedRows = TIMELINE_SEED.map(({ id, ...rest }) => ({
+      owner_user_id: userId,
+      ...rest,
+      deadline: rest.deadline || null,
+      tanggalSelesai: rest.tanggalSelesai || null,
+    }))
+    const { data: insertedTimeline } = await supabase.from('timeline_tasks').insert(seedRows).select()
+    timeline.value = insertedTimeline || []
+    _seedShadow('timeline', timeline.value)
   }
 
   // ── Supabase: realtime sync ────────────────────────────────────────
   let _channel = null
+
+  // Wave 1: guests & timeline_tasks sync per-BARIS, bukan per-kolom.
+  // Dibanding _lastWriteAt (per-kolom, blok SEMUA baris kolom itu 3 detik),
+  // ini bandingin updated_at per baris — edit tamu A tidak lagi memblokir
+  // update masuk buat tamu B/C, dan baris yang genuinely diedit bersamaan
+  // dari 2 device tetap resolve secara deterministik (yang updated_at-nya
+  // lebih baru menang), bukan silent whole-array clobber seperti dulu.
+  function _applyRowChange(col, arrRef, payload) {
+    const { eventType, new: n, old: o } = payload
+    if (eventType === 'DELETE') {
+      arrRef.value = arrRef.value.filter(r => r.id !== o.id)
+      _shadow[col].delete(o.id)
+      return
+    }
+    const local = arrRef.value.find(r => r.id === n.id)
+    if (local?.updated_at && n.updated_at && n.updated_at <= local.updated_at) return
+    if (local) Object.assign(local, n)
+    else arrRef.value.push(n)
+    _shadow[col].set(n.id, JSON.parse(JSON.stringify(n)))
+  }
+
   function subscribeRealtime(userId) {
     _channel?.unsubscribe()
     const listenId = ownerUserId.value || userId
@@ -809,16 +944,24 @@ export const useWeddingStore = defineStore('wedding', () => {
           loadData(user.value.id)
           return
         }
+        // guests & timeline sudah pindah ke tabel sendiri (lihat binding di
+        // bawah) — kolom wedding_data.guests/timeline tidak dibaca lagi di sini.
         const recentlyWrote = col => Date.now() - (_lastWriteAt[col] || 0) < REALTIME_ECHO_GRACE_MS
-        if (Array.isArray(d.guests)    && !recentlyWrote('guests'))    guests.value    = d.guests
         if (Array.isArray(d.budget)    && !recentlyWrote('budget'))    budget.value    = d.budget
         if (Array.isArray(d.vendors)   && !recentlyWrote('vendors'))   vendors.value   = d.vendors
         if (Array.isArray(d.seserahan) && !recentlyWrote('seserahan')) seserahan.value = d.seserahan
         if (Array.isArray(d.mahar)     && !recentlyWrote('mahar'))     mahar.value     = d.mahar
         if (Array.isArray(d.admin)     && !recentlyWrote('admin'))     admin.value     = d.admin
         if (Array.isArray(d.checklist) && !recentlyWrote('checklist')) checklist.value = d.checklist
-        if (Array.isArray(d.timeline)  && !recentlyWrote('timeline'))  timeline.value  = d.timeline
       })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'guests',
+        filter: `owner_user_id=eq.${listenId}`,
+      }, p => _applyRowChange('guests', guests, p))
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'timeline_tasks',
+        filter: `owner_user_id=eq.${listenId}`,
+      }, p => _applyRowChange('timeline', timeline, p))
       .subscribe()
   }
 
@@ -852,6 +995,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       const { data } = await supabase.from('wedding_data')
         .select('*').eq('user_id', ownerUid).maybeSingle()
       if (data) _applyData(data)
+      await _loadGuestsAndTimeline(ownerUid)
     } else {
       await loadData(user.value.id)
     }
@@ -1063,7 +1207,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     // guest
     saveGuest, delGuest, duplicateGuest, exportGuestsCSV, exportBudgetCSV,
     // timeline
-    delTimeline, removeEmptyTimeline,
+    addTimelineTask, delTimeline, removeEmptyTimeline,
     // vendor
     delVendor,
     // seserahan

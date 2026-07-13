@@ -91,7 +91,10 @@ function todayISO() {
 function setField(field, val) {
   const o = item.value
   if (!o) return
-  o[field] = val
+  // deadline/tanggalSelesai bertipe date di DB — '' dari input date yang
+  // di-clear harus jadi null (Postgres menolak '' sbg nilai date)
+  const isDateField = field === 'deadline' || field === 'tanggalSelesai'
+  o[field] = isDateField ? (val || null) : val
   store.saveTL()
 }
 
