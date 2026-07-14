@@ -194,7 +194,7 @@ export const WP_TABS = [
   { tab: 'admin',     label: 'Dokumen Nikah' },
   { tab: 'checklist', label: 'Checklist' },
   { tab: 'budget',    label: 'Budget' },
-  { tab: 'timeline',  label: 'Timeline' },
+  { tab: 'timeline',  label: 'Agenda' },
 ]
 
 export const STORAGE_KEYS = {

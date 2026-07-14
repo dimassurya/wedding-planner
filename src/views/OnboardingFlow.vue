@@ -94,7 +94,7 @@ const form = reactive({
 const TEMPLATES = [
   { key: 'budget',    label: 'Anggaran & Vendor',  hint: 'Daftar item budget pernikahan umum' },
   { key: 'checklist', label: 'Checklist Persiapan', hint: 'To-do list persiapan hari H' },
-  { key: 'timeline',  label: 'Timeline',             hint: 'Jadwal rundown acara' },
+  { key: 'timeline',  label: 'Agenda',               hint: 'Contoh tugas berjadwal menuju hari-H' },
   { key: 'admin',     label: 'Administrasi',         hint: 'Daftar syarat & dokumen' },
   { key: 'seserahan', label: 'Seserahan',            hint: 'Daftar item seserahan umum' },
 ]

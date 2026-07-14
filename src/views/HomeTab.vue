@@ -154,7 +154,7 @@
     <!-- Upcoming deadlines -->
     <div class="card hm-section">
       <div class="hm-chart-title">Deadline Terdekat</div>
-      <div v-if="!upcoming.length" class="hm-empty">Belum ada deadline. Isi jatuh tempo di Budget atau tugas di Timeline.</div>
+      <div v-if="!upcoming.length" class="hm-empty">Belum ada deadline. Isi jatuh tempo di Budget atau deadline tugas di Checklist.</div>
       <div v-else class="hm-deadlines">
         <div v-for="it in upcoming" :key="it.date + it.label" class="hm-dl">
           <div class="hm-dl-date">{{ fmtDate(it.date) }}</div>
@@ -244,7 +244,7 @@ const HOME_STEPS = computed(() => [
     selector: '#panel-home .hm-deadlines',
     icon: '⏰',
     title: 'Deadline Terdekat',
-    desc: '5 deadline terdekat dari Timeline (tugas belum selesai) dan Budget (jatuh tempo pembayaran). Diurut dari yang paling dekat supaya tidak ada yang kelewat.',
+    desc: '5 deadline terdekat dari Agenda (tugas belum selesai) dan Budget (jatuh tempo pembayaran). Diurut dari yang paling dekat supaya tidak ada yang kelewat.',
   },
 ])
 
@@ -320,7 +320,10 @@ const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${Str
 
 const upcoming = computed(() => {
   const list = []
-  store.timeline.forEach(t => { if (t.deadline && t.status !== 'selesai') list.push({ date: t.deadline, label: t.tugas || 'Tugas', src: 'Timeline' }) })
+  store.timeline.forEach(t => { if (t.deadline && t.status !== 'selesai') list.push({ date: t.deadline, label: t.tugas || 'Tugas', src: 'Agenda' }) })
+  store.checklist.forEach(g => (g.items || []).forEach(it => {
+    if (it.deadline && !it.status) list.push({ date: it.deadline, label: it.tugas || 'Tugas', src: 'Agenda' })
+  }))
   store.budget.forEach(b => {
     if (b.jatuhTempo && store.bStatus(b).key !== 'lunas') list.push({ date: b.jatuhTempo, label: 'Bayar: ' + (b.item || '—'), src: 'Budget' })
   })
@@ -369,23 +372,35 @@ const alerts = computed(() => {
     })
   }
 
-  const tlOverdue = store.timeline.filter(t => t.deadline && t.status !== 'selesai' && daysLeft(t.deadline) < 0)
+  // Tugas bertanggal dari dua sumber Agenda: Timeline lama + deadline Checklist.
+  const agendaTasks = [
+    ...store.timeline
+      .filter(t => t.deadline && t.status !== 'selesai')
+      .map(t => ({ deadline: t.deadline, label: t.tugas || 'Tugas' })),
+    ...store.checklist.flatMap(g =>
+      (g.items || [])
+        .filter(it => it.deadline && !it.status)
+        .map(it => ({ deadline: it.deadline, label: it.tugas || 'Tugas' }))
+    ),
+  ]
+
+  const tlOverdue = agendaTasks.filter(t => daysLeft(t.deadline) < 0)
   if (tlOverdue.length) {
     list.push({
       id: 'timeline-overdue', severity: 'danger', icon: '🚨',
-      title: `${tlOverdue.length} tugas timeline terlambat`,
-      desc: summarize(tlOverdue, t => t.tugas || 'Tugas'),
-      cta: 'Lihat Timeline', action: () => { store.activeTab = 'timeline' },
+      title: `${tlOverdue.length} tugas terlambat`,
+      desc: summarize(tlOverdue, t => t.label),
+      cta: 'Lihat Agenda', action: () => { store.activeTab = 'timeline' },
     })
   }
 
-  const tlSoon = store.timeline.filter(t => t.deadline && t.status !== 'selesai' && daysLeft(t.deadline) >= 0 && daysLeft(t.deadline) <= 7)
+  const tlSoon = agendaTasks.filter(t => daysLeft(t.deadline) >= 0 && daysLeft(t.deadline) <= 7)
   if (tlSoon.length) {
     list.push({
       id: 'timeline-soon', severity: 'warning', icon: '📅',
-      title: `${tlSoon.length} tugas timeline deadline minggu ini`,
-      desc: summarize(tlSoon, t => t.tugas || 'Tugas'),
-      cta: 'Lihat Timeline', action: () => { store.activeTab = 'timeline' },
+      title: `${tlSoon.length} tugas deadline minggu ini`,
+      desc: summarize(tlSoon, t => t.label),
+      cta: 'Lihat Agenda', action: () => { store.activeTab = 'timeline' },
     })
   }
 

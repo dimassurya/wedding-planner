@@ -39,7 +39,6 @@ const items = [
   { tab: 'tamu',      icon: '👥', title: 'Tambah Tamu',      hint: 'Isi undangan baru' },
   { tab: 'budget',    icon: '💰', title: 'Tambah Budget',    hint: 'Catat pos biaya' },
   { tab: 'vendor',    icon: '🤝', title: 'Tambah Vendor',    hint: 'Simpan kandidat vendor' },
-  { tab: 'timeline',  icon: '📅', title: 'Tambah Tugas',     hint: 'Buat deadline baru' },
   { tab: 'seserahan', icon: '🎁', title: 'Tambah Seserahan', hint: 'Catat item seserahan' },
   { tab: 'mahar',     icon: '💍', title: 'Tambah Mahar',     hint: 'Catat item mahar' },
 ]

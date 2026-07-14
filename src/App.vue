@@ -105,7 +105,7 @@
         <MaharTab     v-show="store.activeTab === 'mahar'" />
         <AdminTab     v-show="store.activeTab === 'admin'" />
         <ChecklistTab v-show="store.activeTab === 'checklist'" />
-        <TimelineTab  v-show="store.activeTab === 'timeline'" />
+        <AgendaView   v-show="store.activeTab === 'timeline'" />
       </main>
 
       <!-- Single global BulkBar + BulkEditModal -->
@@ -158,7 +158,7 @@ import SeserahanTab from './views/SeserahanTab.vue'
 import MaharTab     from './views/MaharTab.vue'
 import AdminTab     from './views/AdminTab.vue'
 import ChecklistTab from './views/ChecklistTab.vue'
-import TimelineTab  from './views/TimelineTab.vue'
+import AgendaView   from './views/AgendaView.vue'
 import BulkEditModal from './components/modals/BulkEditModal.vue'
 import ToastNotif   from './components/ToastNotif.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'

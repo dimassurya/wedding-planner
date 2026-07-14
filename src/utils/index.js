@@ -10,6 +10,12 @@ export function fmtDate(s) {
   return `${parseInt(d)} ${months[parseInt(m)-1]} ${y}`
 }
 
+export function daysLeft(date) {
+  const d = new Date(date + 'T00:00:00')
+  const t = new Date(); t.setHours(0, 0, 0, 0)
+  return Math.round((d - t) / 86400000)
+}
+
 export function openLink(url) {
   if (!url) return
   url = String(url).trim()

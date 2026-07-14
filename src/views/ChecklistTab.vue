@@ -68,11 +68,12 @@
           </div>
           <div class="ck-rows">
             <div v-if="!g.items.length" class="empty" style="padding:24px 16px"><div>Belum ada tugas di fase ini.</div></div>
-            <div v-for="it in g.items" :key="it.id" class="ck-row" :class="{ done: it.status }" :data-gid="g.id" :data-id="it.id">
+            <div v-for="it in g.items" :key="it.id" class="ck-row ck-row-dl" :class="{ done: it.status }" :data-gid="g.id" :data-id="it.id">
               <SwitchToggle :model-value="!!it.status" title="Selesai?" @update:model-value="v => onToggle(it, v)" />
               <div class="ck-tugas">
                 <input type="text" :value="it.tugas" placeholder="Tulis tugas..." @input="e => { it.tugas = e.target.value; store.saveCK() }" @blur="onTugasBlur(g, it)">
               </div>
+              <input class="ck-deadline" type="date" :value="it.deadline || ''" title="Deadline (opsional) — muncul di Agenda" @change="e => onDeadline(it, e.target.value)">
               <button class="icon-btn del-tugas-btn item-action-btn" @click="delTugas(g, it)" title="Hapus tugas">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               </button>
@@ -167,6 +168,13 @@ function onToggle(it, val) {
   store.saveCK()
 }
 
+function onDeadline(it, val) {
+  // kolom deadline di DB bertipe date — string kosong dari <input type="date">
+  // yang di-clear harus jadi null, bukan '' (Postgres nolak '' sbg date).
+  it.deadline = val || null
+  store.saveCK()
+}
+
 function onTugasBlur(g, it) {
   if (!it.tugas.trim()) {
     g.items = g.items.filter(x => x.id !== it.id)
@@ -238,6 +246,25 @@ function onImport(e) {
 </script>
 
 <style scoped>
+.ck-row-dl { grid-template-columns: 34px 1fr auto 34px; }
+.ck-deadline {
+  font-family: 'Jost', sans-serif;
+  font-size: 12.5px;
+  color: var(--muted);
+  border: 1.5px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  padding: 5px 6px;
+  transition: .15s;
+  cursor: pointer;
+}
+.ck-deadline:hover { background: #fff; border-color: var(--line); }
+.ck-deadline:focus { outline: none; border-color: var(--gold); background: #fff; }
+.ck-row.done .ck-deadline { color: var(--muted); }
+@media (max-width: 760px) {
+  .ck-deadline { font-size: 12px; padding: 4px; }
+}
+
 .ck-fase-label {
   flex: 1;
   min-width: 0;

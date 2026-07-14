@@ -1403,6 +1403,7 @@ input:checked + .slider:before { transform: translateX(14px); }
 .hm-dl-src { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 5px; margin-right: 8px; }
 .hm-src-budget { color: #7a5c28; background: var(--gold-soft); }
 .hm-src-timeline { color: #fff; background: #0A1D4B; }
+.hm-src-agenda { color: #fff; background: #0A1D4B; }
 .hm-dl-late { font-size: 12px; font-weight: 600; color: #7a1a1a; background: var(--rose-soft); padding: 3px 9px; border-radius: 100px; white-space: nowrap; }
 .hm-dl-soon { font-size: 12px; font-weight: 600; color: #7a5c28; background: var(--gold-soft); padding: 3px 9px; border-radius: 100px; white-space: nowrap; }
 .hm-dl-days { font-size: 12px; color: var(--muted); white-space: nowrap; }

@@ -14,7 +14,11 @@
 
     <!-- Controls -->
     <div class="controls">
-      <div id="bChips" class="chips">
+      <div class="chips view-switch">
+        <button class="fchip" :class="{ on: view === 'table' }" @click="view = 'table'">📋 Tabel</button>
+        <button class="fchip" :class="{ on: view === 'jadwal' }" @click="view = 'jadwal'">📅 Jadwal</button>
+      </div>
+      <div v-if="view === 'table'" id="bChips" class="chips">
         <button v-for="chip in CHIPS" :key="chip.f" class="fchip" :class="{ on: store.bFilter === chip.f }" @click="store.bFilter = chip.f">{{ chip.label }}</button>
       </div>
       <button class="icon-btn solid" @click="addItem">
@@ -29,6 +33,10 @@
       <TourBtn :steps="BUDGET_STEPS" />
     </div>
 
+    <!-- Jadwal pembayaran -->
+    <BudgetSchedule v-if="view === 'jadwal'" @open="openDetail" />
+
+    <template v-else>
     <!-- Guide card (web saja) -->
     <div v-if="!isMobile" class="card b-guide">
       <div class="b-guide-title">Panduan kolom</div>
@@ -111,6 +119,7 @@
       </div>
       </div>
     </div>
+    </template>
 
     <BudgetDetailModal :show="detailShow" :item-id="detailId" @close="onDetailClose" />
   </section>
@@ -121,6 +130,7 @@ import { ref, computed, nextTick, watch } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { fmt, grp, num, fmtDate } from '../utils/index'
 import BudgetDetailModal from '../components/modals/BudgetDetailModal.vue'
+import BudgetSchedule from '../components/BudgetSchedule.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileBudgetList from '../mobile layout/MobileBudgetList.vue'
 import TourBtn from '../components/TourBtn.vue'
@@ -132,6 +142,7 @@ const detailId    = ref(null)
 const newItemId   = ref(null)
 const isMobile    = useIsMobile()
 const detailIsNew = ref(false)
+const view        = ref('table')
 
 // Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
 watch(() => store.quickAddNonce, () => {
@@ -269,3 +280,7 @@ function onImport(e) {
   e.target.value = ''
 }
 </script>
+
+<style scoped>
+.view-switch { padding-right: 10px; border-right: 1px solid var(--line); }
+</style>
