@@ -1249,10 +1249,12 @@ export const useWeddingStore = defineStore('wedding', () => {
       n.items = []
       arrRef.value.push(n)
       // Flush item yang mungkin sudah nyampe lebih dulu nungguin grup ini.
+      // Buffer ini cuma pernah diisi event INSERT/UPDATE (DELETE nggak
+      // butuh nunggu grup — lihat _applyItemChange), jadi aman baca
+      // itemPayload.new.group_id langsung tanpa cek eventType.
       const pending = _pendingItems[itemsCol]
       for (const [itemId, itemPayload] of [...pending.entries()]) {
-        const pgid = itemPayload.eventType === 'DELETE' ? itemPayload.old.group_id : itemPayload.new.group_id
-        if (pgid === n.id) { pending.delete(itemId); _applyItemChange(itemsCol, arrRef, itemPayload) }
+        if (itemPayload.new.group_id === n.id) { pending.delete(itemId); _applyItemChange(itemsCol, arrRef, itemPayload) }
       }
     }
     const merged = local || n
@@ -1264,21 +1266,21 @@ export const useWeddingStore = defineStore('wedding', () => {
   function _applyItemChange(col, groupsArrRef, payload) {
     const { eventType, new: n, old: o } = payload
     const rid = eventType === 'DELETE' ? o.id : n.id
-    console.log('[_applyItemChange]', col, eventType, { n, o, rid })
-    if (Date.now() - (_lastRowWriteAt[col].get(rid) || 0) < REALTIME_ECHO_GRACE_MS) {
-      console.log('[_applyItemChange] diblok grace period (echo tulisan sendiri)')
-      return
-    }
-    const gid = eventType === 'DELETE' ? o.group_id : n.group_id
-    const group = groupsArrRef.value.find(g => g.id === gid)
-    console.log('[_applyItemChange] gid dicari:', gid, typeof gid, '-> grup ketemu?', !!group, groupsArrRef.value.map(g => [g.id, typeof g.id]))
-    if (!group) { _pendingItems[col].set(rid, payload); return }
+    if (Date.now() - (_lastRowWriteAt[col].get(rid) || 0) < REALTIME_ECHO_GRACE_MS) return
     if (eventType === 'DELETE') {
-      group.items = group.items.filter(it => it.id !== o.id)
+      // Payload DELETE dari Supabase Realtime kadang nggak menyertakan
+      // group_id walau replica identity full sudah diset (cuma id yang
+      // konsisten selalu ada) — makanya di sini nyari lewat isi semua grup
+      // (cocokin id item), bukan gantungin ke o.group_id.
+      for (const g of groupsArrRef.value) {
+        const idx = g.items.findIndex(it => it.id === o.id)
+        if (idx !== -1) { g.items.splice(idx, 1); break }
+      }
       _shadow[col].delete(o.id)
-      console.log('[_applyItemChange] item dihapus dari grup, sisa item:', group.items.length)
       return
     }
+    const group = groupsArrRef.value.find(g => g.id === n.group_id)
+    if (!group) { _pendingItems[col].set(rid, payload); return }
     const local = group.items.find(it => it.id === n.id)
     if (local?.updated_at && n.updated_at && n.updated_at <= local.updated_at) return
     if (local) Object.assign(local, n)
