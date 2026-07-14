@@ -86,12 +86,24 @@ folder ini **berurutan** lewat Supabase Dashboard → SQL Editor (atau
     `supabase_realtime` + set `replica identity full`. **Wajib
     dijalankan.**
 
+18. `018_rls_perf_optimize.sql` — optimasi performa RLS untuk skala besar.
+    Semua policy (dari `002`/`005`/`011`/`015`) dibuat ulang dengan
+    `auth.uid()` dibungkus jadi `(select auth.uid())`. Bedanya: `auth.uid()`
+    telanjang dievaluasi ulang PER BARIS, sedangkan `(select auth.uid())`
+    di-hoist Postgres jadi InitPlan (sekali per query). Semantik policy
+    identik, cuma jauh lebih cepat untuk user dengan banyak baris. Ini
+    pola resmi yang disarankan Supabase. **Tidak menyentuh data** — cuma
+    definisi policy. Kalau memasang app di project baru, jalankan
+    `002`/`005`/`011`/`015` dulu lalu `018` di akhir sebagai versi final
+    policy.
+
 Semua file idempoten (aman dijalankan ulang) — policy/fungsi lama dibersihkan
 dulu sebelum dibuat ulang, tabel pakai `create table if not exists`.
 
 **Checklist wajib tiap tabel baru** (pelajaran dari Wave 1, diterapkan
 dari awal di Wave 2 & 3 — jangan sampai balik nemuin bug ini satu-satu lagi):
-1. RLS policy (pola `005`/`011`/`015`).
+1. RLS policy (pola `018` — pakai `(select auth.uid())`, BUKAN `auth.uid()`
+   telanjang, biar dievaluasi sekali per query bukan per baris).
 2. Daftarkan ke publication `supabase_realtime` (pola `008`/`013`/`017`).
 3. Set `replica identity full` (pola `009`/`013`/`017`) — supaya event
    DELETE bisa difilter dengan benar (tanpa ini DELETE nggak pernah
