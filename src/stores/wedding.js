@@ -1264,13 +1264,19 @@ export const useWeddingStore = defineStore('wedding', () => {
   function _applyItemChange(col, groupsArrRef, payload) {
     const { eventType, new: n, old: o } = payload
     const rid = eventType === 'DELETE' ? o.id : n.id
-    if (Date.now() - (_lastRowWriteAt[col].get(rid) || 0) < REALTIME_ECHO_GRACE_MS) return
+    console.log('[_applyItemChange]', col, eventType, { n, o, rid })
+    if (Date.now() - (_lastRowWriteAt[col].get(rid) || 0) < REALTIME_ECHO_GRACE_MS) {
+      console.log('[_applyItemChange] diblok grace period (echo tulisan sendiri)')
+      return
+    }
     const gid = eventType === 'DELETE' ? o.group_id : n.group_id
     const group = groupsArrRef.value.find(g => g.id === gid)
+    console.log('[_applyItemChange] gid dicari:', gid, typeof gid, '-> grup ketemu?', !!group, groupsArrRef.value.map(g => [g.id, typeof g.id]))
     if (!group) { _pendingItems[col].set(rid, payload); return }
     if (eventType === 'DELETE') {
       group.items = group.items.filter(it => it.id !== o.id)
       _shadow[col].delete(o.id)
+      console.log('[_applyItemChange] item dihapus dari grup, sisa item:', group.items.length)
       return
     }
     const local = group.items.find(it => it.id === n.id)
