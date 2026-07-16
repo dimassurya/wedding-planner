@@ -118,8 +118,67 @@ lama (`guests`/`timeline`/`budget`/`vendors`/`seserahan`/`mahar`/
 dibiarkan sebagai jaring pengaman rollback, tidak lagi dibaca/ditulis
 oleh kode aplikasi.
 
-**Belum ada di sini:** integrasi pembayaran (Stripe dkk). `profiles.paid_at`
-sengaja tidak punya policy UPDATE untuk client (lihat komentar di
-`002_rls_policies.sql`) — kalau nanti pembayaran diimplementasikan, isi
-`paid_at` harus lewat service_role key di backend/edge function, bukan
-lewat RLS yang bisa diakses user biasa.
+19. `020_payment_trial.sql` — trial 2 hari + tracking pembayaran iPaymu:
+    `profiles.trial_ends_at` (kolom baru), RPC `start_trial()` (security
+    definer, cuma bisa "mulai" sekali — dijaga `where trial_ends_at is
+    null`, dipanggil client di `completeOnboarding()`), dan tabel
+    `payments` (audit trail + idempotency key buat webhook, RLS read-only
+    untuk owner, tulis cuma lewat service_role dari edge function).
+
+## Pembayaran (iPaymu)
+
+Alur: user onboarding → trial 2 hari (`start_trial()` RPC) → kalau trial
+habis & `profiles.paid_at` masih kosong, `store.hasAccess` jadi `false`
+dan App.vue mengunci balik ke `PaymentPage.vue` (lihat komentar di
+`020_payment_trial.sql` untuk alur lengkap). Bayar QRIS lewat dua edge
+function di `supabase/functions/`:
+
+- `create-payment` — dipanggil client (`store.createPayment()`), bikin
+  transaksi QRIS baru di iPaymu, simpan baris `payments` (status
+  `pending`), balikin data QR ke client.
+- `ipaymu-webhook` — didaftarkan sebagai "Notify URL" di dashboard
+  iPaymu. Saat status transaksi berubah, iPaymu POST ke sini; handler
+  **tidak percaya body webhook mentah** — begitu dapat `trx_id`, dia
+  query balik ke iPaymu buat konfirmasi status asli, baru update
+  `payments.status` + `profiles.paid_at` (service_role, bypass RLS).
+
+### Deploy
+
+1. Install Supabase CLI kalau belum ada, lalu `supabase login` dan
+   `supabase link --project-ref <project-ref-kamu>` di folder ini.
+2. Set secret (nilai dari dashboard iPaymu — Pengaturan → API):
+   ```
+   supabase secrets set IPAYMU_VA=<nomor-va-kamu>
+   supabase secrets set IPAYMU_API_KEY=<api-key-kamu>
+   supabase secrets set IPAYMU_MODE=sandbox
+   ```
+   Ganti `IPAYMU_MODE` jadi `production` kalau sudah siap terima uang asli.
+3. Deploy kedua function:
+   ```
+   supabase functions deploy create-payment
+   supabase functions deploy ipaymu-webhook --no-verify-jwt
+   ```
+   `--no-verify-jwt` WAJIB untuk `ipaymu-webhook` — itu dipanggil iPaymu
+   sendiri (bukan browser user), jadi tidak ada JWT Supabase yang bisa
+   diverifikasi lewat jalur biasa.
+4. Salin URL `ipaymu-webhook` (format
+   `https://<project-ref>.supabase.co/functions/v1/ipaymu-webhook`), lalu
+   daftarkan sebagai "Notify URL"/"Callback URL" di dashboard iPaymu.
+5. Jalankan `020_payment_trial.sql` di SQL Editor.
+
+### Catatan penting
+
+- **Belum pernah dites end-to-end** terhadap API iPaymu asli (tidak ada
+  akses ke akun/kredensial sandbox saat kode ini ditulis). Bentuk request
+  & response mengikuti dokumentasi resmi iPaymu API v2 per pengetahuan
+  terakhir — field response (`Data.QrString`, `Data.Status`, dst) sudah
+  ditandai jelas di kedua file function kalau ternyata perlu disesuaikan.
+  **Wajib coba dulu di mode sandbox** sebelum pasang di production, dan
+  cek log function (`supabase functions logs create-payment` /
+  `ipaymu-webhook`) kalau ada yang nggak sesuai — raw response iPaymu
+  selalu di-log di sana.
+- Harga hardcode Rp99.000 di `create-payment/index.ts` (`PRICE_IDR`) dan
+  `PaymentPage.vue` (`PRICE`) — kalau mau ubah harga, dua tempat ini yang
+  diedit.
+- Trial cuma bisa dimulai SEKALI per user (guard di RPC) — refresh/login
+  ulang tidak memperpanjang atau mereset trial.

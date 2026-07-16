@@ -18,37 +18,65 @@
 
       <div class="pay-divider"></div>
 
-      <h2 class="pay-title">Akses Lifetime</h2>
-      <p class="pay-desc">Bayar sekali, pakai selamanya. Semua fitur termasuk sync antar device dan backup otomatis.</p>
+      <!-- ── State A: belum pernah onboarding — tawarkan trial ── -->
+      <template v-if="!store.onboarded">
+        <h2 class="pay-title">Coba Gratis 2 Hari</h2>
+        <p class="pay-desc">Rasakan semua fitur dulu tanpa bayar. Setelah 2 hari, lanjutkan dengan sekali bayar untuk akses selamanya.</p>
 
-      <ul class="pay-features">
-        <li>
-          <svg viewBox="0 0 20 20" fill="none"><path d="M4 10l4.5 4.5L16 6" stroke="#6E151A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Manajemen tamu & undangan
-        </li>
-        <li>
-          <svg viewBox="0 0 20 20" fill="none"><path d="M4 10l4.5 4.5L16 6" stroke="#6E151A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Tracking budget & vendor lengkap
-        </li>
-        <li>
-          <svg viewBox="0 0 20 20" fill="none"><path d="M4 10l4.5 4.5L16 6" stroke="#6E151A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Seserahan, mahar, administrasi, checklist
-        </li>
-        <li>
-          <svg viewBox="0 0 20 20" fill="none"><path d="M4 10l4.5 4.5L16 6" stroke="#6E151A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Sync realtime antar device
-        </li>
-      </ul>
+        <ul class="pay-features">
+          <li><Check/> Manajemen tamu & undangan</li>
+          <li><Check/> Tracking budget & vendor lengkap</li>
+          <li><Check/> Seserahan, mahar, administrasi, checklist</li>
+          <li><Check/> Sync realtime antar device</li>
+        </ul>
 
-      <div class="pay-price">
-        <span class="pay-amount">Rp 99.000</span>
-        <span class="pay-once">satu kali bayar</span>
-      </div>
+        <div class="pay-price">
+          <span class="pay-amount">{{ fmt(PRICE) }}</span>
+          <span class="pay-once">setelah trial, satu kali bayar</span>
+        </div>
 
-      <button class="pay-btn" @click="store.startOnboarding()">
-        Bayar Sekarang
-        <span class="pay-badge">Coba gratis dulu</span>
-      </button>
+        <button class="pay-btn" @click="store.startOnboarding()">
+          Mulai Trial 2 Hari
+          <span class="pay-badge">Gratis, tanpa kartu</span>
+        </button>
+      </template>
+
+      <!-- ── State B: sudah onboarding, trial habis & belum bayar ── -->
+      <template v-else>
+        <h2 class="pay-title">Trial Kamu Sudah Berakhir</h2>
+        <p class="pay-desc">Masa coba gratis 2 hari sudah habis. Lanjutkan dengan sekali bayar untuk buka kembali akses ke semua data & fitur kamu.</p>
+
+        <div class="pay-price">
+          <span class="pay-amount">{{ fmt(PRICE) }}</span>
+          <span class="pay-once">satu kali bayar, akses selamanya</span>
+        </div>
+
+        <!-- idle: tombol bayar -->
+        <button v-if="payState === 'idle' || payState === 'error'" class="pay-btn" @click="payNow">
+          Bayar Sekarang (QRIS)
+        </button>
+        <p v-if="payState === 'error'" class="pay-err">Gagal membuat transaksi. Coba lagi.</p>
+
+        <!-- loading: bikin transaksi -->
+        <div v-else-if="payState === 'loading'" class="pay-qr-wrap">
+          <div class="pay-spinner"></div>
+          <p class="pay-qr-hint">Menyiapkan pembayaran…</p>
+        </div>
+
+        <!-- qr: nunggu discan -->
+        <div v-else-if="payState === 'qr'" class="pay-qr-wrap">
+          <img :src="qrDataUrl" alt="QRIS" class="pay-qr-img">
+          <p class="pay-qr-hint">Scan pakai aplikasi e-wallet / m-banking apa saja yang mendukung QRIS.</p>
+          <div class="pay-qr-waiting"><span class="pay-dot"></span> Menunggu pembayaran…</div>
+        </div>
+
+        <!-- timeout: belum kekonfirmasi -->
+        <div v-else-if="payState === 'timeout'" class="pay-qr-wrap">
+          <p class="pay-qr-hint">Belum terdeteksi pembayaran. Kalau kamu sudah bayar, tunggu sebentar lalu cek lagi — atau buat transaksi baru.</p>
+          <button class="pay-btn" @click="checkAgain">Cek Status Lagi</button>
+          <button class="pay-signout" @click="payNow">Buat Transaksi Baru</button>
+        </div>
+      </template>
 
       <button class="pay-signout" @click="store.signOut()">Keluar akun</button>
     </div>
@@ -56,12 +84,52 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, h } from 'vue'
+import QRCode from 'qrcode'
 import { useWeddingStore } from '../stores/wedding'
+import { fmt } from '../utils/index'
+
+const PRICE = 99000
 
 const store  = useWeddingStore()
 const avatar = computed(() => store.user?.user_metadata?.avatar_url)
 const name   = computed(() => store.user?.user_metadata?.full_name || store.user?.email?.split('@')[0])
+
+// Ikon centang kecil dipakai berulang di daftar fitur — komponen inline
+// biar nggak perlu file terpisah cuma buat satu svg kecil.
+const Check = () => h('svg', { viewBox: '0 0 20 20', fill: 'none' }, [
+  h('path', { d: 'M4 10l4.5 4.5L16 6', stroke: '#6E151A', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+])
+
+const payState   = ref('idle') // idle | loading | qr | timeout | error
+const qrDataUrl  = ref('')
+
+async function payNow() {
+  payState.value = 'loading'
+  const data = await store.createPayment()
+  if (!data) { payState.value = 'error'; return }
+
+  try {
+    qrDataUrl.value = data.qrImage
+      ? `data:image/png;base64,${data.qrImage}`
+      : await QRCode.toDataURL(data.qrString, { width: 260, margin: 1 })
+  } catch (e) {
+    console.error('[PaymentPage] gagal render QR:', e)
+    payState.value = 'error'
+    return
+  }
+
+  payState.value = 'qr'
+  const paid = await store.pollUntilPaid()
+  // Kalau paid, App.vue sudah otomatis pindah ke app utama (hasAccess jadi
+  // true) sebelum baris ini sempat jalan — cuma relevan kalau timeout.
+  if (!paid) payState.value = 'timeout'
+}
+
+async function checkAgain() {
+  const paid = await store.pollUntilPaid({ timeoutMs: 15000 })
+  if (!paid) store.toast('Masih belum terdeteksi. Coba beberapa saat lagi.')
+}
 </script>
 
 <style scoped>
@@ -219,6 +287,59 @@ const name   = computed(() => store.user?.user_metadata?.full_name || store.user
   border-radius: 20px;
 }
 
+.pay-err { font-size: .85rem; color: var(--rose); margin: -6px 0 12px; text-align: center; }
+
+.pay-qr-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 20px;
+  text-align: center;
+}
+
+.pay-qr-img {
+  width: 220px;
+  height: 220px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  background: #fff;
+}
+
+.pay-qr-hint { font-size: .85rem; color: var(--muted); line-height: 1.5; margin: 0; }
+
+.pay-qr-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--plum);
+}
+
+.pay-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: pay-pulse 1.2s ease-in-out infinite;
+}
+@keyframes pay-pulse {
+  0%, 100% { opacity: .3; transform: scale(.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.pay-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--gold-soft);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: pay-spin .8s linear infinite;
+}
+@keyframes pay-spin { to { transform: rotate(360deg); } }
+
 .pay-signout {
   width: 100%;
   padding: 10px;
@@ -229,6 +350,7 @@ const name   = computed(() => store.user?.user_metadata?.full_name || store.user
   font-size: .85rem;
   cursor: pointer;
   transition: border-color .15s, color .15s;
+  margin-top: 4px;
 }
 
 .pay-signout:hover {

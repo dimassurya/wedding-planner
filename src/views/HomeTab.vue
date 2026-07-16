@@ -67,21 +67,24 @@
 
     <!-- Metrics -->
     <div class="hm-metrics">
-      <div class="hm-metric">
+      <button class="hm-metric hm-clickable" @click="goTab('tamu')">
         <div class="hm-m-num">{{ totalOrang.toLocaleString('id-ID') }}</div>
         <div class="hm-m-lbl">Total Tamu (orang)</div>
         <div class="hm-m-sub">{{ confirmedList.length }} undangan dikonfirmasi</div>
-      </div>
-      <div class="hm-metric">
+        <span class="hm-m-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
+      </button>
+      <button class="hm-metric hm-clickable" @click="goTab('budget')">
         <div class="hm-m-num">{{ fmt(tAkt) }}</div>
         <div class="hm-m-lbl">Anggaran Aktual</div>
         <div class="hm-m-sub">est. {{ fmt(tEst) }}</div>
-      </div>
-      <div class="hm-metric">
+        <span class="hm-m-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
+      </button>
+      <button class="hm-metric hm-clickable" @click="goTab('budget')">
         <div class="hm-m-num">{{ pctPaid }}%</div>
         <div class="hm-m-lbl">Sudah Dibayar</div>
         <div class="hm-m-sub">sisa {{ fmt(tSis) }}</div>
-      </div>
+        <span class="hm-m-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
+      </button>
       <div class="hm-metric">
         <div class="hm-m-num">{{ prepPct }}%</div>
         <div class="hm-m-lbl">Progres Persiapan</div>
@@ -91,8 +94,8 @@
 
     <!-- Mobile: ringkasan singkat -->
     <div v-if="isMobile" class="hm-mob-summary">
-      <div class="hm-mob-card">
-        <div class="hm-mob-title">Anggaran</div>
+      <button class="hm-mob-card hm-clickable" @click="goTab('budget')">
+        <div class="hm-mob-title">Anggaran<span class="hm-mob-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
         <div class="hm-mob-track">
           <div class="hm-mob-fill" :style="{ width: pctPaid + '%' }"></div>
         </div>
@@ -100,21 +103,21 @@
           <span><span class="hm-mob-dot" style="background:#CD9F65"></span>Terbayar: {{ fmt(tDib) }}</span>
           <span><span class="hm-mob-dot" style="background:#B32E33"></span>Sisa: {{ fmt(tSis) }}</span>
         </div>
-      </div>
-      <div class="hm-mob-card">
-        <div class="hm-mob-title">Komposisi Tamu</div>
+      </button>
+      <button class="hm-mob-card hm-clickable" @click="goTab('tamu')">
+        <div class="hm-mob-title">Komposisi Tamu<span class="hm-mob-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
         <div class="hm-mob-row">
           <span><span class="hm-mob-dot" style="background:#0A1D4B"></span>Pria: {{ pria }} org</span>
           <span><span class="hm-mob-dot" style="background:#B32E33"></span>Wanita: {{ wanita }} org</span>
           <span v-if="lainnya"><span class="hm-mob-dot" style="background:#CD9F65"></span>Lainnya: {{ lainnya }} org</span>
         </div>
-      </div>
+      </button>
     </div>
 
     <!-- Donut charts (desktop only) -->
     <div v-if="!isMobile" class="hm-charts">
-      <div class="card hm-chart">
-        <div class="hm-chart-title">Komposisi Tamu</div>
+      <button class="card hm-chart hm-clickable" @click="goTab('tamu')">
+        <div class="hm-chart-title">Komposisi Tamu<span class="hm-chart-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
         <svg viewBox="0 0 160 160" class="hm-donut" v-html="donutArcs([
           { value: pria, color: '#0A1D4B' },
           { value: wanita, color: '#B32E33' },
@@ -125,10 +128,10 @@
           <div class="hm-leg"><span class="hm-leg-dot" style="background:#B32E33"></span>Pihak Wanita<b>{{ wanita }}</b></div>
           <div class="hm-leg"><span class="hm-leg-dot" style="background:#CD9F65"></span>Lainnya<b>{{ lainnya }}</b></div>
         </div>
-      </div>
+      </button>
 
-      <div class="card hm-chart">
-        <div class="hm-chart-title">Anggaran</div>
+      <button class="card hm-chart hm-clickable" @click="goTab('budget')">
+        <div class="hm-chart-title">Anggaran<span class="hm-chart-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
         <svg viewBox="0 0 160 160" class="hm-donut" v-html="donutArcs([
           { value: tDib, color: '#CD9F65' },
           { value: tSis, color: '#B32E33' },
@@ -137,17 +140,18 @@
           <div class="hm-leg"><span class="hm-leg-dot" style="background:#CD9F65"></span>Terbayar<b>{{ fmt(tDib) }}</b></div>
           <div class="hm-leg"><span class="hm-leg-dot" style="background:#B32E33"></span>Belum Dibayar<b>{{ fmt(tSis) }}</b></div>
         </div>
-      </div>
+      </button>
     </div>
 
     <!-- Progress bars -->
     <div class="card hm-section">
       <div class="hm-chart-title">Progres Persiapan per Bagian</div>
       <div class="hm-bars">
-        <div v-for="bar in progressBars" :key="bar.label" class="hm-bar">
+        <button v-for="bar in progressBars" :key="bar.label" class="hm-bar hm-clickable" @click="goTab(bar.tab)">
           <div class="hm-bar-top"><span>{{ bar.label }}</span><span class="hm-bar-val">{{ bar.done }}/{{ bar.total }} · {{ bar.pct }}%</span></div>
           <div class="hm-track"><span :style="{ width: bar.pct + '%', background: bar.color }"></span></div>
-        </div>
+          <span class="hm-bar-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
+        </button>
       </div>
     </div>
 
@@ -156,7 +160,7 @@
       <div class="hm-chart-title">Deadline Terdekat</div>
       <div v-if="!upcoming.length" class="hm-empty">Belum ada deadline. Isi jatuh tempo di Budget atau deadline tugas di Checklist.</div>
       <div v-else class="hm-deadlines">
-        <div v-for="it in upcoming" :key="it.date + it.label" class="hm-dl">
+        <button v-for="it in upcoming" :key="it.date + it.label" class="hm-dl hm-clickable" @click="goTab(it.src === 'Budget' ? 'budget' : 'timeline')">
           <div class="hm-dl-date">{{ fmtDate(it.date) }}</div>
           <div class="hm-dl-main">
             <span class="hm-dl-src" :class="'hm-src-' + it.src.toLowerCase()">{{ it.src }}</span>
@@ -167,7 +171,8 @@
             <span v-else-if="daysLeft(it.date) === 0" class="hm-dl-soon">hari ini</span>
             <span v-else class="hm-dl-days">{{ daysLeft(it.date) }} hari lagi</span>
           </div>
-        </div>
+          <span class="hm-dl-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
+        </button>
       </div>
     </div>
 
@@ -308,13 +313,15 @@ const prepTotal = computed(() => ckTotal.value + aTotal.value + store.seserahan.
 const prepPct   = computed(() => prepTotal.value ? Math.round(prepDone.value / prepTotal.value * 100) : 0)
 
 const progressBars = computed(() => [
-  { label: 'Checklist Persiapan',  done: ckDone.value,  total: ckTotal.value,          color: '#CD9F65' },
-  { label: 'Dokumen Nikah',        done: aDone.value,   total: aTotal.value,           color: '#0A1D4B' },
-  { label: 'Seserahan',           done: sDone.value,   total: store.seserahan.length,  color: '#B32E33' },
-  { label: 'Mahar',               done: mDone.value,   total: store.mahar.length,      color: '#6E151A' },
-  { label: 'Timeline (tugas)',    done: tlDone.value,  total: store.timeline.length,   color: '#CD9F65' },
-  { label: 'Vendor dipilih',      done: vJadi.value,   total: store.vendors.length,    color: '#810100' },
+  { label: 'Checklist Persiapan',  done: ckDone.value,  total: ckTotal.value,          color: '#CD9F65', tab: 'checklist' },
+  { label: 'Dokumen Nikah',        done: aDone.value,   total: aTotal.value,           color: '#0A1D4B', tab: 'admin' },
+  { label: 'Seserahan',           done: sDone.value,   total: store.seserahan.length,  color: '#B32E33', tab: 'seserahan' },
+  { label: 'Mahar',               done: mDone.value,   total: store.mahar.length,      color: '#6E151A', tab: 'mahar' },
+  { label: 'Timeline (tugas)',    done: tlDone.value,  total: store.timeline.length,   color: '#CD9F65', tab: 'timeline' },
+  { label: 'Vendor dipilih',      done: vJadi.value,   total: store.vendors.length,    color: '#810100', tab: 'vendor' },
 ].map(b => ({ ...b, pct: b.total ? Math.round(b.done / b.total * 100) : 0 })))
+
+function goTab(tab) { store.activeTab = tab }
 
 const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
 
@@ -562,7 +569,15 @@ function donutArcs(segments, top, bottom) {
   border-radius: 16px;
   padding: 14px 16px;
   box-shadow: 0 1px 3px rgba(36,8,8,.05);
+  display: block;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  margin: 0;
+  transition: transform .15s, box-shadow .15s;
 }
+.hm-mob-card:active { transform: translateY(0); background: var(--ivory); }
 
 .hm-mob-title {
   font-family: 'Cormorant Garamond', serif;
@@ -570,7 +585,12 @@ function donutArcs(segments, top, bottom) {
   font-weight: 600;
   color: var(--plum);
   margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
+
+.hm-mob-arrow { display: inline-flex; align-items: center; color: var(--muted); }
 
 .hm-mob-track {
   height: 8px;

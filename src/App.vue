@@ -14,8 +14,10 @@
     <!-- Belum login -->
     <LoginPage v-else-if="!store.user" />
 
-    <!-- App utama (sudah onboarding) -->
-    <template v-else-if="store.onboarded">
+    <!-- App utama (sudah onboarding DAN masih trial/sudah bayar — kalau
+         trial habis & belum bayar, jatuh ke PaymentPage di bawah meski
+         onboarded=true, ini yang bikin "kunci total" jalan) -->
+    <template v-else-if="store.onboarded && store.hasAccess">
       <!-- ══ Header PC ══ -->
       <header v-if="!isMobile" class="app-header">
         <div class="app-brand">
@@ -131,10 +133,10 @@
       <WelcomeGuide v-if="store.showWelcomeGuide" />
     </template>
 
-    <!-- Onboarding (welcome) — dipicu dari tombol "Bayar Sekarang" -->
+    <!-- Onboarding (welcome) — dipicu dari tombol "Mulai" di PaymentPage -->
     <OnboardingFlow v-else-if="store.beginOnboarding" />
 
-    <!-- Belum onboarding → paywall -->
+    <!-- Belum onboarding, ATAU sudah tapi trial habis & belum bayar -->
     <PaymentPage v-else />
   </div>
 </template>

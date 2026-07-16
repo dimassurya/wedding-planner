@@ -10,6 +10,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
     "pinia": "^2.2.6",
+    "qrcode": "^1.5.4",
     "vue": "^3.5.13"
   },
   "devDependencies": {

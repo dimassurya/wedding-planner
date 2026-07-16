@@ -14,6 +14,21 @@ export const useWeddingStore = defineStore('wedding', () => {
   const loading = ref(true)
   const isPaid  = computed(() => !!profile.value?.paid_at)
 
+  // trial_ends_at null = trial belum dimulai (belum onboarding) — jangan
+  // anggap "expired" dalam kasus itu, App.vue sudah gate lewat !onboarded
+  // duluan sebelum hasAccess relevan.
+  const trialExpired = computed(() => {
+    const t = profile.value?.trial_ends_at
+    return !!t && new Date(t).getTime() < Date.now()
+  })
+  const hasAccess = computed(() => isPaid.value || !trialExpired.value)
+  const trialDaysLeft = computed(() => {
+    const t = profile.value?.trial_ends_at
+    if (!t) return null
+    const ms = new Date(t).getTime() - Date.now()
+    return Math.max(0, Math.ceil(ms / 86400000))
+  })
+
   // ── Partner / shared dashboard ───────────────────────────────────
   const ownerUserId  = ref(null)   // user_id pemilik data (bisa berbeda dari user.id kalau partner)
   const isPartner    = ref(false)  // true kalau login sebagai pasangan (bukan owner)
@@ -399,8 +414,21 @@ export const useWeddingStore = defineStore('wedding', () => {
       clearedSeserahan ? _diffAndSync('seserahan', 'seserahan_items', seserahan.value)  : Promise.resolve(),
       clearedAdmin     ? _diffAndSyncNested('adminGroups', 'admin_groups', 'adminItems', 'admin_items', admin.value) : Promise.resolve(),
       clearedChecklist ? _diffAndSyncNested('checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist.value) : Promise.resolve(),
+      _startTrialIfNeeded(),
     ])
     isNewUser.value = false
+  }
+
+  // Mulai trial 2 hari — RPC dijaga server-side (cuma jalan sekali, lihat
+  // 020_payment_trial.sql), jadi aman dipanggil tiap completeOnboarding
+  // tanpa resiko reset trial user lama yang sudah pernah mulai.
+  async function _startTrialIfNeeded() {
+    if (profile.value?.trial_ends_at) return // sudah pernah mulai, RPC no-op
+    const { error } = await supabase.rpc('start_trial')
+    if (error) { console.error('[_startTrialIfNeeded] gagal:', error); return }
+    if (profile.value) {
+      profile.value = { ...profile.value, trial_ends_at: new Date(Date.now() + 2 * 86400000).toISOString() }
+    }
   }
 
   function startTour(steps = null) {
@@ -1474,6 +1502,36 @@ export const useWeddingStore = defineStore('wedding', () => {
     profile.value = data
   }
 
+  // ── Pembayaran (iPaymu QRIS) ─────────────────────────────────────────
+  // Bikin transaksi baru lewat edge function create-payment (yang pegang
+  // API key iPaymu di server, tidak pernah kena expose ke client). Return
+  // null kalau gagal (caller nampilin toast).
+  async function createPayment() {
+    const { data, error } = await supabase.functions.invoke('create-payment')
+    if (error) {
+      console.error('[createPayment] gagal:', error)
+      toast('Gagal membuat transaksi pembayaran, coba lagi')
+      return null
+    }
+    return data // { trxId, referenceId, amount, qrString, qrImage }
+  }
+
+  // Poll profiles.paid_at tiap beberapa detik selagi user nunggu di layar
+  // QR — dipilih dibanding realtime channel baru karena ini transisi satu
+  // kali yang jarang terjadi (bukan sync berkelanjutan), polling sederhana
+  // sudah cukup andal & jauh lebih sedikit kode drpd nambah subscription.
+  // Return true kalau berhasil kedeteksi lunas sebelum timeout.
+  async function pollUntilPaid({ intervalMs = 3000, timeoutMs = 5 * 60000 } = {}) {
+    const startedAt = Date.now()
+    while (Date.now() - startedAt < timeoutMs) {
+      await new Promise(r => setTimeout(r, intervalMs))
+      if (!user.value) return false
+      await loadProfile(user.value.id)
+      if (isPaid.value) return true
+    }
+    return false
+  }
+
   async function initAuth() {
     let initialDone = false
     // Saat app kembali ke depan, sinkronkan status kemitraan dgn DB.
@@ -1572,6 +1630,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   return {
     // auth
     user, profile, isPaid, loading,
+    hasAccess, trialExpired, trialDaysLeft, createPayment, pollUntilPaid,
     initAuth, signInWithGoogle, signOut,
     // partner
     ownerUserId, isPartner, partnerEmail, ownerEmail,
