@@ -422,6 +422,16 @@ const alerts = computed(() => {
     })
   }
 
+  // Tamu melebihi kapasitas venue yang dipakai (capacityOver null = belum ada venue)
+  if (store.capacityOver !== null && store.capacityOver > 0) {
+    list.push({
+      id: 'venue-overcap', severity: 'danger', icon: '⚠️',
+      title: `Tamu lebih ${store.capacityOver} dari kapasitas venue`,
+      desc: `${store.totalGuestPax} tamu vs kapasitas ${store.venueCapacity} — kurangi tamu atau cari venue lebih besar.`,
+      cta: 'Lihat Vendor', action: () => { store.activeTab = 'vendor' },
+    })
+  }
+
   const unconfirmed = store.guests.filter(g => g.konfirmasi === false)
   if (unconfirmed.length) {
     list.push({

@@ -127,11 +127,25 @@ oleh kode aplikasi.
 
 ## Pembayaran (iPaymu)
 
-Alur: user onboarding → trial 2 hari (`start_trial()` RPC) → kalau trial
-habis & `profiles.paid_at` masih kosong, `store.hasAccess` jadi `false`
-dan App.vue mengunci balik ke `PaymentPage.vue` (lihat komentar di
-`020_payment_trial.sql` untuk alur lengkap). Bayar QRIS lewat dua edge
-function di `supabase/functions/`:
+**Status saat ini: penguncian dimatikan.** `VITE_PAYMENT_ENABLED=false`
+di `.env.local` (default kalau var-nya nggak ada sama sekali) bikin
+`store.hasAccess` SELALU `true` — semua user akses penuh terlepas dari
+trial/pembayaran. Ini sengaja, biar app bisa dipakai/launch dulu sebelum
+payment gateway (iPaymu atau provider lain) selesai didaftarkan. Trial
+tetap "berjalan" di background (`start_trial()` RPC tetap dipanggil,
+`trial_ends_at` tetap keisi) — cuma penguncian aksesnya yang di-skip.
+
+**Sebelum nyalain jadi `true`:** baca komentar `PAYMENT_ENABLED` di
+`src/stores/wedding.js` dulu — user yang sudah onboarding SELAGI ini mati
+bakal punya `trial_ends_at` yang udah lewat, jadi begitu saklar dinyalain
+mereka langsung kekunci tanpa peringatan. Putuskan dulu mau di-grandfather
+(reset `trial_ends_at` user lama lewat SQL) atau memang sengaja dikunci.
+
+Alur (setelah dinyalain): user onboarding → trial 2 hari (`start_trial()`
+RPC) → kalau trial habis & `profiles.paid_at` masih kosong,
+`store.hasAccess` jadi `false` dan App.vue mengunci balik ke
+`PaymentPage.vue` (lihat komentar di `020_payment_trial.sql` untuk alur
+lengkap). Bayar QRIS lewat dua edge function di `supabase/functions/`:
 
 - `create-payment` — dipanggil client (`store.createPayment()`), bikin
   transaksi QRIS baru di iPaymu, simpan baris `payments` (status

@@ -57,6 +57,28 @@
     </p>
     <p v-else class="g-confirm-info">Semua {{ confirmedList.length }} undangan sudah dikonfirmasi</p>
 
+    <!-- Warning kapasitas venue (baca dari venue yang dipakai; null = belum ada) -->
+    <button
+      v-if="store.capacityOver !== null"
+      class="g-cap" :class="store.capacityOver > 0 ? 'over' : 'ok'"
+      @click="store.activeTab = 'vendor'"
+    >
+      <span class="g-cap-ico">
+        <svg v-if="store.capacityOver > 0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </span>
+      <span class="g-cap-body">
+        <template v-if="store.capacityOver > 0">
+          <b>Kelebihan {{ store.capacityOver }} orang</b> dari kapasitas venue
+        </template>
+        <template v-else>
+          Masih muat · <b>sisa {{ -store.capacityOver }} kursi</b>
+        </template>
+        <span class="g-cap-sub">{{ store.totalGuestPax }} tamu / {{ store.venueCapacity }} kapasitas</span>
+      </span>
+      <svg class="g-cap-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+
     <!-- Controls -->
     <div class="controls">
       <div class="search">
@@ -228,3 +250,32 @@ function onImport(e) {
   e.target.value = ''
 }
 </script>
+
+<style scoped>
+.g-cap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  cursor: pointer;
+  margin-bottom: 14px;
+  font-family: inherit;
+  transition: transform .15s, box-shadow .15s;
+}
+.g-cap:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(36,8,8,.10); }
+.g-cap.over  { border-left: 3px solid var(--rose); }
+.g-cap.ok    { border-left: 3px solid var(--green); }
+.g-cap-ico { flex: none; display: inline-flex; }
+.g-cap.over .g-cap-ico { color: var(--rose); }
+.g-cap.ok   .g-cap-ico { color: var(--green); }
+.g-cap-body { flex: 1; min-width: 0; font-size: 13.5px; color: var(--ink); display: flex; flex-direction: column; gap: 1px; }
+.g-cap-body b { color: var(--plum); }
+.g-cap.over .g-cap-body b { color: var(--rose); }
+.g-cap-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.g-cap-arrow { flex: none; color: var(--muted); }
+</style>

@@ -14,6 +14,21 @@ export const useWeddingStore = defineStore('wedding', () => {
   const loading = ref(true)
   const isPaid  = computed(() => !!profile.value?.paid_at)
 
+  // Saklar penguncian trial/pembayaran. Mati (default) = semua orang punya
+  // akses penuh terlepas dari trial_ends_at/paid_at — dipakai buat launch
+  // dulu sebelum payment gateway (iPaymu/Midtrans/dll) beres didaftarkan.
+  // Set VITE_PAYMENT_ENABLED=true di .env.local begitu gateway-nya siap;
+  // seluruh alur trial/QRIS di bawah ini TIDAK PERLU diubah, tinggal nyala.
+  //
+  // PENTING waktu nanti diaktifkan: user yang onboarding SELAGI ini mati
+  // sudah pasti punya trial_ends_at yang keburu lewat (start_trial() tetap
+  // jalan normal, cuma penguncian aksesnya yang di-skip di sini) — begitu
+  // saklar dinyalain mereka semua langsung kekunci ke PaymentPage tanpa
+  // peringatan. Putuskan dulu mau di-grandfather (reset trial_ends_at user
+  // lama lewat SQL) atau memang sengaja dikunci — jangan nyalain saklar ini
+  // di production tanpa mikirin itu dulu.
+  const PAYMENT_ENABLED = import.meta.env.VITE_PAYMENT_ENABLED === 'true'
+
   // trial_ends_at null = trial belum dimulai (belum onboarding) — jangan
   // anggap "expired" dalam kasus itu, App.vue sudah gate lewat !onboarded
   // duluan sebelum hasAccess relevan.
@@ -21,7 +36,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     const t = profile.value?.trial_ends_at
     return !!t && new Date(t).getTime() < Date.now()
   })
-  const hasAccess = computed(() => isPaid.value || !trialExpired.value)
+  const hasAccess = computed(() => !PAYMENT_ENABLED || isPaid.value || !trialExpired.value)
   const trialDaysLeft = computed(() => {
     const t = profile.value?.trial_ends_at
     if (!t) return null
@@ -87,6 +102,24 @@ export const useWeddingStore = defineStore('wedding', () => {
   const confirmedGuests = computed(() => guests.value.filter(g => g.konfirmasi !== false))
   const selectedCount   = computed(() => Object.keys(selectedMap).length)
   const selectedIds     = computed(() => Object.keys(selectedMap).map(k => isNaN(k) ? k : Number(k)))
+
+  // ── Kapasitas venue ──────────────────────────────────────────────
+  // Total tamu terkonfirmasi (satuan orang) vs kapasitas venue yang
+  // DIPAKAI. Kapasitas nempel di record vendor (rumah datanya di situ) —
+  // sini cuma baca. Kalau ada >1 venue dipakai (mis. akad + resepsi),
+  // ambil yang paling besar (asумsi itu acara utama/resepsi).
+  const totalGuestPax = computed(() => confirmedGuests.value.reduce((s, g) => s + (g.jumlah || 0), 0))
+  const venueCapacity = computed(() => {
+    const caps = vendors.value
+      .filter(v => v.category === 'venue' && v.jadi && v.kapasitas > 0)
+      .map(v => v.kapasitas)
+    return caps.length ? Math.max(...caps) : 0
+  })
+  // >0 = kelebihan sekian orang, <=0 = masih muat (sisa kursi = -nilai),
+  // null = belum ada venue dipakai / kapasitas belum diisi (jangan warning).
+  const capacityOver = computed(() =>
+    venueCapacity.value > 0 ? totalGuestPax.value - venueCapacity.value : null
+  )
 
   // ── Toast ─────────────────────────────────────────────────────────
   function toast(msg) {
@@ -501,6 +534,37 @@ export const useWeddingStore = defineStore('wedding', () => {
     }
   }
 
+  // ── Status hubungan vendor ─────────────────────────────────────────
+  // status: incar → dihubungi → dipakai → batal. "dipakai" = jadi=true
+  // (harga masuk Budget). jadi tetap ada sbg flag turunan biar semua kode
+  // lama yang baca v.jadi nggak perlu disentuh.
+  function setVendorStatus(vendor, status) {
+    vendor.status = status
+    const jadi = status === 'dipakai'
+    if (vendor.jadi !== jadi) {
+      vendor.jadi = jadi
+      handleVendorDecision(vendor, jadi)  // sudah panggil saveB() di dalam
+    }
+    saveV()
+  }
+
+  // Info pembayaran vendor — dibaca dari baris Budget yang nyambung
+  // (vendorId). Uang dikelola di Budget; sini cuma baca buat ditampilkan
+  // di kartu vendor. null kalau vendor belum dipakai / belum ada barisnya.
+  function vendorPayInfo(vendor) {
+    const b = budget.value.find(x => x.vendorId === vendor.id)
+    if (!b) return null
+    const total   = b.aktual || 0
+    const dibayar = b.dibayar || 0
+    return {
+      total, dibayar,
+      sisa: Math.max(total - dibayar, 0),
+      jatuhTempo: b.jatuhTempo || null,
+      lunas: total > 0 && dibayar >= total,
+      pct: total > 0 ? Math.round(dibayar / total * 100) : 0,
+    }
+  }
+
   // ── Vendor ↔ Budget ────────────────────────────────────────────────
   function handleVendorDecision(vendor, isJadi) {
     const existingIdx = budget.value.findIndex(b => b.vendorId === vendor.id)
@@ -650,11 +714,14 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   async function addVendor(vData) {
     const uid = ownerUserId.value || user.value.id
+    // jadi turunan dari status — vendor bisa langsung dibuat "dipakai".
+    const jadi = vData.status === 'dipakai'
     const { data: row, error } = await supabase.from('vendors')
-      .insert({ owner_user_id: uid, ...vData, jadi: false }).select().single()
+      .insert({ owner_user_id: uid, ...vData, jadi }).select().single()
     if (error || !row) { toast('Gagal menambah vendor, coba lagi'); return null }
     vendors.value.push(row)
     _shadow.vendors.set(row.id, JSON.parse(JSON.stringify(row)))
+    if (jadi) handleVendorDecision(row, true)  // langsung masukin ke Budget
     return row
   }
 
@@ -1648,6 +1715,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     confirmShow, confirmTitle, confirmMessage, confirmOk, confirmCancel, confirmDanger,
     // computed
     confirmedGuests, selectedCount, selectedIds,
+    totalGuestPax, venueCapacity, capacityOver,
     // confirm dialog
     askConfirm, resolveConfirm,
     // selection
@@ -1665,7 +1733,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     // timeline
     addTimelineTask, delTimeline, removeEmptyTimeline,
     // vendor
-    addVendor, delVendor,
+    addVendor, delVendor, setVendorStatus, vendorPayInfo,
     // seserahan
     addSeserahanItem, delSeserahan, removeEmptySeserahan,
     // mahar

@@ -56,7 +56,7 @@
       <div class="table-scroll">
       <div class="v-head">
         <div class="v-cbx"><input type="checkbox" class="cbx" :checked="allVisSel" :indeterminate.prop="someVisSel && !allVisSel" @change="toggleAll"></div>
-        <div>Nama</div><div>Alamat</div><div>No HP</div><div class="r">Harga</div><div>Deskripsi</div><div>Dipakai?</div><div class="v-actions"></div>
+        <div>Nama</div><div>Alamat</div><div>No HP</div><div class="r">Harga</div><div>Deskripsi</div><div>Status</div><div class="v-actions"></div>
       </div>
 
       <div v-if="!catRows.length" class="empty">
@@ -66,17 +66,33 @@
 
       <div v-for="v in catRows" :key="v.id" class="v-row" :class="{ sel: store.isSelected(v.id) }" :data-id="v.id">
         <div class="v-cell v-cbx"><input type="checkbox" class="cbx rowcbx" :checked="store.isSelected(v.id)" @change="e => store.toggleSelected(v.id, e.target.checked)"></div>
-        <div class="v-cell v-nama">{{ v.nama }}</div>
+        <div class="v-cell v-nama">
+          {{ v.nama }}
+          <span v-if="capInfo(v)" class="v-cap" :class="{ over: capInfo(v).over }">
+            👥 muat {{ capInfo(v).muat }} · tamu {{ capInfo(v).tamu }}
+            <template v-if="capInfo(v).over">· lebih {{ capInfo(v).delta }}</template>
+            <template v-else>· sisa {{ capInfo(v).delta }}</template>
+          </span>
+        </div>
         <div class="v-cell v-alamat">{{ v.alamat }}</div>
         <div class="v-cell v-hp">{{ v.hp }}</div>
         <div class="v-cell v-harga cE">
           <div>Rp {{ grp(v.harga) }}</div>
           <div v-if="v.tipeHarga === 'pax'" class="v-pax-info">@ Rp {{ grp(v.hargaPax) }} &times; {{ paxMultText(v) }}</div>
+          <div v-if="payInfo(v)" class="v-pay" :class="{ lunas: payInfo(v).lunas }">
+            {{ payInfo(v).lunas ? 'Lunas ✓' : 'sisa Rp ' + grp(payInfo(v).sisa) }}
+          </div>
         </div>
         <div class="v-cell v-desc">{{ v.deskripsi }}</div>
         <div class="v-decide">
-          <SwitchToggle :model-value="!!v.jadi" title="Aktifkan jika vendor ini dipakai" @update:model-value="val => toggleJadi(v, val)" />
-          <span class="v-lbl" :class="{ on: v.jadi }">{{ v.jadi ? 'Dipakai' : 'Belum' }}</span>
+          <select
+            class="v-status-sel"
+            :class="'vs-' + (v.status || (v.jadi ? 'dipakai' : 'incar'))"
+            :value="v.status || (v.jadi ? 'dipakai' : 'incar')"
+            @change="e => store.setVendorStatus(v, e.target.value)"
+          >
+            <option v-for="k in VENDOR_STATUS_ORDER" :key="k" :value="k">{{ VENDOR_STATUS[k].label }}</option>
+          </select>
         </div>
         <div class="v-actions r">
           <button class="icon-btn item-action-btn" @click="openEdit(v.id)" title="Edit">
@@ -97,9 +113,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
-import { VENDOR_CATEGORIES } from '../data/constants'
+import { VENDOR_CATEGORIES, VENDOR_STATUS, VENDOR_STATUS_ORDER } from '../data/constants'
 import { fmt, grp } from '../utils/index'
-import SwitchToggle from '../components/SwitchToggle.vue'
 import VendorModal from '../components/modals/VendorModal.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileVendorList from '../mobile layout/MobileVendorList.vue'
@@ -171,6 +186,15 @@ const VENDOR_STEPS = computed(() => [
 
 const catLabel = id => { const c = VENDOR_CATEGORIES.find(x => x.id === id); return c ? c.label : id }
 
+// Info kapasitas per venue — dipakai buat bantu milih venue yang muat.
+// null kalau bukan venue / kapasitas belum diisi.
+function capInfo(v) {
+  if (v.category !== 'venue' || !v.kapasitas) return null
+  const tamu = store.totalGuestPax
+  const diff = tamu - v.kapasitas
+  return { muat: v.kapasitas, tamu, over: diff > 0, delta: Math.abs(diff) }
+}
+
 const dipakaiList = computed(() => store.vendors.filter(v => v.jadi))
 const totalBiaya  = computed(() => dipakaiList.value.reduce((s, v) => s + (v.harga || 0), 0))
 const catRows     = computed(() => store.vendors.filter(v => v.category === store.vFilter))
@@ -191,10 +215,8 @@ function toggleAll(e) {
   catRows.value.forEach(v => store.toggleSelected(v.id, e.target.checked))
 }
 
-function toggleJadi(v, val) {
-  v.jadi = val
-  store.handleVendorDecision(v, val)
-  store.saveV()
+function payInfo(v) {
+  return store.vendorPayInfo(v)
 }
 
 function delVendor(v) {
@@ -210,3 +232,36 @@ function onImport(e) {
   e.target.value = ''
 }
 </script>
+
+<style scoped>
+.v-cap {
+  display: inline-block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #3b6d11;
+  background: var(--green-soft);
+  border-radius: 100px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+.v-cap.over { color: #7a1a1a; background: var(--rose-soft); }
+
+.v-pay { margin-top: 3px; font-size: 11.5px; font-weight: 600; color: var(--rose); white-space: nowrap; }
+.v-pay.lunas { color: var(--green); }
+
+.v-status-sel {
+  font-family: 'Jost', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 5px 10px;
+  cursor: pointer;
+  background: var(--paper);
+}
+.v-status-sel.vs-incar     { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
+.v-status-sel.vs-dihubungi { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
+.v-status-sel.vs-dipakai   { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
+.v-status-sel.vs-batal     { color: #7a1a1a; background: #F8E8E8; border-color: #e8c6c6; }
+</style>

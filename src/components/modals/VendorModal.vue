@@ -18,6 +18,25 @@
             <input ref="namaInput" v-model="form.nama" type="text" required>
           </div>
         </div>
+        <div class="field">
+          <label>Status</label>
+          <div class="select-wrap">
+            <select v-model="form.status">
+              <option v-for="k in VENDOR_STATUS_ORDER" :key="k" :value="k">{{ VENDOR_STATUS[k].label }}</option>
+            </select>
+          </div>
+          <div v-if="form.status === 'dipakai'" class="vm-cap-hint">Vendor "Dipakai" otomatis masuk ke anggaran (tab Budget).</div>
+        </div>
+        <div v-if="form.category === 'venue'" class="field">
+          <label>Kapasitas (orang)</label>
+          <input v-model.number="form.kapasitas" type="number" min="0" placeholder="cth: 300">
+          <div v-if="form.kapasitas > 0" class="vm-cap-hint" :class="{ over: tOrang > form.kapasitas }">
+            Tamu terkonfirmasi sekarang: {{ tOrang }} orang ·
+            <template v-if="tOrang > form.kapasitas">lebih {{ tOrang - form.kapasitas }} dari kapasitas</template>
+            <template v-else>sisa {{ form.kapasitas - tOrang }} kursi</template>
+          </div>
+        </div>
+
         <div class="row2">
           <div class="field">
             <label>Tipe Harga</label>
@@ -84,7 +103,7 @@
 <script setup>
 import { ref, watch, nextTick, computed } from 'vue'
 import { useWeddingStore } from '../../stores/wedding'
-import { VENDOR_CATEGORIES } from '../../data/constants'
+import { VENDOR_CATEGORIES, VENDOR_STATUS, VENDOR_STATUS_ORDER } from '../../data/constants'
 import { grp, num } from '../../utils/index'
 
 const props = defineProps({ show: Boolean, editId: { type: Number, default: null }, defaultCategory: { type: String, default: 'wo' } })
@@ -95,14 +114,14 @@ const namaInput = ref(null)
 const tOrang    = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
 const tUndangan = computed(() => store.confirmedGuests.length)
 
-const blankForm = () => ({ category: props.defaultCategory, nama: '', alamat: '', hp: '', email: '', website: '', harga: 0, deskripsi: '', tipeHarga: 'paket', hargaPax: 0, paxPengali: 'orang', paxManualVal: 1 })
+const blankForm = () => ({ category: props.defaultCategory, nama: '', alamat: '', hp: '', email: '', website: '', harga: 0, deskripsi: '', tipeHarga: 'paket', hargaPax: 0, paxPengali: 'orang', paxManualVal: 1, kapasitas: 0, status: 'incar' })
 const form = ref(blankForm())
 
 watch(() => props.show, open => {
   if (!open) return
   if (props.editId) {
     const v = store.vendors.find(x => x.id === props.editId)
-    if (v) form.value = { category: v.category, nama: v.nama, alamat: v.alamat || '', hp: v.hp || '', email: v.email || '', website: v.website || '', harga: v.harga || 0, deskripsi: v.deskripsi || '', tipeHarga: v.tipeHarga || 'paket', hargaPax: v.hargaPax || 0, paxPengali: v.paxPengali || 'orang', paxManualVal: v.paxManualVal || 1 }
+    if (v) form.value = { category: v.category, nama: v.nama, alamat: v.alamat || '', hp: v.hp || '', email: v.email || '', website: v.website || '', harga: v.harga || 0, deskripsi: v.deskripsi || '', tipeHarga: v.tipeHarga || 'paket', hargaPax: v.hargaPax || 0, paxPengali: v.paxPengali || 'orang', paxManualVal: v.paxManualVal || 1, kapasitas: v.kapasitas || 0, status: v.status || (v.jadi ? 'dipakai' : 'incar') }
   } else {
     form.value = blankForm()
     form.value.category = props.defaultCategory
@@ -140,9 +159,11 @@ async function save() {
   if (props.editId) {
     const idx = store.vendors.findIndex(x => x.id === props.editId)
     if (idx > -1) {
-      const old = store.vendors[idx]
-      store.vendors[idx] = { ...vData, id: old.id, jadi: old.jadi }
-      if (vData.jadi) store.handleVendorDecision(store.vendors[idx], true)
+      // jadi diturunkan dari status — bukan dipertahankan dari nilai lama.
+      const jadi = vData.status === 'dipakai'
+      store.vendors[idx] = { ...vData, id: props.editId, jadi }
+      // Sinkronkan baris Budget: bikin/hapus sesuai status "dipakai".
+      store.handleVendorDecision(store.vendors[idx], jadi)
     }
     store.saveV()
   } else {
@@ -154,3 +175,8 @@ async function save() {
   emit('close')
 }
 </script>
+
+<style scoped>
+.vm-cap-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.vm-cap-hint.over { color: var(--rose); font-weight: 600; }
+</style>

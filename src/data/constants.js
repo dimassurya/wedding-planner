@@ -56,6 +56,16 @@ export const BUDGET_SEED = [
   'Bingkisan','Makeup Keluarga','Busana Keluarga','Biaya Penghulu',
 ].map((item, i) => ({ id: i + 1, item, estimasi: 0, aktual: 0, uangMuka: 0, dibayar: 0, jatuhTempo: '', remarks: '', template: true }))
 
+// Status hubungan vendor (bukan status pembayaran — itu di Budget).
+// "dipakai" = masuk anggaran otomatis (perilaku lama jadi=true).
+export const VENDOR_STATUS = {
+  incar:     { label: 'Incar',     color: '#9C7575', bg: '#EDE5E2', text: '#6b4848' },
+  dihubungi: { label: 'Dihubungi', color: '#0A1D4B', bg: '#E3E8F2', text: '#0A1D4B' },
+  dipakai:   { label: 'Dipakai',   color: '#3B6D11', bg: '#EAF3DE', text: '#2b5010' },
+  batal:     { label: 'Batal',     color: '#B32E33', bg: '#F8E8E8', text: '#7a1a1a' },
+}
+export const VENDOR_STATUS_ORDER = ['incar', 'dihubungi', 'dipakai', 'batal']
+
 export const VENDOR_CATEGORIES = [
   { id: 'wo',        label: 'Wedding Organizer' },
   { id: 'venue',     label: 'Venue' },

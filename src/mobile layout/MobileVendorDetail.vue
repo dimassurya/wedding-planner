@@ -17,8 +17,17 @@
             Rp {{ grp(v.harga) }}
             <span class="mvd-badge">{{ badgeText(v) }}</span>
           </div>
-          <div class="mvd-status" :class="{ ok: v.jadi }">
-            <span class="mvd-dot"></span>{{ v.jadi ? 'Dipakai' : 'Belum dipakai' }}
+          <div class="mvd-chips">
+            <span class="mvd-schip" :style="{ background: statusMeta.bg, color: statusMeta.text }">{{ statusMeta.label }}</span>
+          </div>
+
+          <div v-if="pay" class="mvd-pay">
+            <div class="mvd-pay-top">
+              <span>{{ pay.lunas ? 'Lunas' : 'sisa Rp ' + grp(pay.sisa) }}</span>
+              <span class="mvd-pay-sub">dibayar Rp {{ grp(pay.dibayar) }} / Rp {{ grp(pay.total) }}</span>
+            </div>
+            <div class="mvd-pay-bar"><span :style="{ width: pay.pct + '%' }"></span></div>
+            <button class="mvd-pay-link" @click="goBudget">Kelola pembayaran di Budget →</button>
           </div>
 
           <div v-if="v.alamat" class="mvd-row">
@@ -50,17 +59,24 @@
 <script setup>
 import { computed } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
-import { VENDOR_CATEGORIES } from '../data/constants'
+import { VENDOR_CATEGORIES, VENDOR_STATUS } from '../data/constants'
 import { grp } from '../utils/index'
 import { waLink, openWa } from './waLink'
 
 const props = defineProps({ id: { type: [Number, String], default: null } })
-defineEmits(['close', 'edit'])
+const emit = defineEmits(['close', 'edit'])
 
 const store = useWeddingStore()
 const v = computed(() => store.vendors.find(x => x.id === props.id))
 
 const catLabel = id => { const c = VENDOR_CATEGORIES.find(x => x.id === id); return c ? c.label : id }
+
+const statusMeta = computed(() => {
+  const s = v.value?.status || (v.value?.jadi ? 'dipakai' : 'incar')
+  return VENDOR_STATUS[s] || VENDOR_STATUS.incar
+})
+const pay = computed(() => v.value ? store.vendorPayInfo(v.value) : null)
+function goBudget() { store.activeTab = 'budget'; emit('close') }
 
 const tOrang    = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
 const tUndangan = computed(() => store.confirmedGuests.length)
@@ -150,6 +166,25 @@ function badgeText(vv) {
   color: #3d5027;
   background: #e4edd8;
 }
+.mvd-chips { margin-top: 8px; }
+.mvd-schip {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 11px;
+  border-radius: 100px;
+}
+.mvd-pay {
+  margin-top: 12px;
+  padding: 11px 13px;
+  background: var(--ivory);
+  border-radius: 12px;
+}
+.mvd-pay-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.mvd-pay-sub { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.mvd-pay-bar { height: 6px; background: var(--line); border-radius: 100px; overflow: hidden; margin: 8px 0 6px; }
+.mvd-pay-bar > span { display: block; height: 100%; background: var(--gold); border-radius: 100px; }
+.mvd-pay-link { background: none; border: none; padding: 0; color: var(--plum); font-weight: 600; font-size: 12.5px; cursor: pointer; font-family: inherit; }
 .mvd-status {
   display: flex;
   align-items: center;
