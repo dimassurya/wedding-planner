@@ -58,22 +58,45 @@
         <div>Belum ada data vendor untuk kategori ini.</div>
       </div></div>
 
-      <div v-else class="vg-grid">
+      <div v-else class="vt-table">
+        <div class="vt-headrow">
+          <span></span>
+          <span>Vendor</span>
+          <span>Kapasitas</span>
+          <span>Harga</span>
+          <span>Status</span>
+        </div>
+
         <div
           v-for="v in catRows"
           :key="v.id"
-          class="vg-card"
+          class="vt-row-wrap"
           :class="['vs-l-' + statusOf(v), { expanded: expandedId === v.id, sel: store.isSelected(v.id) }]"
         >
-          <!-- Header (klik buka/tutup) -->
-          <div class="vg-head" @click="toggleExpand(v.id)">
-            <label class="vg-cbx" @click.stop>
-              <input type="checkbox" class="cbx" :checked="store.isSelected(v.id)" @change="e => store.toggleSelected(v.id, e.target.checked)">
-            </label>
-            <span class="vg-ico">{{ CAT_ICON[v.category] || '🏷️' }}</span>
-            <span class="vg-cat">{{ catLabel(v.category) }}</span>
+          <div class="vt-row" @click="toggleExpand(v.id)">
+            <button type="button" class="vt-exp-btn" @click.stop="toggleExpand(v.id)" :aria-label="expandedId === v.id ? 'Tutup detail' : 'Buka detail'">
+              <svg class="vt-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+
+            <div class="vt-name">
+              <label class="vt-cbx" @click.stop>
+                <input type="checkbox" class="cbx" :checked="store.isSelected(v.id)" @change="e => store.toggleSelected(v.id, e.target.checked)">
+              </label>
+              <span>{{ v.nama || 'Tanpa nama' }}</span>
+            </div>
+
+            <div class="vt-cap">
+              <span v-if="capInfo(v)" :class="{ over: capInfo(v).over }">{{ v.kapasitas }} <small>tamu {{ capInfo(v).tamu }}</small></span>
+              <span v-else class="vt-muted">—</span>
+            </div>
+
+            <div class="vt-harga">
+              <span class="vt-price">Rp {{ grp(v.harga) }}</span>
+              <span class="vt-tag">{{ v.tipeHarga === 'pax' ? 'Per pax' : 'All in' }}</span>
+            </div>
+
             <select
-              class="v-status-sel vg-status"
+              class="v-status-sel vt-status"
               :class="'vs-' + statusOf(v)"
               :value="statusOf(v)"
               @click.stop
@@ -81,49 +104,35 @@
             >
               <option v-for="k in VENDOR_STATUS_ORDER" :key="k" :value="k">{{ VENDOR_STATUS[k].label }}</option>
             </select>
-
-            <div class="vg-name">{{ v.nama || 'Tanpa nama' }}</div>
-
-            <div class="vg-price-row">
-              <span class="vg-price">Rp {{ grp(v.harga) }}</span>
-              <span v-if="payInfo(v)" class="vg-pay" :class="{ lunas: payInfo(v).lunas }">
-                {{ payInfo(v).lunas ? 'Lunas ✓' : 'sisa Rp ' + grp(payInfo(v).sisa) }}
-              </span>
-              <span v-else-if="v.tipeHarga === 'pax'" class="vg-paxinfo">@ Rp {{ grp(v.hargaPax) }} × {{ paxMultText(v) }}</span>
-              <svg class="vg-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
-            </div>
-
-            <span v-if="capInfo(v)" class="v-cap vg-capchip" :class="{ over: capInfo(v).over }">
-              👥 muat {{ capInfo(v).muat }} · tamu {{ capInfo(v).tamu }}
-              <template v-if="capInfo(v).over">· lebih {{ capInfo(v).delta }}</template>
-              <template v-else>· sisa {{ capInfo(v).delta }}</template>
-            </span>
           </div>
 
           <!-- Detail info (expand ke bawah) -->
-          <div v-if="expandedId === v.id" class="vg-body">
-            <div v-if="payInfo(v)" class="vg-payblock">
-              <div class="vg-payblock-top">
-                <span>{{ payInfo(v).lunas ? 'Lunas' : 'sisa Rp ' + grp(payInfo(v).sisa) }}</span>
-                <span class="vg-payblock-sub">dibayar Rp {{ grp(payInfo(v).dibayar) }} / Rp {{ grp(payInfo(v).total) }}</span>
+          <div v-if="expandedId === v.id" class="vt-body">
+            <div v-if="v.tipeHarga === 'pax'" class="vt-paxinfo">@ Rp {{ grp(v.hargaPax) }} × {{ paxMultText(v) }}</div>
+
+            <div v-if="v.hp || v.website || v.email || v.alamat" class="vt-info">
+              <span v-if="v.hp"><span class="vt-info-lbl">📱 Telepon</span> {{ v.hp }}</span>
+              <span v-if="v.website"><span class="vt-info-lbl">🌐 Website/IG</span> <a :href="v.website.startsWith('http') ? v.website : 'https://' + v.website" target="_blank" rel="noopener" class="vt-link">{{ v.website }}</a></span>
+              <span v-if="v.email"><span class="vt-info-lbl">✉️ Email</span> {{ v.email }}</span>
+              <span v-if="v.alamat" class="vt-span2"><span class="vt-info-lbl">📍 Alamat</span> {{ v.alamat }}</span>
+            </div>
+            <div v-if="v.deskripsi" class="vt-desc">{{ v.deskripsi }}</div>
+            <div v-if="!v.hp && !v.website && !v.email && !v.alamat && !v.deskripsi" class="vt-empty-info">Belum ada info tambahan — lengkapi lewat tombol Edit.</div>
+
+            <div v-if="payInfo(v)" class="vt-payblock">
+              <div class="vt-payblock-top">
+                <span>{{ payInfo(v).lunas ? 'Lunas ✓' : 'sisa Rp ' + grp(payInfo(v).sisa) }}</span>
+                <span class="vt-payblock-sub">dibayar Rp {{ grp(payInfo(v).dibayar) }} / Rp {{ grp(payInfo(v).total) }}</span>
               </div>
-              <div class="vg-paybar"><span :style="{ width: payInfo(v).pct + '%' }"></span></div>
-              <div v-if="payInfo(v).jatuhTempo" class="vg-due">⏰ Jatuh tempo {{ fmtDate(payInfo(v).jatuhTempo) }}</div>
+              <div class="vt-paybar"><span :style="{ width: payInfo(v).pct + '%' }"></span></div>
+              <div v-if="payInfo(v).jatuhTempo" class="vt-due">⏰ Jatuh tempo {{ fmtDate(payInfo(v).jatuhTempo) }}</div>
             </div>
 
-            <div class="vg-info">
-              <span v-if="v.hp"><span class="vg-info-lbl">📱 HP</span> {{ v.hp }}</span>
-              <span v-if="v.alamat"><span class="vg-info-lbl">📍 Alamat</span> {{ v.alamat }}</span>
-              <span v-if="v.email"><span class="vg-info-lbl">✉️ Email</span> {{ v.email }}</span>
-              <span v-if="v.website"><span class="vg-info-lbl">🌐 Website</span> <a :href="v.website.startsWith('http') ? v.website : 'https://' + v.website" target="_blank" rel="noopener" class="vg-link">{{ v.website }}</a></span>
-            </div>
-            <div v-if="v.deskripsi" class="vg-desc">{{ v.deskripsi }}</div>
-
-            <div class="vg-actions">
-              <button v-if="v.hp" class="vg-btn wa" @click="openWa(v)">WhatsApp</button>
-              <button v-if="payInfo(v)" class="vg-btn" @click="openPay(v)">Catat pembayaran</button>
-              <button class="vg-btn" @click="openEdit(v.id)">Edit</button>
-              <button class="vg-btn del" @click="delVendor(v)">Hapus</button>
+            <div class="vt-actions">
+              <button v-if="v.hp" class="vt-btn wa" @click="openWa(v)">WhatsApp</button>
+              <button v-if="payInfo(v)" class="vt-btn" @click="openPay(v)">Catat pembayaran</button>
+              <button class="vt-btn" @click="openEdit(v.id)">Edit</button>
+              <button class="vt-btn del" @click="delVendor(v)">Hapus</button>
             </div>
           </div>
         </div>
@@ -146,11 +155,6 @@ import BudgetDetailModal from '../components/modals/BudgetDetailModal.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileVendorList from '../mobile layout/MobileVendorList.vue'
 import TourBtn from '../components/TourBtn.vue'
-
-const CAT_ICON = {
-  wo: '🎯', venue: '🏛️', catering: '🍽️', dekorasi: '🌸', musik: '🎵',
-  fotografer: '📷', video: '🎬', mua: '💄', mc: '🎤', souvenir: '🎁',
-}
 
 const store     = useWeddingStore()
 const modalShow = ref(false)
@@ -202,27 +206,25 @@ const VENDOR_STEPS = computed(() => [
     desc: 'Isi nama, alamat, nomor HP, deskripsi, dan pilih tipe harga. Ada dua tipe: All In (harga tetap) atau Per Pax (dikalikan jumlah tamu otomatis).',
   },
   {
-    selector: isMobile.value ? '.mv-card' : '.v-row',
+    selector: isMobile.value ? '.mv-card' : '.vt-row-wrap',
     icon: '📋',
     title: isMobile.value ? 'Kartu Vendor' : 'Baris Vendor',
-    desc: isMobile.value
-      ? 'Setiap kartu menampilkan nama, harga, tipe harga, dan status. Ketuk kartu untuk lihat detail lengkap — alamat, HP, dan deskripsi.'
-      : 'Setiap baris berisi nama, alamat, nomor HP, harga, dan deskripsi. Klik ikon pensil untuk edit detail lengkap.',
+    desc: 'Klik tombol panah di kiri untuk buka detail — alamat, HP, email, website/Instagram, dan deskripsi lengkap.',
   },
   {
-    selector: isMobile.value ? '.mv-price-row' : '.v-cell.v-harga',
+    selector: isMobile.value ? '.mv-sub' : '.vt-harga',
     icon: '💰',
     title: 'Sistem Harga Vendor',
     desc: 'All In berarti harga tetap terlepas dari jumlah tamu. Per Pax dikalikan otomatis dari jumlah tamu terkonfirmasi di tab Tamu — angkanya update sendiri kalau tamu bertambah.',
   },
   {
-    selector: isMobile.value ? '.mv-actions' : '.v-decide',
+    selector: isMobile.value ? '.mv-status-sel' : '.vt-status',
     icon: '🔄',
-    title: 'Toggle "Dipakai" → Budget',
-    desc: 'Fitur utama tab ini. Aktifkan "Dipakai" dan harga vendor langsung masuk ke tab Budget sebagai item baru. Kalau dimatikan, otomatis dihapus dari Budget. Tidak perlu input manual.',
+    title: 'Status Vendor → Budget',
+    desc: 'Ubah status ke "Dipakai" dan harga vendor langsung masuk ke tab Budget sebagai item baru. Kalau dibatalkan, otomatis dihapus dari Budget. Tidak perlu input manual.',
   },
   ...(isMobile.value ? [{
-    selector: '.mv-act.wa',
+    selector: '.mv-act-btn.wa',
     icon: '📱',
     title: 'Hubungi via WhatsApp',
     desc: 'Tombol WA langsung membuka chat ke nomor vendor yang sudah diisi. Aktif hanya kalau nomor HP terisi. Berguna untuk follow up tanpa perlu keluar dari aplikasi.',
@@ -272,22 +274,6 @@ function onImport(e) {
 </script>
 
 <style scoped>
-.v-cap {
-  display: inline-block;
-  margin-top: 3px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #3b6d11;
-  background: var(--green-soft);
-  border-radius: 100px;
-  padding: 1px 8px;
-  white-space: nowrap;
-}
-.v-cap.over { color: #7a1a1a; background: var(--rose-soft); }
-
-.v-pay { margin-top: 3px; font-size: 11.5px; font-weight: 600; color: var(--rose); white-space: nowrap; }
-.v-pay.lunas { color: var(--green); }
-
 .v-status-sel {
   font-family: 'Jost', sans-serif;
   font-size: 12.5px;
@@ -303,82 +289,104 @@ function onImport(e) {
 .v-status-sel.vs-dipakai   { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
 .v-status-sel.vs-batal     { color: #7a1a1a; background: #F8E8E8; border-color: #e8c6c6; }
 
-/* ── Card grid (desktop) ── */
-.vg-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-}
-.vg-card {
+/* ── Row grid (desktop) ── */
+.vt-table {
   background: var(--paper);
   border: 1px solid var(--line);
-  border-left: 3px solid var(--line);
   border-radius: 14px;
   box-shadow: var(--shadow);
   overflow: hidden;
-  transition: box-shadow .15s;
-  display: flex;
-  flex-direction: column;
 }
-.vg-card:hover { box-shadow: 0 4px 16px rgba(36,8,8,.09); }
-.vg-card.sel { border-color: var(--wine); }
-.vg-card.vs-l-dihubungi { border-left-color: #0A1D4B; }
-.vg-card.vs-l-dipakai   { border-left-color: var(--green); }
-.vg-card.vs-l-batal     { border-left-color: var(--rose); }
 
-.vg-head {
+.vt-headrow {
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  grid-template-columns: 34px minmax(0,1.6fr) 120px 170px 150px;
+  gap: 0 10px;
+  padding: 10px 15px;
+  background: var(--ivory);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.vt-row-wrap { border-left: 3px solid var(--line); }
+.vt-row-wrap + .vt-row-wrap { border-top: 1px solid var(--line); }
+.vt-row-wrap.sel { background: rgba(129,1,0,.04); }
+.vt-row-wrap.vs-l-dihubungi { border-left-color: #0A1D4B; }
+.vt-row-wrap.vs-l-dipakai   { border-left-color: var(--green); }
+.vt-row-wrap.vs-l-batal     { border-left-color: var(--rose); }
+
+.vt-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0,1.6fr) 120px 170px 150px;
   align-items: center;
-  gap: 8px 10px;
-  padding: 13px 15px;
+  gap: 0 10px;
+  padding: 12px 15px 12px 12px;
   cursor: pointer;
 }
-.vg-cbx { display: inline-flex; }
-.vg-ico { font-size: 17px; line-height: 1; }
-.vg-cat { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-.vg-status { justify-self: end; padding: 4px 9px; font-size: 11.5px; }
 
-.vg-name {
-  grid-column: 1 / -1;
+.vt-exp-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.vt-chev { transition: transform .2s; }
+.vt-row-wrap.expanded .vt-chev { transform: rotate(180deg); }
+
+.vt-name {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
   font-family: 'Jost', sans-serif;
   font-weight: 600;
-  font-size: 15.5px;
+  font-size: 14.5px;
   color: var(--ink);
 }
-.vg-price-row {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  flex-wrap: wrap;
-}
-.vg-price { font-family: 'Cormorant Garamond', serif; font-size: 19px; font-weight: 700; color: var(--ink); }
-.vg-pay { font-size: 12px; font-weight: 600; color: var(--rose); }
-.vg-pay.lunas { color: var(--green); }
-.vg-paxinfo { font-size: 11.5px; color: var(--muted); }
-.vg-chev { margin-left: auto; color: var(--muted); transition: transform .2s; flex: none; }
-.vg-card.expanded .vg-chev { transform: rotate(180deg); }
-.vg-capchip { grid-column: 1 / -1; justify-self: start; margin-top: 0; }
+.vt-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vt-cbx { display: inline-flex; flex: none; }
+
+.vt-cap { font-size: 13px; color: var(--ink); }
+.vt-cap small { color: var(--muted); font-weight: 400; }
+.vt-cap .over { color: var(--rose); font-weight: 600; }
+.vt-muted { color: var(--muted); }
+
+.vt-harga { display: flex; flex-direction: column; gap: 2px; }
+.vt-price { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 700; color: var(--ink); }
+.vt-tag { font-size: 11px; color: var(--muted); }
+
+.vt-status { justify-self: start; padding: 4px 9px; font-size: 11.5px; }
 
 /* Body (expand ke bawah) */
-.vg-body { padding: 0 15px 15px; border-top: 1px solid var(--line); }
-.vg-payblock { margin-top: 12px; padding: 11px 13px; background: var(--ivory); border-radius: 12px; }
-.vg-payblock-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
-.vg-payblock-sub { font-size: 11.5px; font-weight: 500; color: var(--muted); }
-.vg-paybar { height: 6px; background: var(--line); border-radius: 100px; overflow: hidden; margin: 8px 0 6px; }
-.vg-paybar > span { display: block; height: 100%; background: var(--gold); border-radius: 100px; }
-.vg-due { font-size: 12px; color: #7a5c28; }
+.vt-body { padding: 0 15px 15px 46px; border-top: 1px dashed var(--line); }
+.vt-paxinfo { padding-top: 12px; font-size: 12px; color: var(--muted); }
 
-.vg-info { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--ink); }
-.vg-info > span { display: flex; align-items: baseline; gap: 4px; }
-.vg-info-lbl { color: var(--muted); font-size: 11px; letter-spacing: .03em; margin-right: 4px; white-space: nowrap; }
-.vg-link { color: var(--plum); text-decoration: none; word-break: break-all; }
-.vg-link:hover { text-decoration: underline; }
-.vg-desc { margin-top: 8px; font-size: 13px; color: #5f4a4a; font-style: italic; line-height: 1.5; }
+.vt-info { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; margin-top: 12px; font-size: 13px; color: var(--ink); }
+.vt-info > span { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+.vt-info-lbl { color: var(--muted); font-size: 11px; letter-spacing: .03em; margin-right: 4px; white-space: nowrap; }
+.vt-span2 { grid-column: 1 / -1; }
+.vt-link { color: var(--plum); text-decoration: none; word-break: break-all; }
+.vt-link:hover { text-decoration: underline; }
+.vt-desc { margin-top: 8px; font-size: 13px; color: #5f4a4a; font-style: italic; line-height: 1.5; }
+.vt-empty-info { margin-top: 12px; font-size: 12.5px; color: var(--muted); }
 
-.vg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 14px; }
-.vg-btn {
+.vt-payblock { margin-top: 12px; padding: 11px 13px; background: var(--ivory); border-radius: 12px; }
+.vt-payblock-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.vt-payblock-sub { font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.vt-paybar { height: 6px; background: var(--line); border-radius: 100px; overflow: hidden; margin: 8px 0 6px; }
+.vt-paybar > span { display: block; height: 100%; background: var(--gold); border-radius: 100px; }
+.vt-due { font-size: 12px; color: #7a5c28; }
+
+.vt-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.vt-btn {
   font-family: 'Jost', sans-serif;
   font-size: 12.5px;
   font-weight: 600;
@@ -390,9 +398,9 @@ function onImport(e) {
   cursor: pointer;
   transition: background .15s, border-color .15s;
 }
-.vg-btn:hover { background: var(--gold-soft); border-color: var(--gold); }
-.vg-btn.wa { background: #25D366; color: #fff; border-color: #25D366; }
-.vg-btn.wa:hover { filter: brightness(1.05); background: #25D366; }
-.vg-btn.del { color: var(--rose); }
-.vg-btn.del:hover { background: var(--rose-soft); border-color: var(--rose); }
+.vt-btn:hover { background: var(--gold-soft); border-color: var(--gold); }
+.vt-btn.wa { background: #25D366; color: #fff; border-color: #25D366; }
+.vt-btn.wa:hover { filter: brightness(1.05); background: #25D366; }
+.vt-btn.del { color: var(--rose); }
+.vt-btn.del:hover { background: var(--rose-soft); border-color: var(--rose); }
 </style>

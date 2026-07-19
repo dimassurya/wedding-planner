@@ -6,33 +6,28 @@
     </div>
 
     <div v-for="v in rows" :key="v.id" class="mv-card" :class="['mvs-' + statusKey(v), { expanded: expandedId === v.id }]">
-      <!-- Header (klik buka/tutup) -->
-      <div class="mv-header" @click="toggleExpand(v.id)">
-        <div class="mv-header-top">
-          <span class="mv-name">{{ v.nama || 'Tanpa nama' }}</span>
-          <select
-            class="mv-status-sel"
-            :class="'vs-' + statusKey(v)"
-            :value="statusKey(v)"
-            @click.stop
-            @change="e => store.setVendorStatus(v, e.target.value)"
-          >
-            <option v-for="k in VENDOR_STATUS_ORDER" :key="k" :value="k">{{ VENDOR_STATUS[k].label }}</option>
-          </select>
+      <div class="mv-row" @click="toggleExpand(v.id)">
+        <button type="button" class="mv-exp-btn" @click.stop="toggleExpand(v.id)" :aria-label="expandedId === v.id ? 'Tutup detail' : 'Buka detail'">
+          <svg class="mv-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="mv-main">
+          <div class="mv-top">
+            <span class="mv-name">{{ v.nama || 'Tanpa nama' }}</span>
+            <select
+              class="mv-status-sel"
+              :class="'vs-' + statusKey(v)"
+              :value="statusKey(v)"
+              @click.stop
+              @change="e => store.setVendorStatus(v, e.target.value)"
+            >
+              <option v-for="k in VENDOR_STATUS_ORDER" :key="k" :value="k">{{ VENDOR_STATUS[k].label }}</option>
+            </select>
+          </div>
+          <div class="mv-sub">
+            <span class="mv-price">Rp {{ grp(v.harga) }} <small>· {{ v.tipeHarga === 'pax' ? 'Per pax' : 'All in' }}</small></span>
+            <span v-if="capInfo(v)" class="mv-cap" :class="{ over: capInfo(v).over }">{{ v.kapasitas }} org</span>
+          </div>
         </div>
-        <div class="mv-price-row">
-          <span class="mv-price">Rp {{ grp(v.harga) }}</span>
-          <span class="mv-badge">{{ badgeText(v) }}</span>
-          <svg class="mv-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
-        </div>
-        <span v-if="capInfo(v)" class="mv-cap" :class="{ over: capInfo(v).over }">
-          👥 muat {{ capInfo(v).muat }} · tamu {{ capInfo(v).tamu }}
-          <template v-if="capInfo(v).over">· lebih {{ capInfo(v).delta }}</template>
-          <template v-else>· sisa {{ capInfo(v).delta }}</template>
-        </span>
-        <span v-if="payInfo(v)" class="mv-pay-chip" :class="{ lunas: payInfo(v).lunas }">
-          {{ payInfo(v).lunas ? 'Lunas ✓' : 'sisa Rp ' + grp(payInfo(v).sisa) }}
-        </span>
       </div>
 
       <!-- Detail info (expand ke bawah) -->
@@ -47,23 +42,27 @@
           <div v-if="payInfo(v).jatuhTempo" class="mv-due">⏰ Jatuh tempo {{ fmtDate(payInfo(v).jatuhTempo) }}</div>
         </div>
 
+        <!-- Pax breakdown -->
+        <div v-if="v.tipeHarga === 'pax'" class="mv-paxinfo">@ Rp {{ grp(v.hargaPax) }} × {{ paxMultText(v) }}</div>
+
         <!-- Detail info -->
-        <div class="mv-details">
+        <div v-if="!v.hp && !v.alamat && !v.email && !v.website && !v.deskripsi" class="mv-empty-info">Belum ada info tambahan — lengkapi lewat tombol Edit.</div>
+        <div v-else class="mv-details">
           <div v-if="v.hp" class="mv-detail-row">
-            <span class="mv-detail-lbl">📱 HP</span>
+            <span class="mv-detail-lbl">📱 Telepon</span>
             <span class="mv-detail-val">{{ v.hp }}</span>
           </div>
-          <div v-if="v.alamat" class="mv-detail-row">
-            <span class="mv-detail-lbl">📍 Alamat</span>
-            <span class="mv-detail-val">{{ v.alamat }}</span>
+          <div v-if="v.website" class="mv-detail-row">
+            <span class="mv-detail-lbl">🌐 Website/IG</span>
+            <span class="mv-detail-val"><a :href="v.website.startsWith('http') ? v.website : 'https://' + v.website" target="_blank" rel="noopener" class="mv-link">{{ v.website }}</a></span>
           </div>
           <div v-if="v.email" class="mv-detail-row">
             <span class="mv-detail-lbl">✉️ Email</span>
             <span class="mv-detail-val">{{ v.email }}</span>
           </div>
-          <div v-if="v.website" class="mv-detail-row">
-            <span class="mv-detail-lbl">🌐 Web</span>
-            <span class="mv-detail-val"><a :href="v.website.startsWith('http') ? v.website : 'https://' + v.website" target="_blank" rel="noopener" class="mv-link">{{ v.website }}</a></span>
+          <div v-if="v.alamat" class="mv-detail-row">
+            <span class="mv-detail-lbl">📍 Alamat</span>
+            <span class="mv-detail-val">{{ v.alamat }}</span>
           </div>
           <div v-if="v.deskripsi" class="mv-desc">{{ v.deskripsi }}</div>
         </div>
@@ -106,11 +105,6 @@ function paxMultText(v) {
   if (v.paxPengali === 'undangan') return `${tUndangan.value} undgn`
   return v.paxManualVal
 }
-function badgeText(v) {
-  if (v.tipeHarga === 'pax') return `Rp ${grp(v.hargaPax)} × ${paxMultText(v)}`
-  return 'All In'
-}
-
 function capInfo(v) {
   if (v.category !== 'venue' || !v.kapasitas) return null
   const diff = tOrang.value - v.kapasitas
@@ -142,15 +136,32 @@ function payInfo(v) {
 .mv-card.mvs-dipakai   { border-left-color: var(--green); }
 .mv-card.mvs-batal     { border-left-color: var(--rose); }
 
-/* Header */
-.mv-header {
+/* Row (klik buka/tutup) */
+.mv-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 13px 14px;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
   cursor: pointer;
 }
-.mv-header-top {
+.mv-exp-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-top: 2px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  flex: none;
+}
+.mv-chev { transition: transform .2s; }
+.mv-card.expanded .mv-chev { transform: rotate(180deg); }
+
+.mv-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.mv-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -164,7 +175,7 @@ function payInfo(v) {
   line-height: 1.15;
   word-break: break-word;
 }
-.mv-price-row {
+.mv-sub {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -175,19 +186,8 @@ function payInfo(v) {
   font-weight: 700;
   color: var(--plum);
 }
-.mv-badge {
-  font-size: var(--m-chip, 11px);
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 100px;
-  color: #3d5027;
-  background: #e4edd8;
-  line-height: 1.3;
-}
-.mv-chev { margin-left: auto; color: var(--muted); transition: transform .2s; flex: none; }
-.mv-card.expanded .mv-chev { transform: rotate(180deg); }
+.mv-price small { font-weight: 500; color: var(--muted); }
 .mv-cap {
-  align-self: flex-start;
   font-size: var(--m-sub, 12px);
   font-weight: 600;
   color: #3b6d11;
@@ -196,13 +196,6 @@ function payInfo(v) {
   padding: 2px 9px;
 }
 .mv-cap.over { color: #7a1a1a; background: var(--rose-soft); }
-.mv-pay-chip {
-  align-self: flex-start;
-  font-size: var(--m-sub, 12px);
-  font-weight: 600;
-  color: var(--rose);
-}
-.mv-pay-chip.lunas { color: var(--green); }
 .mv-status-sel {
   font-family: 'Jost', sans-serif;
   font-size: var(--m-sub, 12px);
@@ -221,9 +214,11 @@ function payInfo(v) {
 
 /* Body (expand ke bawah) */
 .mv-body {
-  padding: 0 14px 14px;
-  border-top: 1px solid var(--line);
+  padding: 0 14px 14px 34px;
+  border-top: 1px dashed var(--line);
 }
+.mv-paxinfo { padding-top: 10px; font-size: 11.5px; color: var(--muted); }
+.mv-empty-info { padding-top: 10px; font-size: 12px; color: var(--muted); }
 
 /* Payment block */
 .mv-payblock {
