@@ -12,6 +12,18 @@ export const META = {
 
 export const ORDER = ['cpp','cpw','teman_pria','teman_wanita','tetangga_pria','tetangga_wanita','lainnya']
 
+// Kehadiran tamu — dipisah dari relasi (siapa dia) dan dari "diundang ke
+// acara apa" (field undangan). "belum" = diundang, belum diputuskan —
+// TETAP dihitung di statistik (sama kayak default lama), beda dari
+// "tidak" yang eksplisit dikeluarkan.
+export const KEHADIRAN_STATUS = {
+  belum:   { label: 'Belum Konfirmasi', color: '#9C7575', bg: '#EDE5E2', text: '#6b4848' },
+  hadir:   { label: 'Hadir',            color: '#3B6D11', bg: '#EAF3DE', text: '#2b5010' },
+  tidak:   { label: 'Tidak Hadir',      color: '#B32E33', bg: '#F8E8E8', text: '#7a1a1a' },
+  virtual: { label: 'Virtual',          color: '#0A1D4B', bg: '#E3E8F2', text: '#0A1D4B' },
+}
+export const KEHADIRAN_ORDER = ['belum', 'hadir', 'tidak', 'virtual']
+
 export const GUEST_SEED = [
   ['papa dimsur',4,'cpp'],['lek yum',2,'cpp'],['nia',2,'cpp'],['dila',2,'cpp'],['mbak tatik',3,'cpp'],
   ['mbak ina',4,'cpp'],['mbak santi',4,'cpp'],['mbak tia',3,'cpp'],['pakde',1,'cpp'],['mas riski',2,'cpp'],

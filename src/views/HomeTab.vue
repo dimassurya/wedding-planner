@@ -70,7 +70,7 @@
       <button class="hm-metric hm-clickable" @click="goTab('tamu')">
         <div class="hm-m-num">{{ totalOrang.toLocaleString('id-ID') }}</div>
         <div class="hm-m-lbl">Total Tamu (orang)</div>
-        <div class="hm-m-sub">{{ confirmedList.length }} undangan dikonfirmasi</div>
+        <div class="hm-m-sub">{{ confirmedList.length }} undangan diperhitungkan</div>
         <span class="hm-m-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
       </button>
       <button class="hm-metric hm-clickable" @click="goTab('budget')">
@@ -286,11 +286,11 @@ const heroSub = computed(() =>
   : 'Selamat menempuh hidup baru 🎊'
 )
 
-const confirmedList = computed(() => store.guests.filter(g => g.konfirmasi !== false))
+const confirmedList = computed(() => store.confirmedGuests)
 const totalOrang    = computed(() => confirmedList.value.reduce((s, g) => s + g.jumlah, 0))
 
-const pria = computed(() => confirmedList.value.filter(g => META[g.status]?.side === 'pria').reduce((s, g) => s + g.jumlah, 0))
-const wanita = computed(() => confirmedList.value.filter(g => META[g.status]?.side === 'wanita').reduce((s, g) => s + g.jumlah, 0))
+const pria = computed(() => confirmedList.value.filter(g => META[g.relasi]?.side === 'pria').reduce((s, g) => s + g.jumlah, 0))
+const wanita = computed(() => confirmedList.value.filter(g => META[g.relasi]?.side === 'wanita').reduce((s, g) => s + g.jumlah, 0))
 const lainnya = computed(() => Math.max(totalOrang.value - pria.value - wanita.value, 0))
 
 const tEst    = computed(() => store.budget.reduce((s, b) => s + (b.estimasi || 0), 0))
@@ -432,12 +432,12 @@ const alerts = computed(() => {
     })
   }
 
-  const unconfirmed = store.guests.filter(g => g.konfirmasi === false)
+  const unconfirmed = store.guests.filter(g => (g.kehadiran || 'belum') === 'belum')
   if (unconfirmed.length) {
     list.push({
       id: 'tamu-unconfirmed', severity: 'info', icon: '👥',
-      title: `${unconfirmed.length} tamu belum dikonfirmasi`,
-      desc: 'Follow up konfirmasi kehadiran biar data makin akurat.',
+      title: `${unconfirmed.length} tamu belum konfirmasi kehadiran`,
+      desc: 'Follow up kehadiran biar data makin akurat.',
       cta: 'Lihat Tamu', action: () => { store.activeTab = 'tamu' },
     })
   }

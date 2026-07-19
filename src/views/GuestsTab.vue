@@ -4,7 +4,7 @@
     <div class="stat-grid">
       <div class="stat a-plum">
         <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
-        <div class="num">{{ confirmedList.length }}</div><div class="lbl">Undangan dikonfirmasi</div>
+        <div class="num">{{ store.confirmedGuests.length }}</div><div class="lbl">Undangan diperhitungkan</div>
       </div>
       <div class="stat a-gold">
         <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
@@ -52,10 +52,10 @@
       </div>
     </div>
 
-    <p v-if="belumKonfirmasi > 0" id="gConfirmInfo" class="g-confirm-info">
-      Statistik dihitung dari {{ confirmedList.length }} undangan terkonfirmasi · {{ belumKonfirmasi }} belum dikonfirmasi
+    <p v-if="notCounted > 0" id="gConfirmInfo" class="g-confirm-info">
+      Statistik dihitung dari {{ store.confirmedGuests.length }} undangan · {{ notCounted }} tidak dihitung (tidak hadir/virtual)
     </p>
-    <p v-else class="g-confirm-info">Semua {{ confirmedList.length }} undangan sudah dikonfirmasi</p>
+    <p v-else class="g-confirm-info">Semua {{ store.confirmedGuests.length }} undangan dihitung di statistik</p>
 
     <!-- Warning kapasitas venue (baca dari venue yang dipakai; null = belum ada) -->
     <button
@@ -85,7 +85,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9C7575" stroke-width="2"/><path d="M21 21l-4-4" stroke="#9C7575" stroke-width="2" stroke-linecap="round"/></svg>
         <input v-model="search" type="text" placeholder="Cari nama tamu...">
       </div>
-      <select class="filter" v-model="filterStatus">
+      <select class="filter" v-model="filterRelasi">
         <option value="all">Semua Relasi</option>
         <option v-for="k in ORDER" :key="k" :value="k">{{ META[k].label }}</option>
       </select>
@@ -109,28 +109,34 @@
       <div class="table-scroll">
       <div class="t-head">
         <div class="t-cbx"><input type="checkbox" class="cbx" :checked="allVisSelected" :indeterminate.prop="someVisSelected && !allVisSelected" @change="toggleAll"></div>
-        <div>No</div><div>Nama Tamu</div><div>Jumlah Orang</div><div>Status Relasi</div><div>Konfirmasi</div><div class="t-actions"></div>
+        <div>No</div><div>Nama Tamu</div><div>Jumlah Orang</div><div>Relasi</div><div>Kehadiran</div><div class="t-actions"></div>
       </div>
 
       <div v-if="!visRows.length" class="empty">
         <div class="big">Belum ada tamu</div>
-        <div>{{ search || filterStatus !== 'all' ? 'Tidak ada yang cocok.' : 'Klik Tambah Tamu untuk mulai.' }}</div>
+        <div>{{ search || filterRelasi !== 'all' ? 'Tidak ada yang cocok.' : 'Klik Tambah Tamu untuk mulai.' }}</div>
       </div>
 
-      <div v-for="(g, i) in visRows" :key="g.id" class="t-row" :class="{ sel: store.isSelected(g.id), unconfirmed: !isConf(g) }" :data-id="g.id">
+      <div v-for="(g, i) in visRows" :key="g.id" class="t-row" :class="{ sel: store.isSelected(g.id), unconfirmed: (g.kehadiran || 'belum') === 'tidak' }" :data-id="g.id">
         <div class="t-cbx"><input type="checkbox" class="cbx rowcbx" :checked="store.isSelected(g.id)" @change="e => store.toggleSelected(g.id, e.target.checked)"></div>
         <div class="t-no">{{ i + 1 }}</div>
         <div class="t-name">{{ g.nama }}</div>
         <div class="t-pax-wrap"><span class="t-pax">{{ g.jumlah }}</span></div>
         <div class="t-meta">
-          <span class="chip" :style="{ background: META[g.status]?.bg, color: META[g.status]?.text }">
-            <span class="cdot" :style="{ background: META[g.status]?.color }"></span>
-            {{ META[g.status]?.label }}{{ g.undangan && g.undangan !== 'keduanya' ? ` · ${g.undangan}` : '' }}
+          <span class="chip" :style="{ background: META[g.relasi]?.bg, color: META[g.relasi]?.text }">
+            <span class="cdot" :style="{ background: META[g.relasi]?.color }"></span>
+            {{ META[g.relasi]?.label }}{{ g.undangan && g.undangan !== 'keduanya' ? ` · ${g.undangan}` : '' }}
           </span>
         </div>
         <div class="t-konf">
-          <SwitchToggle :model-value="isConf(g)" title="Konfirmasi undangan" @update:model-value="v => toggleKonfirmasi(g, v)" />
-          <span class="t-konf-lbl">{{ isConf(g) ? 'Dikonfirmasi' : 'Belum' }}</span>
+          <select
+            class="t-keh-sel"
+            :class="'ks-' + (g.kehadiran || 'belum')"
+            :value="g.kehadiran || 'belum'"
+            @change="e => setKehadiran(g, e.target.value)"
+          >
+            <option v-for="k in KEHADIRAN_ORDER" :key="k" :value="k">{{ KEHADIRAN_STATUS[k].label }}</option>
+          </select>
         </div>
         <div class="t-actions">
           <button class="act item-action-btn" @click="openEdit(g.id)" title="Edit">
@@ -148,8 +154,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
-import { META, ORDER } from '../data/constants'
-import SwitchToggle from '../components/SwitchToggle.vue'
+import { META, ORDER, KEHADIRAN_STATUS, KEHADIRAN_ORDER } from '../data/constants'
 import GuestModal from '../components/modals/GuestModal.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileGuestList from '../mobile layout/MobileGuestList.vue'
@@ -174,7 +179,7 @@ const TAMU_STEPS = computed(() => [
     selector: '#panel-tamu .gbreakdown',
     icon: '👥',
     title: 'Breakdown per Pihak',
-    desc: 'Rincian per kategori relasi — calon pengantin, teman, tetangga. Angka ini dihitung hanya dari undangan yang sudah dikonfirmasi.',
+    desc: 'Rincian per kategori relasi — calon pengantin, teman, tetangga. Angka ini tidak menghitung tamu yang ditandai tidak hadir atau virtual.',
   },
   {
     selector: '#panel-tamu .controls',
@@ -191,42 +196,39 @@ const TAMU_STEPS = computed(() => [
       : 'Setiap baris adalah satu undangan. Klik pensil untuk edit, atau duplikasi kalau ada tamu dengan rombongan besar.',
   },
   {
-    selector: '.t-konf, .mg-toggle',
+    selector: '.t-konf, .mg-keh-sel',
     icon: '✅',
-    title: 'Konfirmasi Kehadiran',
-    desc: 'Aktifkan saat tamu sudah pasti diundang atau sudah membalas konfirmasi. Statistik jumlah tamu hanya menghitung yang aktif di sini.',
+    title: 'Kehadiran Tamu',
+    desc: 'Belum Konfirmasi & Hadir dihitung di statistik; Tidak Hadir & Virtual dikeluarkan dari hitungan kursi/katering.',
   },
 ])
 const search = ref('')
-const filterStatus = ref('all')
+const filterRelasi = ref('all')
 const modalShow = ref(false)
 const editId = ref(null)
 const importRef = ref(null)
 
-const isConf = g => g.konfirmasi !== false
-
-const confirmedList = computed(() => store.guests.filter(isConf))
-const totalOrang    = computed(() => confirmedList.value.reduce((s, g) => s + g.jumlah, 0))
+const totalOrang = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
 
 const byPax = computed(() => {
   const m = {}
   ORDER.forEach(k => { m[k] = 0 })
-  confirmedList.value.forEach(g => { m[g.status] = (m[g.status] || 0) + g.jumlah })
+  store.confirmedGuests.forEach(g => { m[g.relasi] = (m[g.relasi] || 0) + g.jumlah })
   return m
 })
 const byCnt = computed(() => {
   const m = {}
   ORDER.forEach(k => { m[k] = 0 })
-  confirmedList.value.forEach(g => { m[g.status] = (m[g.status] || 0) + 1 })
+  store.confirmedGuests.forEach(g => { m[g.relasi] = (m[g.relasi] || 0) + 1 })
   return m
 })
 const pria   = computed(() => ['cpp','teman_pria','tetangga_pria'].reduce((s, k) => s + (byPax.value[k] || 0), 0))
 const wanita = computed(() => ['cpw','teman_wanita','tetangga_wanita'].reduce((s, k) => s + (byPax.value[k] || 0), 0))
-const belumKonfirmasi = computed(() => store.guests.length - confirmedList.value.length)
+const notCounted = computed(() => store.guests.length - store.confirmedGuests.length)
 
 const visRows = computed(() => {
   const q = search.value.trim().toLowerCase()
-  return store.guests.filter(g => (filterStatus.value === 'all' || g.status === filterStatus.value) && g.nama.toLowerCase().includes(q))
+  return store.guests.filter(g => (filterRelasi.value === 'all' || g.relasi === filterRelasi.value) && g.nama.toLowerCase().includes(q))
 })
 
 const allVisSelected  = computed(() => visRows.value.length > 0 && visRows.value.every(g => store.isSelected(g.id)))
@@ -236,8 +238,8 @@ function toggleAll(e) {
   visRows.value.forEach(g => store.toggleSelected(g.id, e.target.checked))
 }
 
-function toggleKonfirmasi(g, val) {
-  g.konfirmasi = val
+function setKehadiran(g, val) {
+  g.kehadiran = val
   store.saveG()
 }
 
@@ -278,4 +280,19 @@ function onImport(e) {
 .g-cap.over .g-cap-body b { color: var(--rose); }
 .g-cap-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .g-cap-arrow { flex: none; color: var(--muted); }
+
+.t-keh-sel {
+  font-family: 'Jost', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 5px 10px;
+  cursor: pointer;
+  background: var(--paper);
+}
+.t-keh-sel.ks-belum   { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
+.t-keh-sel.ks-hadir   { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
+.t-keh-sel.ks-tidak   { color: #7a1a1a; background: #F8E8E8; border-color: #e8c6c6; }
+.t-keh-sel.ks-virtual { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
 </style>

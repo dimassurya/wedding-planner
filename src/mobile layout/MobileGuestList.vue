@@ -11,7 +11,7 @@
       v-for="g in rows"
       :key="g.id"
       class="mg-card"
-      :class="{ unconf: !isConf(g), 'mg-sel': store.isSelected(g.id), 'mg-picking': isSelecting }"
+      :class="{ unconf: (g.kehadiran || 'belum') === 'tidak', 'mg-sel': store.isSelected(g.id), 'mg-picking': isSelecting }"
       @click="onCardClick(g)"
       @touchstart.passive="onTouchStart(g.id)"
       @touchend="onTouchEnd"
@@ -30,23 +30,24 @@
           <span class="mg-name">{{ g.nama }}</span>
           <span class="mg-pax">({{ g.jumlah }} orang)</span>
         </div>
-        <span class="mg-badge" :style="{ background: META[g.status]?.bg, color: META[g.status]?.text }">
-          {{ META[g.status]?.label }}{{ g.undangan && g.undangan !== 'keduanya' ? ` · ${g.undangan}` : '' }}
+        <span class="mg-badge" :style="{ background: META[g.relasi]?.bg, color: META[g.relasi]?.text }">
+          {{ META[g.relasi]?.label }}{{ g.undangan && g.undangan !== 'keduanya' ? ` · ${g.undangan}` : '' }}
         </span>
-        <div class="mg-status" :class="{ ok: isConf(g) }">
-          <span class="mg-dot"></span>
-          {{ isConf(g) ? 'Dikonfirmasi' : 'Belum dikonfirmasi' }}
-        </div>
+        <span class="mg-keh-badge" :class="'ks-' + (g.kehadiran || 'belum')">
+          {{ KEHADIRAN_STATUS[g.kehadiran || 'belum'].label }}
+        </span>
       </div>
 
       <!-- Aksi normal (hanya tampil saat bukan selection mode) -->
       <div v-if="!isSelecting" class="mg-actions" @click.stop>
-        <SwitchToggle
-          class="mg-toggle"
-          :model-value="isConf(g)"
-          title="Konfirmasi undangan"
-          @update:model-value="v => toggleKonfirmasi(g, v)"
-        />
+        <select
+          class="mg-keh-sel"
+          :class="'ks-' + (g.kehadiran || 'belum')"
+          :value="g.kehadiran || 'belum'"
+          @change="e => setKehadiran(g, e.target.value)"
+        >
+          <option v-for="k in KEHADIRAN_ORDER" :key="k" :value="k">{{ KEHADIRAN_STATUS[k].label }}</option>
+        </select>
         <button class="mg-act item-action-btn" title="Edit" @click="$emit('edit', g.id)">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
         </button>
@@ -61,16 +62,13 @@
 <script setup>
 import { computed } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
-import { META } from '../data/constants'
-import SwitchToggle from '../components/SwitchToggle.vue'
+import { META, KEHADIRAN_STATUS, KEHADIRAN_ORDER } from '../data/constants'
 
 defineProps({ rows: { type: Array, default: () => [] } })
 defineEmits(['edit'])
 
 const store = useWeddingStore()
 const isSelecting = computed(() => store.selectedCount > 0)
-
-const isConf = g => g.konfirmasi !== false
 
 let _pressTimer  = null
 let _didLongPress = false
@@ -95,8 +93,8 @@ function onCardClick(g) {
   }
 }
 
-function toggleKonfirmasi(g, val) {
-  g.konfirmasi = val
+function setKehadiran(g, val) {
+  g.kehadiran = val
   store.saveG()
 }
 </script>
@@ -200,25 +198,34 @@ function toggleKonfirmasi(g, val) {
   line-height: 1.3;
 }
 
-.mg-status {
-  display: flex;
-  align-items: center;
-  gap: 5px;
+.mg-keh-badge {
+  align-self: flex-start;
+  font-size: var(--m-chip);
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 100px;
+  line-height: 1.3;
+}
+.mg-keh-badge.ks-belum   { color: #6b4848; background: #EDE5E2; }
+.mg-keh-badge.ks-hadir   { color: #2b5010; background: #EAF3DE; }
+.mg-keh-badge.ks-tidak   { color: #7a1a1a; background: #F8E8E8; }
+.mg-keh-badge.ks-virtual { color: #0A1D4B; background: #E3E8F2; }
+
+.mg-keh-sel {
+  font-family: 'Jost', sans-serif;
   font-size: var(--m-sub);
-  font-weight: 500;
-  color: var(--muted);
+  font-weight: 600;
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 6px 9px;
+  cursor: pointer;
+  background: var(--paper);
+  margin-right: 2px;
 }
-
-.mg-status .mg-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  border: 1.5px solid var(--muted);
-  background: transparent;
-}
-
-.mg-status.ok { color: var(--green); }
-.mg-status.ok .mg-dot { background: var(--green); border-color: var(--green); }
+.mg-keh-sel.ks-belum   { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
+.mg-keh-sel.ks-hadir   { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
+.mg-keh-sel.ks-tidak   { color: #7a1a1a; background: #F8E8E8; border-color: #e8c6c6; }
+.mg-keh-sel.ks-virtual { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
 
 .mg-actions {
   flex: none;
@@ -244,7 +251,6 @@ function toggleKonfirmasi(g, val) {
 .mg-act:active { background: var(--gold-soft); }
 .mg-act.del { color: var(--rose); }
 .mg-act.del:active { background: var(--rose-soft); }
-.mg-toggle { margin-right: 2px; }
 
 .mg-hint {
   text-align: center;

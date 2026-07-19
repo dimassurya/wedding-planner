@@ -100,7 +100,7 @@
             </span>
           </div>
 
-          <!-- Body (expand) -->
+          <!-- Detail info (expand ke bawah) -->
           <div v-if="expandedId === v.id" class="vg-body">
             <div v-if="payInfo(v)" class="vg-payblock">
               <div class="vg-payblock-top">
@@ -112,9 +112,10 @@
             </div>
 
             <div class="vg-info">
-              <span v-if="v.hp"><span class="vg-info-lbl">HP</span> {{ v.hp }}</span>
-              <span v-if="v.alamat"><span class="vg-info-lbl">Alamat</span> {{ v.alamat }}</span>
-              <span v-if="v.email"><span class="vg-info-lbl">Email</span> {{ v.email }}</span>
+              <span v-if="v.hp"><span class="vg-info-lbl">📱 HP</span> {{ v.hp }}</span>
+              <span v-if="v.alamat"><span class="vg-info-lbl">📍 Alamat</span> {{ v.alamat }}</span>
+              <span v-if="v.email"><span class="vg-info-lbl">✉️ Email</span> {{ v.email }}</span>
+              <span v-if="v.website"><span class="vg-info-lbl">🌐 Website</span> <a :href="v.website.startsWith('http') ? v.website : 'https://' + v.website" target="_blank" rel="noopener" class="vg-link">{{ v.website }}</a></span>
             </div>
             <div v-if="v.deskripsi" class="vg-desc">{{ v.deskripsi }}</div>
 
@@ -305,8 +306,8 @@ function onImport(e) {
 /* ── Card grid (desktop) ── */
 .vg-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 14px;
 }
 .vg-card {
   background: var(--paper);
@@ -316,9 +317,10 @@ function onImport(e) {
   box-shadow: var(--shadow);
   overflow: hidden;
   transition: box-shadow .15s;
+  display: flex;
+  flex-direction: column;
 }
 .vg-card:hover { box-shadow: 0 4px 16px rgba(36,8,8,.09); }
-.vg-card.expanded { grid-column: 1 / -1; }
 .vg-card.sel { border-color: var(--wine); }
 .vg-card.vs-l-dihubungi { border-left-color: #0A1D4B; }
 .vg-card.vs-l-dipakai   { border-left-color: var(--green); }
@@ -359,7 +361,7 @@ function onImport(e) {
 .vg-card.expanded .vg-chev { transform: rotate(180deg); }
 .vg-capchip { grid-column: 1 / -1; justify-self: start; margin-top: 0; }
 
-/* Body */
+/* Body (expand ke bawah) */
 .vg-body { padding: 0 15px 15px; border-top: 1px solid var(--line); }
 .vg-payblock { margin-top: 12px; padding: 11px 13px; background: var(--ivory); border-radius: 12px; }
 .vg-payblock-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--ink); }
@@ -368,11 +370,14 @@ function onImport(e) {
 .vg-paybar > span { display: block; height: 100%; background: var(--gold); border-radius: 100px; }
 .vg-due { font-size: 12px; color: #7a5c28; }
 
-.vg-info { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; font-size: 13px; color: var(--ink); }
-.vg-info-lbl { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; margin-right: 4px; }
+.vg-info { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--ink); }
+.vg-info > span { display: flex; align-items: baseline; gap: 4px; }
+.vg-info-lbl { color: var(--muted); font-size: 11px; letter-spacing: .03em; margin-right: 4px; white-space: nowrap; }
+.vg-link { color: var(--plum); text-decoration: none; word-break: break-all; }
+.vg-link:hover { text-decoration: underline; }
 .vg-desc { margin-top: 8px; font-size: 13px; color: #5f4a4a; font-style: italic; line-height: 1.5; }
 
-.vg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.vg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 14px; }
 .vg-btn {
   font-family: 'Jost', sans-serif;
   font-size: 12.5px;

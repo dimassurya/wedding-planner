@@ -99,7 +99,13 @@ export const useWeddingStore = defineStore('wedding', () => {
   let _confirmResolve = null
 
   // ── Computed ─────────────────────────────────────────────────────
-  const confirmedGuests = computed(() => guests.value.filter(g => g.konfirmasi !== false))
+  // "belum" ikut dihitung (diundang, masih diasumsikan hadir sampai
+  // diputuskan lain) — cuma "tidak" dan "virtual" yang dikeluarkan dari
+  // hitungan fisik (kursi/katering/kapasitas venue).
+  const confirmedGuests = computed(() => guests.value.filter(g => {
+    const k = g.kehadiran || 'belum'
+    return k !== 'tidak' && k !== 'virtual'
+  }))
   const selectedCount   = computed(() => Object.keys(selectedMap).length)
   const selectedIds     = computed(() => Object.keys(selectedMap).map(k => isNaN(k) ? k : Number(k)))
 
@@ -872,8 +878,9 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   function exportGuestsCSV() {
     const META = { cpp:{label:'Keluarga Pengantin Pria'}, cpw:{label:'Keluarga Pengantin Wanita'}, teman_pria:{label:'Teman Pengantin Pria'}, teman_wanita:{label:'Teman Pengantin Wanita'}, tetangga_pria:{label:'Tetangga Pengantin Pria'}, tetangga_wanita:{label:'Tetangga Pengantin Wanita'}, lainnya:{label:'Lainnya'} }
-    const head = ['No','Nama Lengkap','Jumlah Orang','Status Relasi','Undangan Untuk','Konfirmasi']
-    const rows = guests.value.map((g, i) => [i+1, g.nama, g.jumlah, (META[g.status]||{label:'Lainnya'}).label, g.undangan||'keduanya', g.konfirmasi !== false ? 'Dikonfirmasi' : 'Belum'])
+    const KEH = { belum:'Belum Konfirmasi', hadir:'Hadir', tidak:'Tidak Hadir', virtual:'Virtual' }
+    const head = ['No','Nama Lengkap','Jumlah Orang','Relasi','Undangan Untuk','Kehadiran']
+    const rows = guests.value.map((g, i) => [i+1, g.nama, g.jumlah, (META[g.relasi]||{label:'Lainnya'}).label, g.undangan||'keduanya', KEH[g.kehadiran || 'belum']])
     downloadCSV('daftar-tamu-undangan.csv', toCSV(head, rows))
     toast('CSV tamu diunduh')
   }
@@ -892,13 +899,13 @@ export const useWeddingStore = defineStore('wedding', () => {
   function applyBulk(tab, fields) {
     let c = 0
     if (tab === 'tamu') {
-      const { status, undangan, konfirmasi } = fields
-      if (!status && !undangan && konfirmasi === undefined) { toast('Pilih minimal satu perubahan'); return }
+      const { relasi, undangan, kehadiran } = fields
+      if (!relasi && !undangan && !kehadiran) { toast('Pilih minimal satu perubahan'); return }
       guests.value.forEach(g => {
         if (!isSelected(g.id)) return
-        if (status) g.status = status
+        if (relasi) g.relasi = relasi
         if (undangan) g.undangan = undangan
-        if (konfirmasi !== undefined) g.konfirmasi = konfirmasi
+        if (kehadiran) g.kehadiran = kehadiran
         c++
       })
       if (c) saveG()

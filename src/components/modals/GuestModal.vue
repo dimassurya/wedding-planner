@@ -29,19 +29,18 @@
         </div>
       </div>
       <div class="field">
-        <label>Status Relasi</label>
+        <label>Relasi</label>
         <div class="select-wrap">
-          <select v-model="form.status">
+          <select v-model="form.relasi">
             <option v-for="k in ORDER" :key="k" :value="k">{{ META[k].label }}</option>
           </select>
         </div>
       </div>
       <div class="field">
-        <label>Konfirmasi Undangan</label>
+        <label>Kehadiran</label>
         <div class="select-wrap">
-          <select v-model="form.konfirmasi">
-            <option value="ya">Dikonfirmasi (dihitung di statistik)</option>
-            <option value="tidak">Belum dikonfirmasi</option>
+          <select v-model="form.kehadiran">
+            <option v-for="k in KEHADIRAN_ORDER" :key="k" :value="k">{{ KEHADIRAN_STATUS[k].label }}</option>
           </select>
         </div>
       </div>
@@ -70,7 +69,7 @@
 <script setup>
 import { ref, watch, nextTick, computed } from 'vue'
 import { useWeddingStore } from '../../stores/wedding'
-import { META, ORDER } from '../../data/constants'
+import { META, ORDER, KEHADIRAN_STATUS, KEHADIRAN_ORDER } from '../../data/constants'
 
 const props = defineProps({ show: Boolean, editId: { type: Number, default: null } })
 const emit  = defineEmits(['close'])
@@ -79,15 +78,15 @@ const namaInput = ref(null)
 
 const guest = computed(() => props.editId ? store.guests.find(g => g.id === props.editId) : null)
 
-const form = ref({ nama: '', jumlah: 2, undangan: 'keduanya', status: 'cpp', konfirmasi: 'ya', catatan: '' })
+const form = ref({ nama: '', jumlah: 2, undangan: 'keduanya', relasi: 'cpp', kehadiran: 'belum', catatan: '' })
 
 watch(() => props.show, open => {
   if (!open) return
   if (guest.value) {
     const g = guest.value
-    form.value = { nama: g.nama, jumlah: g.jumlah, undangan: g.undangan || 'keduanya', status: g.status, konfirmasi: g.konfirmasi !== false ? 'ya' : 'tidak', catatan: g.catatan || '' }
+    form.value = { nama: g.nama, jumlah: g.jumlah, undangan: g.undangan || 'keduanya', relasi: g.relasi, kehadiran: g.kehadiran || 'belum', catatan: g.catatan || '' }
   } else {
-    form.value = { nama: '', jumlah: 2, undangan: 'keduanya', status: 'cpp', konfirmasi: 'ya', catatan: '' }
+    form.value = { nama: '', jumlah: 2, undangan: 'keduanya', relasi: 'cpp', kehadiran: 'belum', catatan: '' }
   }
   nextTick(() => namaInput.value?.focus())
 })
@@ -95,12 +94,12 @@ watch(() => props.show, open => {
 async function save() {
   if (!form.value.nama.trim()) { store.toast('Nama belum diisi'); return }
   const ok = await store.saveGuest({
-    nama:       form.value.nama.trim(),
-    jumlah:     form.value.jumlah,
-    undangan:   form.value.undangan,
-    status:     form.value.status,
-    konfirmasi: form.value.konfirmasi !== 'tidak',
-    catatan:    form.value.catatan.trim(),
+    nama:      form.value.nama.trim(),
+    jumlah:    form.value.jumlah,
+    undangan:  form.value.undangan,
+    relasi:    form.value.relasi,
+    kehadiran: form.value.kehadiran,
+    catatan:   form.value.catatan.trim(),
   }, props.editId)
   if (!ok) return   // saveGuest sudah toast pesan errornya sendiri
   store.toast(props.editId ? 'Perubahan tersimpan' : 'Tamu ditambahkan')

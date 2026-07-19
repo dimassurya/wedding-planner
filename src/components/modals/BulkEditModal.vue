@@ -7,9 +7,9 @@
       <!-- Tamu -->
       <template v-if="tab === 'tamu'">
         <div class="field">
-          <label>Ubah Status Relasi</label>
+          <label>Ubah Relasi</label>
           <div class="select-wrap">
-            <select v-model="f.status">
+            <select v-model="f.relasi">
               <option value="">— jangan ubah —</option>
               <option v-for="k in ORDER" :key="k" :value="k">{{ META[k].label }}</option>
             </select>
@@ -27,12 +27,11 @@
           </div>
         </div>
         <div class="field">
-          <label>Ubah Konfirmasi</label>
+          <label>Ubah Kehadiran</label>
           <div class="select-wrap">
-            <select v-model="f.konfirmasi">
+            <select v-model="f.kehadiran">
               <option value="">-- Biarkan (Tidak Diubah) --</option>
-              <option value="ya">Dikonfirmasi</option>
-              <option value="tidak">Belum dikonfirmasi</option>
+              <option v-for="k in KEHADIRAN_ORDER" :key="k" :value="k">{{ KEHADIRAN_STATUS[k].label }}</option>
             </select>
           </div>
         </div>
@@ -104,32 +103,26 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useWeddingStore } from '../../stores/wedding'
-import { META, ORDER, VENDOR_CATEGORIES } from '../../data/constants'
+import { META, ORDER, VENDOR_CATEGORIES, KEHADIRAN_STATUS, KEHADIRAN_ORDER } from '../../data/constants'
 
 const props = defineProps({ show: Boolean, tab: String })
 const emit  = defineEmits(['close', 'applied'])
 const store = useWeddingStore()
 
-const f = ref({ status: '', undangan: '', konfirmasi: '', kat: '', stat: '', due: '' })
+const f = ref({ relasi: '', undangan: '', kehadiran: '', kat: '', stat: '', due: '' })
 
 watch(() => props.show, open => {
-  if (open) f.value = { status: '', undangan: '', konfirmasi: '', kat: '', stat: '', due: '' }
+  if (open) f.value = { relasi: '', undangan: '', kehadiran: '', kat: '', stat: '', due: '' }
 })
 
 function apply() {
   const fields = props.tab === 'tamu'
-    ? { status: f.value.status, undangan: f.value.undangan, konfirmasi: f.value.konfirmasi ? (f.value.konfirmasi !== undefined ? f.value.konfirmasi === 'ya' : undefined) : undefined }
+    ? { relasi: f.value.relasi, undangan: f.value.undangan, kehadiran: f.value.kehadiran }
     : props.tab === 'vendor'
     ? { kat: f.value.kat, stat: f.value.stat }
     : props.tab === 'budget'
     ? { stat: f.value.stat, due: f.value.due }
     : { stat: f.value.stat }
-
-  // For tamu: convert konfirmasi string → bool
-  if (props.tab === 'tamu') {
-    fields.konfirmasi = f.value.konfirmasi === 'ya' ? true : f.value.konfirmasi === 'tidak' ? false : undefined
-    if (fields.konfirmasi === undefined) delete fields.konfirmasi
-  }
 
   const ok = store.applyBulk(props.tab, fields)
   if (ok) emit('applied')
