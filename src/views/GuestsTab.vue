@@ -11,12 +11,12 @@
         <div class="num">{{ totalOrang }}</div><div class="lbl">Total tamu (orang)</div>
       </div>
       <div class="stat a-teal">
-        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5 16L3 5l5.5 5L12 2l3.5 8L21 5l-2 11H5z"/><rect x="5" y="18" width="14" height="2" rx="1"/></svg></div>
-        <div class="num">{{ pria }}</div><div class="lbl">Pihak pria (orang)</div>
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        <div class="num">{{ hadirOrang }}</div><div class="lbl">Tamu hadir (orang)</div>
       </div>
       <div class="stat a-rose">
-        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="2.5"/><ellipse cx="12" cy="5.5" rx="2" ry="3.5"/><ellipse cx="12" cy="18.5" rx="2" ry="3.5"/><ellipse cx="5.5" cy="12" rx="3.5" ry="2"/><ellipse cx="18.5" cy="12" rx="3.5" ry="2"/><ellipse cx="7.5" cy="7.5" rx="2" ry="3" transform="rotate(-45 7.5 7.5)"/><ellipse cx="16.5" cy="16.5" rx="2" ry="3" transform="rotate(-45 16.5 16.5)"/><ellipse cx="16.5" cy="7.5" rx="2" ry="3" transform="rotate(45 16.5 7.5)"/><ellipse cx="7.5" cy="16.5" rx="2" ry="3" transform="rotate(45 7.5 16.5)"/></svg></div>
-        <div class="num">{{ wanita }}</div><div class="lbl">Pihak wanita (orang)</div>
+        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+        <div class="num">{{ tidakOrang }}</div><div class="lbl">Tamu tidak hadir (orang)</div>
       </div>
     </div>
 
@@ -79,6 +79,12 @@
       <svg class="g-cap-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
     </button>
 
+    <!-- Filter kehadiran -->
+    <div id="gKehChips" class="chips">
+      <button class="fchip" :class="{ on: filterKehadiran === 'all' }" @click="filterKehadiran = 'all'">Semua Kehadiran</button>
+      <button v-for="k in KEHADIRAN_ORDER" :key="k" class="fchip" :class="{ on: filterKehadiran === k }" @click="filterKehadiran = k">{{ KEHADIRAN_STATUS[k].label }}</button>
+    </div>
+
     <!-- Controls -->
     <div class="controls">
       <div class="search">
@@ -114,7 +120,7 @@
 
       <div v-if="!visRows.length" class="empty">
         <div class="big">Belum ada tamu</div>
-        <div>{{ search || filterRelasi !== 'all' ? 'Tidak ada yang cocok.' : 'Klik Tambah Tamu untuk mulai.' }}</div>
+        <div>{{ search || filterRelasi !== 'all' || filterKehadiran !== 'all' ? 'Tidak ada yang cocok.' : 'Klik Tambah Tamu untuk mulai.' }}</div>
       </div>
 
       <div v-for="(g, i) in visRows" :key="g.id" class="t-row" :class="{ sel: store.isSelected(g.id), unconfirmed: (g.kehadiran || 'belum') === 'tidak' }" :data-id="g.id">
@@ -173,13 +179,19 @@ const TAMU_STEPS = computed(() => [
     selector: '#panel-tamu .stat-grid',
     icon: '📊',
     title: 'Ringkasan Tamu',
-    desc: 'Empat angka utama di sini: undangan dikonfirmasi, total tamu (orang), dan pembagian antara pihak pria dan wanita.',
+    desc: 'Empat angka utama di sini: undangan diperhitungkan, total tamu (orang), serta berapa yang sudah hadir dan tidak hadir.',
   },
   {
     selector: '#panel-tamu .gbreakdown',
     icon: '👥',
     title: 'Breakdown per Pihak',
     desc: 'Rincian per kategori relasi — calon pengantin, teman, tetangga. Angka ini tidak menghitung tamu yang ditandai tidak hadir atau virtual.',
+  },
+  {
+    selector: '#panel-tamu #gKehChips',
+    icon: '✅',
+    title: 'Filter Kehadiran',
+    desc: 'Ketuk salah satu chip untuk fokus ke tamu dengan status kehadiran tertentu — Hadir, Tidak Hadir, Virtual, atau Belum Konfirmasi.',
   },
   {
     selector: '#panel-tamu .controls',
@@ -204,6 +216,7 @@ const TAMU_STEPS = computed(() => [
 ])
 const search = ref('')
 const filterRelasi = ref('all')
+const filterKehadiran = ref('all')
 const modalShow = ref(false)
 const editId = ref(null)
 const importRef = ref(null)
@@ -226,9 +239,16 @@ const pria   = computed(() => ['cpp','teman_pria','tetangga_pria'].reduce((s, k)
 const wanita = computed(() => ['cpw','teman_wanita','tetangga_wanita'].reduce((s, k) => s + (byPax.value[k] || 0), 0))
 const notCounted = computed(() => store.guests.length - store.confirmedGuests.length)
 
+const hadirOrang = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'hadir').reduce((s, g) => s + g.jumlah, 0))
+const tidakOrang = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'tidak').reduce((s, g) => s + g.jumlah, 0))
+
 const visRows = computed(() => {
   const q = search.value.trim().toLowerCase()
-  return store.guests.filter(g => (filterRelasi.value === 'all' || g.relasi === filterRelasi.value) && g.nama.toLowerCase().includes(q))
+  return store.guests.filter(g =>
+    (filterRelasi.value === 'all' || g.relasi === filterRelasi.value) &&
+    (filterKehadiran.value === 'all' || (g.kehadiran || 'belum') === filterKehadiran.value) &&
+    g.nama.toLowerCase().includes(q)
+  )
 })
 
 const allVisSelected  = computed(() => visRows.value.length > 0 && visRows.value.every(g => store.isSelected(g.id)))
