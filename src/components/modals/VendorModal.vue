@@ -27,16 +27,6 @@
           </div>
           <div v-if="form.status === 'dipakai'" class="vm-cap-hint">Vendor "Dipakai" otomatis masuk ke anggaran (tab Budget).</div>
         </div>
-        <div v-if="form.category === 'venue'" class="field">
-          <label>Kapasitas (orang)</label>
-          <input v-model.number="form.kapasitas" type="number" min="0" placeholder="cth: 300">
-          <div v-if="form.kapasitas > 0" class="vm-cap-hint" :class="{ over: tOrang > form.kapasitas }">
-            Tamu terkonfirmasi sekarang: {{ tOrang }} orang ·
-            <template v-if="tOrang > form.kapasitas">lebih {{ tOrang - form.kapasitas }} dari kapasitas</template>
-            <template v-else>sisa {{ form.kapasitas - tOrang }} kursi</template>
-          </div>
-        </div>
-
         <div class="row2">
           <div class="field">
             <label>Tipe Harga</label>
@@ -50,6 +40,17 @@
           <div class="field">
             <label>No. HP</label>
             <input v-model="form.hp" type="text">
+          </div>
+        </div>
+
+        <div v-if="form.category === 'venue' || form.tipeHarga === 'paket'" class="field">
+          <label>{{ form.category === 'venue' ? 'Kapasitas Venue (orang)' : 'Kapasitas Paket (pax/orang)' }}</label>
+          <input v-model.number="form.kapasitas" type="number" min="0" placeholder="cth: 300">
+          <div v-if="form.category !== 'venue'" class="vm-cap-hint">Isi kalau paket All In ini cuma mencakup jumlah tamu tertentu. Kosongkan kalau tidak ada batasnya.</div>
+          <div v-if="form.kapasitas > 0" class="vm-cap-hint" :class="{ over: tOrang > form.kapasitas }">
+            Tamu terkonfirmasi sekarang: {{ tOrang }} orang ·
+            <template v-if="tOrang > form.kapasitas">lebih {{ tOrang - form.kapasitas }} dari kapasitas</template>
+            <template v-else>sisa {{ form.kapasitas - tOrang }} {{ form.category === 'venue' ? 'kursi' : 'pax' }}</template>
           </div>
         </div>
 
@@ -130,7 +131,10 @@ watch(() => props.show, open => {
 })
 
 function togglePax() {
-  if (form.value.tipeHarga === 'pax') calcPaxTotal(false)
+  if (form.value.tipeHarga === 'pax') {
+    calcPaxTotal(false)
+    if (form.value.category !== 'venue') form.value.kapasitas = 0
+  }
 }
 
 function calcPaxTotal(force = true) {

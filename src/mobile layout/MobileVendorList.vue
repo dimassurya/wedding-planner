@@ -106,7 +106,7 @@ function paxMultText(v) {
   return v.paxManualVal
 }
 function capInfo(v) {
-  if (v.category !== 'venue' || !v.kapasitas) return null
+  if (!v.kapasitas) return null
   const diff = tOrang.value - v.kapasitas
   return { muat: v.kapasitas, tamu: tOrang.value, over: diff > 0, delta: Math.abs(diff) }
 }

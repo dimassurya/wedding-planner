@@ -233,10 +233,10 @@ const VENDOR_STEPS = computed(() => [
 
 const catLabel = id => { const c = VENDOR_CATEGORIES.find(x => x.id === id); return c ? c.label : id }
 
-// Info kapasitas per venue — dipakai buat bantu milih venue yang muat.
-// null kalau bukan venue / kapasitas belum diisi.
+// Info kapasitas — venue (fisik) atau paket All In yang cuma nyakup
+// sekian tamu. null kalau kapasitas belum diisi.
 function capInfo(v) {
-  if (v.category !== 'venue' || !v.kapasitas) return null
+  if (!v.kapasitas) return null
   const tamu = store.totalGuestPax
   const diff = tamu - v.kapasitas
   return { muat: v.kapasitas, tamu, over: diff > 0, delta: Math.abs(diff) }
