@@ -67,6 +67,7 @@
               <select v-model="form.paxPengali" @change="calcPaxTotal(true)">
                 <option value="orang">Tamu dikonfirmasi — {{ tOrang }} orang</option>
                 <option value="undangan">Undangan dikonfirmasi — {{ tUndangan }}</option>
+                <option value="hampers">Kirim hampers — {{ store.hampersCount }}</option>
                 <option value="manual">Jumlah kustom</option>
               </select>
             </div>
@@ -143,6 +144,7 @@ function calcPaxTotal(force = true) {
   let mult = 1
   if (form.value.paxPengali === 'orang') mult = tOrang.value
   else if (form.value.paxPengali === 'undangan') mult = tUndangan.value
+  else if (form.value.paxPengali === 'hampers') mult = store.hampersCount
   else mult = form.value.paxManualVal || 1
   if (force || form.value.harga === 0) form.value.harga = hpax * mult
 }

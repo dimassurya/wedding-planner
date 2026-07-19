@@ -252,6 +252,7 @@ const tUndangan = computed(() => store.confirmedGuests.length)
 function paxMultText(v) {
   if (v.paxPengali === 'orang') return `${tOrang.value} org`
   if (v.paxPengali === 'undangan') return `${tUndangan.value} undgn`
+  if (v.paxPengali === 'hampers') return `${store.hampersCount} hampers`
   return v.paxManualVal
 }
 

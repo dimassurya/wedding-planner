@@ -103,6 +103,7 @@ function toggleExpand(id) { expandedId.value = expandedId.value === id ? null : 
 function paxMultText(v) {
   if (v.paxPengali === 'orang') return `${tOrang.value} org`
   if (v.paxPengali === 'undangan') return `${tUndangan.value} undgn`
+  if (v.paxPengali === 'hampers') return `${store.hampersCount} hampers`
   return v.paxManualVal
 }
 function capInfo(v) {

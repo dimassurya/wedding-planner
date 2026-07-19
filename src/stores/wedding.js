@@ -100,12 +100,15 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   // ── Computed ─────────────────────────────────────────────────────
   // "belum" ikut dihitung (diundang, masih diasumsikan hadir sampai
-  // diputuskan lain) — cuma "tidak" dan "virtual" yang dikeluarkan dari
+  // diputuskan lain) — cuma "tidak" dan "hampers" yang dikeluarkan dari
   // hitungan fisik (kursi/katering/kapasitas venue).
   const confirmedGuests = computed(() => guests.value.filter(g => {
     const k = g.kehadiran || 'belum'
-    return k !== 'tidak' && k !== 'virtual'
+    return k !== 'tidak' && k !== 'hampers'
   }))
+  // Jumlah tamu yang dikirimi hampers (bukan hadir fisik) — dipakai buat
+  // vendor yang jasanya "kirim hampers", dikalikan otomatis di tipe harga Per Pax.
+  const hampersCount    = computed(() => guests.value.filter(g => g.kehadiran === 'hampers').length)
   const selectedCount   = computed(() => Object.keys(selectedMap).length)
   const selectedIds     = computed(() => Object.keys(selectedMap).map(k => isNaN(k) ? k : Number(k)))
 
@@ -878,7 +881,7 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   function exportGuestsCSV() {
     const META = { cpp:{label:'Keluarga Pengantin Pria'}, cpw:{label:'Keluarga Pengantin Wanita'}, teman_pria:{label:'Teman Pengantin Pria'}, teman_wanita:{label:'Teman Pengantin Wanita'}, tetangga_pria:{label:'Tetangga Pengantin Pria'}, tetangga_wanita:{label:'Tetangga Pengantin Wanita'}, lainnya:{label:'Lainnya'} }
-    const KEH = { belum:'Belum Konfirmasi', hadir:'Hadir', tidak:'Tidak Hadir', virtual:'Virtual' }
+    const KEH = { belum:'Belum Konfirmasi', hadir:'Hadir', tidak:'Tidak Hadir', hampers:'Kirim Hampers' }
     const head = ['No','Nama Lengkap','Jumlah Orang','Relasi','Undangan Untuk','Kehadiran']
     const rows = guests.value.map((g, i) => [i+1, g.nama, g.jumlah, (META[g.relasi]||{label:'Lainnya'}).label, g.undangan||'keduanya', KEH[g.kehadiran || 'belum']])
     downloadCSV('daftar-tamu-undangan.csv', toCSV(head, rows))
@@ -1722,7 +1725,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     confirmShow, confirmTitle, confirmMessage, confirmOk, confirmCancel, confirmDanger,
     // computed
     confirmedGuests, selectedCount, selectedIds,
-    totalGuestPax, venueCapacity, capacityOver,
+    totalGuestPax, venueCapacity, capacityOver, hampersCount,
     // confirm dialog
     askConfirm, resolveConfirm,
     // selection

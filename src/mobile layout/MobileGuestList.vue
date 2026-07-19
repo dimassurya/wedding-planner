@@ -209,7 +209,7 @@ function setKehadiran(g, val) {
 .mg-keh-badge.ks-belum   { color: #6b4848; background: #EDE5E2; }
 .mg-keh-badge.ks-hadir   { color: #2b5010; background: #EAF3DE; }
 .mg-keh-badge.ks-tidak   { color: #7a1a1a; background: #F8E8E8; }
-.mg-keh-badge.ks-virtual { color: #0A1D4B; background: #E3E8F2; }
+.mg-keh-badge.ks-hampers { color: #0A1D4B; background: #E3E8F2; }
 
 .mg-keh-sel {
   font-family: 'Jost', sans-serif;
@@ -225,7 +225,7 @@ function setKehadiran(g, val) {
 .mg-keh-sel.ks-belum   { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
 .mg-keh-sel.ks-hadir   { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
 .mg-keh-sel.ks-tidak   { color: #7a1a1a; background: #F8E8E8; border-color: #e8c6c6; }
-.mg-keh-sel.ks-virtual { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
+.mg-keh-sel.ks-hampers { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
 
 .mg-actions {
   flex: none;

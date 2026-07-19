@@ -53,7 +53,7 @@
     </div>
 
     <p v-if="notCounted > 0" id="gConfirmInfo" class="g-confirm-info">
-      Statistik dihitung dari {{ store.confirmedGuests.length }} undangan · {{ notCounted }} tidak dihitung (tidak hadir/virtual)
+      Statistik dihitung dari {{ store.confirmedGuests.length }} undangan · {{ notCounted }} tidak dihitung (tidak hadir/kirim hampers)
     </p>
     <p v-else class="g-confirm-info">Semua {{ store.confirmedGuests.length }} undangan dihitung di statistik</p>
 
@@ -185,13 +185,13 @@ const TAMU_STEPS = computed(() => [
     selector: '#panel-tamu .gbreakdown',
     icon: '👥',
     title: 'Breakdown per Pihak',
-    desc: 'Rincian per kategori relasi — calon pengantin, teman, tetangga. Angka ini tidak menghitung tamu yang ditandai tidak hadir atau virtual.',
+    desc: 'Rincian per kategori relasi — calon pengantin, teman, tetangga. Angka ini tidak menghitung tamu yang ditandai tidak hadir atau kirim hampers.',
   },
   {
     selector: '#panel-tamu #gKehChips',
     icon: '✅',
     title: 'Filter Kehadiran',
-    desc: 'Ketuk salah satu chip untuk fokus ke tamu dengan status kehadiran tertentu — Hadir, Tidak Hadir, Virtual, atau Belum Konfirmasi.',
+    desc: 'Ketuk salah satu chip untuk fokus ke tamu dengan status kehadiran tertentu — Hadir, Tidak Hadir, Kirim Hampers, atau Belum Konfirmasi.',
   },
   {
     selector: '#panel-tamu .controls',
@@ -211,7 +211,7 @@ const TAMU_STEPS = computed(() => [
     selector: '.t-konf, .mg-keh-sel',
     icon: '✅',
     title: 'Kehadiran Tamu',
-    desc: 'Belum Konfirmasi & Hadir dihitung di statistik; Tidak Hadir & Virtual dikeluarkan dari hitungan kursi/katering.',
+    desc: 'Belum Konfirmasi & Hadir dihitung di statistik; Tidak Hadir & Kirim Hampers dikeluarkan dari hitungan kursi/katering.',
   },
 ])
 const search = ref('')
@@ -314,5 +314,5 @@ function onImport(e) {
 .t-keh-sel.ks-belum   { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
 .t-keh-sel.ks-hadir   { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
 .t-keh-sel.ks-tidak   { color: #7a1a1a; background: #F8E8E8; border-color: #e8c6c6; }
-.t-keh-sel.ks-virtual { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
+.t-keh-sel.ks-hampers { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
 </style>

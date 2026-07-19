@@ -20,9 +20,9 @@ export const KEHADIRAN_STATUS = {
   belum:   { label: 'Belum Konfirmasi', color: '#9C7575', bg: '#EDE5E2', text: '#6b4848' },
   hadir:   { label: 'Hadir',            color: '#3B6D11', bg: '#EAF3DE', text: '#2b5010' },
   tidak:   { label: 'Tidak Hadir',      color: '#B32E33', bg: '#F8E8E8', text: '#7a1a1a' },
-  virtual: { label: 'Virtual',          color: '#0A1D4B', bg: '#E3E8F2', text: '#0A1D4B' },
+  hampers: { label: 'Kirim Hampers',    color: '#0A1D4B', bg: '#E3E8F2', text: '#0A1D4B' },
 }
-export const KEHADIRAN_ORDER = ['belum', 'hadir', 'tidak', 'virtual']
+export const KEHADIRAN_ORDER = ['belum', 'hadir', 'tidak', 'hampers']
 
 export const GUEST_SEED = [
   ['papa dimsur',4,'cpp'],['lek yum',2,'cpp'],['nia',2,'cpp'],['dila',2,'cpp'],['mbak tatik',3,'cpp'],
