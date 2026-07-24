@@ -79,6 +79,8 @@
       <svg class="g-cap-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
     </button>
 
+    <!-- Filter kehadiran + controls: satu toolbar yang sticky saat scroll -->
+    <div class="g-toolbar" :class="{ sticky: !isMobile }" ref="toolbarRef">
     <!-- Filter kehadiran -->
     <div id="gKehChips" class="chips">
       <button class="fchip" :class="{ on: filterKehadiran === 'all' }" @click="filterKehadiran = 'all'">Semua Kehadiran</button>
@@ -106,16 +108,17 @@
       </div>
       <TourBtn :steps="TAMU_STEPS" />
     </div>
+    </div>
 
     <!-- Daftar tamu: kartu untuk mobile -->
     <MobileGuestList v-if="isMobile" :rows="visRows" @edit="openEdit" />
 
     <!-- Table (PC) -->
-    <div v-else class="card table-card">
-      <div class="table-scroll">
-      <div class="t-head">
+    <div v-else class="card g-table-card">
+      <div class="g-table-inner">
+      <div class="t-head" :style="{ top: headTop + 'px' }">
         <div class="t-cbx"><input type="checkbox" class="cbx" :checked="allVisSelected" :indeterminate.prop="someVisSelected && !allVisSelected" @change="toggleAll"></div>
-        <div>No</div><div>Nama Tamu</div><div>Jumlah Orang</div><div>Relasi</div><div>Kehadiran</div><div class="t-actions"></div>
+        <div class="t-h-center">No</div><div>Nama Tamu</div><div class="t-h-center">Jumlah Orang</div><div>Relasi</div><div>Kehadiran</div><div class="t-actions"></div>
       </div>
 
       <div v-if="!visRows.length" class="empty">
@@ -165,9 +168,15 @@ import GuestModal from '../components/modals/GuestModal.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileGuestList from '../mobile layout/MobileGuestList.vue'
 import TourBtn from '../components/TourBtn.vue'
+import { useStickyThead } from '../composables/useStickyThead'
 
 const store = useWeddingStore()
 const isMobile = useIsMobile()
+
+// Toolbar (filter+kontrol) sticky di bawah navbar, header tabel nempel
+// tepat di bawahnya — dihitung otomatis dari tinggi toolbar sebenarnya
+// (sama seperti Vendor/Seserahan/Mahar, lewat composable bersama).
+const { toolbarRef, headTop } = useStickyThead()
 
 // Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
 watch(() => store.quickAddNonce, () => {
@@ -274,6 +283,31 @@ function onImport(e) {
 </script>
 
 <style scoped>
+/* Kasih jarak antara baris filter kehadiran dan baris kontrol di bawahnya */
+#gKehChips { margin-bottom: 14px; }
+
+/* Toolbar filter+kontrol sticky (desktop). z-index di atas header tabel biar
+   header nempel rapi di bawahnya. padding-top keisi background toolbar — pas
+   pinned dia jadi jarak dari navbar + nutupin baris yang lewat, tanpa nutupin
+   card di atasnya waktu belum di-scroll (beda dari trik ::before yang selalu
+   nongol karena toolbar bukan di dalam overflow:clip). */
+.g-toolbar.sticky {
+  position: sticky;
+  top: 72px;
+  z-index: 6;
+  background: var(--ivory);
+  padding-top: 22px;
+  padding-bottom: 12px;
+  /* bg dilebarin ke kiri/kanan (margin negatif + padding saling meniadakan)
+     biar nutupin bayangan card yang mekar ke sisi luar pas di-scroll di belakang.
+     konten tetap sejajar sama card di bawah. */
+  margin-left: -30px;
+  margin-right: -30px;
+  padding-left: 30px;
+  padding-right: 30px;
+}
+.g-toolbar.sticky .controls { margin-bottom: 0; }
+
 .g-cap {
   display: flex;
   align-items: center;
@@ -300,6 +334,10 @@ function onImport(e) {
 .g-cap.over .g-cap-body b { color: var(--rose); }
 .g-cap-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .g-cap-arrow { flex: none; color: var(--muted); }
+
+/* Header "No" & "Jumlah Orang" datanya rata tengah (.t-no, .t-pax) —
+   headernya disamain biar nggak nyempil ke kiri sendirian. */
+.t-h-center { text-align: center; }
 
 .t-keh-sel {
   font-family: 'Jost', sans-serif;

@@ -67,8 +67,8 @@
           <div class="select-wrap">
             <select v-model="f.stat">
               <option value="">-- Biarkan (Tidak Diubah) --</option>
-              <option value="lunas">Tandai Lunas (Dibayar = Aktual)</option>
-              <option value="belum">Tandai Belum Bayar (Dibayar = 0)</option>
+              <option value="lunas">Tandai Lunas (bayar penuh sisa)</option>
+              <option value="belum">Tandai Belum Bayar (reset)</option>
             </select>
           </div>
         </div>

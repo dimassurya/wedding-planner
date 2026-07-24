@@ -3,7 +3,7 @@
     <div class="bs-stat-grid">
       <div class="stat a-rose">
         <div class="num">{{ fmt(totalOverdue) }}</div>
-        <div class="lbl">Terlambat &middot; {{ overdue.length }} item</div>
+        <div class="lbl">Terlambat &middot; {{ overdue.length }} termin</div>
       </div>
       <div class="stat a-gold">
         <div class="num">{{ fmt(totalSoon) }}</div>
@@ -15,58 +15,80 @@
       </div>
     </div>
 
-    <div v-if="!overdue.length && !groups.length && !unscheduled.length" class="empty">
+    <div v-if="!overdue.length && !groups.length && !undated.length && !unplanned.length" class="empty">
       <div class="big">Semua beres</div>
-      <div>Tidak ada tagihan yang perlu dijadwalkan.</div>
+      <div>Tidak ada pembayaran yang perlu dijadwalkan.</div>
     </div>
 
+    <!-- Terlambat -->
     <div v-if="overdue.length" class="bs-group">
       <div class="bs-group-title bs-group-title-danger">&#9888;&#65039; Terlambat</div>
-      <div v-for="b in overdue" :key="b.id" class="bs-row bs-row-danger" @click="$emit('open', b.id)">
+      <div v-for="e in overdue" :key="e.pay.id" class="bs-row bs-row-danger" @click="$emit('open', e.item.id)">
         <div class="bs-row-info">
           <div class="bs-row-name-line">
-            <span class="bs-row-name">{{ b.item || 'Tanpa nama' }}</span>
-            <span v-if="store.budgetOrigin(b)" class="b-origin" :class="store.budgetOrigin(b).cls">{{ store.budgetOrigin(b).label }}</span>
+            <span class="bs-row-name">{{ payLabel(e) }}</span>
+            <span v-if="store.budgetOrigin(e.item)" class="b-origin" :class="store.budgetOrigin(e.item).cls">{{ store.budgetOrigin(e.item).label }}</span>
           </div>
-          <div class="bs-row-date bs-row-date-danger">{{ dateLabel(b) }}</div>
+          <div class="bs-row-date bs-row-date-danger">{{ dateLabel(e.pay.dueDate) }}</div>
         </div>
         <div class="bs-row-right">
-          <div class="bs-row-amt">{{ fmt(dueAmount(b)) }}</div>
-          <button class="bs-paid-btn" @click.stop="markPaid(b)">Tandai Lunas</button>
+          <div class="bs-row-amt">{{ fmt(e.pay.amount) }}</div>
+          <button class="bs-paid-btn" @click.stop="store.togglePaymentPaid(e.pay.id, true)">Tandai Bayar</button>
         </div>
       </div>
     </div>
 
+    <!-- Per bulan -->
     <div v-for="g in groups" :key="g.key" class="bs-group">
       <div class="bs-group-title">{{ g.label }} <span class="bs-group-sub">&middot; {{ fmt(g.total) }}</span></div>
-      <div v-for="b in g.items" :key="b.id" class="bs-row" :class="{ 'bs-row-warn': isSoon(b) }" @click="$emit('open', b.id)">
+      <div v-for="e in g.items" :key="e.pay.id" class="bs-row" :class="{ 'bs-row-warn': isSoon(e.pay.dueDate) }" @click="$emit('open', e.item.id)">
         <div class="bs-row-info">
           <div class="bs-row-name-line">
-            <span class="bs-row-name">{{ b.item || 'Tanpa nama' }}</span>
-            <span v-if="store.budgetOrigin(b)" class="b-origin" :class="store.budgetOrigin(b).cls">{{ store.budgetOrigin(b).label }}</span>
+            <span class="bs-row-name">{{ payLabel(e) }}</span>
+            <span v-if="store.budgetOrigin(e.item)" class="b-origin" :class="store.budgetOrigin(e.item).cls">{{ store.budgetOrigin(e.item).label }}</span>
           </div>
-          <div class="bs-row-date" :class="{ 'bs-row-date-warn': isSoon(b) }">{{ dateLabel(b) }}</div>
+          <div class="bs-row-date" :class="{ 'bs-row-date-warn': isSoon(e.pay.dueDate) }">{{ dateLabel(e.pay.dueDate) }}</div>
         </div>
         <div class="bs-row-right">
-          <div class="bs-row-amt">{{ fmt(dueAmount(b)) }}</div>
-          <button class="bs-paid-btn" @click.stop="markPaid(b)">Tandai Lunas</button>
+          <div class="bs-row-amt">{{ fmt(e.pay.amount) }}</div>
+          <button class="bs-paid-btn" @click.stop="store.togglePaymentPaid(e.pay.id, true)">Tandai Bayar</button>
         </div>
       </div>
     </div>
 
-    <div v-if="unscheduled.length" class="bs-group">
-      <div class="bs-group-title bs-group-title-muted">Belum Ada Tanggal</div>
-      <div v-for="b in unscheduled" :key="b.id" class="bs-row bs-row-muted" @click="$emit('open', b.id)">
+    <!-- Termin tanpa tanggal -->
+    <div v-if="undated.length" class="bs-group">
+      <div class="bs-group-title bs-group-title-muted">Termin Tanpa Tanggal</div>
+      <div v-for="e in undated" :key="e.pay.id" class="bs-row bs-row-muted" @click="$emit('open', e.item.id)">
         <div class="bs-row-info">
           <div class="bs-row-name-line">
-            <span class="bs-row-name">{{ b.item || 'Tanpa nama' }}</span>
-            <span v-if="store.budgetOrigin(b)" class="b-origin" :class="store.budgetOrigin(b).cls">{{ store.budgetOrigin(b).label }}</span>
+            <span class="bs-row-name">{{ payLabel(e) }}</span>
+            <span v-if="store.budgetOrigin(e.item)" class="b-origin" :class="store.budgetOrigin(e.item).cls">{{ store.budgetOrigin(e.item).label }}</span>
           </div>
           <div class="bs-row-date bs-row-date-muted">Klik untuk atur jatuh tempo</div>
         </div>
         <div class="bs-row-right">
-          <div class="bs-row-amt">{{ fmt(dueAmount(b)) }}</div>
-          <button class="bs-paid-btn" @click.stop="markPaid(b)">Tandai Lunas</button>
+          <div class="bs-row-amt">{{ fmt(e.pay.amount) }}</div>
+          <button class="bs-paid-btn" @click.stop="store.togglePaymentPaid(e.pay.id, true)">Tandai Bayar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bagian tagihan yang belum ketutup satupun termin (item tanpa
+         termin sama sekali, ATAU sisa yang nggak ketutup termin yang
+         udah ada) — biar totalnya selalu pas sama "Total belum lunas". -->
+    <div v-if="unplanned.length" class="bs-group">
+      <div class="bs-group-title bs-group-title-muted">Belum Direncanakan</div>
+      <div v-for="e in unplanned" :key="e.b.id" class="bs-row bs-row-muted" @click="$emit('open', e.b.id)">
+        <div class="bs-row-info">
+          <div class="bs-row-name-line">
+            <span class="bs-row-name">{{ e.b.item || 'Tanpa nama' }}</span>
+            <span v-if="store.budgetOrigin(e.b)" class="b-origin" :class="store.budgetOrigin(e.b).cls">{{ store.budgetOrigin(e.b).label }}</span>
+          </div>
+          <div class="bs-row-date bs-row-date-muted">{{ e.full ? 'Klik untuk tambah rencana pembayaran' : 'Sisa belum ketutup termin — klik untuk lengkapi' }}</div>
+        </div>
+        <div class="bs-row-right">
+          <div class="bs-row-amt">{{ fmt(e.gap) }}</div>
         </div>
       </div>
     </div>
@@ -84,57 +106,72 @@ const store = useWeddingStore()
 
 const MONTHS = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember']
 
-// Belum lunas & masih ada tagihan (Aktual belum diisi -> pakai Estimasi
-// sebagai perkiraan, biar item yang masih tahap nego pun kelihatan).
-function dueAmount(b) {
-  return b.aktual > 0 ? store.bSisa(b) : (b.estimasi || 0)
+const itemById = id => store.budget.find(b => b.id === id)
+
+function payLabel(e) {
+  const name = e.item.item || 'Tanpa nama'
+  return e.pay.note ? `${name} · ${e.pay.note}` : name
 }
 
-const pending = computed(() =>
-  store.budget.filter(b => store.bStatus(b).key !== 'lunas' && dueAmount(b) > 0)
+// Semua termin belum-lunas, di-enrich dengan item induknya (skip yang yatim).
+const unpaid = computed(() =>
+  store.payments
+    .filter(p => !p.paid)
+    .map(p => ({ pay: p, item: itemById(p.budgetItemId) }))
+    .filter(e => e.item)
 )
 
-const scheduled   = computed(() => pending.value.filter(b => b.jatuhTempo).sort((a, b) => a.jatuhTempo.localeCompare(b.jatuhTempo)))
-const unscheduled = computed(() => pending.value.filter(b => !b.jatuhTempo))
+const dated   = computed(() => unpaid.value.filter(e => e.pay.dueDate))
+const undated = computed(() => unpaid.value.filter(e => !e.pay.dueDate))
 
-const overdue  = computed(() => scheduled.value.filter(b => daysLeft(b.jatuhTempo) < 0))
-const upcoming = computed(() => scheduled.value.filter(b => daysLeft(b.jatuhTempo) >= 0))
+const overdue  = computed(() => dated.value.filter(e => daysLeft(e.pay.dueDate) < 0).sort((a, b) => a.pay.dueDate.localeCompare(b.pay.dueDate)))
+const upcoming = computed(() => dated.value.filter(e => daysLeft(e.pay.dueDate) >= 0))
 
-const isSoon = b => b.jatuhTempo && daysLeft(b.jatuhTempo) >= 0 && daysLeft(b.jatuhTempo) <= 7
+const isSoon = d => d && daysLeft(d) >= 0 && daysLeft(d) <= 7
 
 const groups = computed(() => {
   const map = new Map()
-  upcoming.value.forEach(b => {
-    const [y, m] = b.jatuhTempo.split('-')
+  upcoming.value.slice().sort((a, b) => a.pay.dueDate.localeCompare(b.pay.dueDate)).forEach(e => {
+    const [y, m] = e.pay.dueDate.split('-')
     const key = `${y}-${m}`
     if (!map.has(key)) map.set(key, { key, label: `${MONTHS[parseInt(m) - 1]} ${y}`, items: [], total: 0 })
     const g = map.get(key)
-    g.items.push(b)
-    g.total += dueAmount(b)
+    g.items.push(e)
+    g.total += e.pay.amount || 0
   })
   return [...map.values()]
 })
 
-const totalOverdue = computed(() => overdue.value.reduce((s, b) => s + dueAmount(b), 0))
-const totalSoon    = computed(() => scheduled.value.filter(b => daysLeft(b.jatuhTempo) <= 30).reduce((s, b) => s + dueAmount(b), 0))
-const totalAll     = computed(() => pending.value.reduce((s, b) => s + dueAmount(b), 0))
+// Bagian tagihan yang belum ketutup satupun termin belum-lunas. gap =
+// sisa item dikurangi total termin belum-lunas yang udah dibuat — kalau
+// item belum punya termin sama sekali, gap = seluruh sisa (full: true).
+// Ini yang bikin totalAll (dihitung dari bSisa per item) selalu sama
+// persis dengan jumlah semua baris yang keliatan di bawah — nggak ada
+// lagi duit yang "ilang" pas termin cuma nutup sebagian dari tagihan.
+const unplanned = computed(() =>
+  store.budget
+    .map(b => {
+      const sisa = store.bSisa(b)
+      if (sisa <= 0) return null
+      const openSum = store.itemPayments(b.id)
+        .filter(p => !p.paid)
+        .reduce((s, p) => s + (p.amount || 0), 0)
+      const gap = sisa - openSum
+      return gap > 0.5 ? { b, gap, full: openSum <= 0.5 } : null
+    })
+    .filter(Boolean)
+)
 
-function dateLabel(b) {
-  const d = daysLeft(b.jatuhTempo)
-  const dateStr = fmtDate(b.jatuhTempo)
+const totalOverdue = computed(() => overdue.value.reduce((s, e) => s + (e.pay.amount || 0), 0))
+const totalSoon    = computed(() => dated.value.filter(e => daysLeft(e.pay.dueDate) <= 30).reduce((s, e) => s + (e.pay.amount || 0), 0))
+const totalAll     = computed(() => store.budget.reduce((s, b) => s + store.bSisa(b), 0))
+
+function dateLabel(due) {
+  const d = daysLeft(due)
+  const dateStr = fmtDate(due)
   if (d < 0) return `${dateStr} · telat ${-d} hari`
   if (d === 0) return `${dateStr} · jatuh tempo hari ini`
   return `${dateStr} · ${d} hari lagi`
-}
-
-function markPaid(b) {
-  if (b.aktual > 0) {
-    b.dibayar = b.aktual
-  } else {
-    b.aktual = b.estimasi
-    b.dibayar = b.estimasi
-  }
-  store.saveB()
 }
 </script>
 

@@ -298,15 +298,39 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 .icon-btn.solid:hover { background: var(--wine); }
 .icon-btn.solid svg { margin-right: 5px; vertical-align: -2px; }
 
+/* ── Sticky table pattern (opt-in: Mahar/Seserahan/Vendor) ──
+   .st-card overflow:clip → sudut membulat tetap rapi tanpa jadi scroll
+   container, jadi header tabel bisa sticky ke halaman. .st-toolbar =
+   baris kontrol yang ikut sticky di bawah navbar. Bayangan card yang
+   mekar ke sisi luar dipotong lewat overflow-x:clip di panel (lihat
+   #panel-mahar dst) — jadi nggak perlu margin negatif yang bikin scroll. */
+.st-card { overflow: clip; }
+.st-inner { min-width: 0; }
+.st-toolbar.sticky {
+  position: sticky;
+  top: 72px;
+  z-index: 6;
+  background: var(--ivory);
+  padding-top: 22px;
+  padding-bottom: 12px;
+  margin-bottom: 0;
+}
+.st-toolbar.sticky .controls { margin-bottom: 0; }
+#panel-mahar, #panel-seserahan, #panel-vendor { overflow-x: clip; }
+
 /* ── Guest Table ── */
 .table-card { overflow: hidden; }
+/* Tab Tamu: sama seperti Budget — overflow:clip biar sudut membulat tetap
+   rapi tanpa jadi scroll container, jadi .t-head bisa sticky ke halaman. */
+.g-table-card { overflow: clip; }
+.g-table-inner { min-width: 0; }
 .t-head, .t-row {
   display: grid;
   grid-template-columns: 34px 32px minmax(160px,260px) 92px minmax(200px,1.2fr) 132px 56px;
   align-items: center;
   gap: 18px;
   padding: 13px 20px;
-  min-width: 820px;
+  min-width: 0;
   padding-right: 0;
 }
 .t-actions {
@@ -324,6 +348,20 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
   letter-spacing: .06em;
   text-transform: uppercase;
   font-weight: 500;
+  position: sticky;
+  top: 84px;            /* app-header (~73px) + jarak ~11px biar nggak mepet */
+  z-index: 5;
+}
+/* Strip warna halaman di atas header — nutupin baris yang lewat di celah
+   antara navbar dan header pas di-scroll, jadi jaraknya bersih */
+.t-head::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 28px;
+  background: var(--ivory);
 }
 .t-head > div:nth-child(4) { text-align: center; }
 .t-row { background: #fff; border-bottom: 1px solid var(--line); transition: background .15s; }
@@ -484,13 +522,20 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 .fchip.on { background: var(--plum); color: #fff; border-color: var(--plum); }
 
 /* ── Budget Table ── */
+/* overflow:clip mengunci sudut membulat card TANPA jadi scroll container,
+   jadi .b-head bisa sticky relatif ke halaman (bukan ke wrapper). Kolom
+   diringkas biar muat di lebar main (~1000px) — nggak perlu scroll horizontal.
+   7 kolom (bukan 9): Estimasi/Aktual gabung jadi Harga, Dibayar/Belum Dibayar
+   gabung jadi Pembayaran (progress bar tersegmen per termin), + kolom expand. */
+.b-table-card { overflow: clip; }
+.b-table-inner { min-width: 0; }
 .b-head, .b-row {
   display: grid;
-  grid-template-columns: 36px minmax(160px,1.5fr) 118px minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(120px,1fr) 120px 76px;
+  grid-template-columns: 34px minmax(170px,1.5fr) 130px minmax(170px,1fr) 110px 28px 72px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 11px 20px;
-  min-width: 1080px;
+  min-width: 0;
   padding-right: 0;
 }
 .b-actions {
@@ -508,15 +553,30 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
   letter-spacing: .05em;
   text-transform: uppercase;
   font-weight: 500;
+  position: sticky;
+  top: 84px;            /* app-header (~73px) + jarak ~11px biar nggak mepet */
+  z-index: 5;
+}
+/* Strip warna halaman di atas header — nutupin baris yang lewat di celah
+   antara navbar dan header pas di-scroll, jadi jaraknya bersih */
+.b-head::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 28px;
+  background: var(--ivory);
 }
 .b-head .r, .b-row .r { text-align: right; }
 .b-row { background: #fff; border-bottom: 1px solid var(--line); transition: background .15s; }
 .b-row:last-child { border-bottom: none; }
 .b-row:hover { background: var(--ivory); }
 .b-item { min-width: 0; }
-.b-item input, .bcell input {
+.b-item input {
   font-family: 'Jost', sans-serif;
   font-size: 14px;
+  font-weight: 500;
   color: var(--ink);
   border: 1.5px solid transparent;
   background: transparent;
@@ -525,31 +585,29 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
   width: 100%;
   transition: .15s;
 }
-.b-item input { font-weight: 500; }
 .b-item input::placeholder { color: #c2b4bc; font-style: italic; font-weight: 400; }
-.bcell { display: flex; align-items: center; justify-content: flex-end; gap: 3px; }
-.bcell .rp { font-size: 11px; color: var(--muted); flex: none; }
-.bcell input { text-align: right; font-variant-numeric: tabular-nums; }
-.b-item input:hover, .bcell input:hover { background: var(--ivory); }
-.b-item input:focus, .bcell input:focus { outline: none; border-color: var(--gold); background: #fff; box-shadow: 0 0 0 3px var(--gold-soft); }
-.b-sisa { text-align: right; font-weight: 600; font-size: 14px; color: var(--wine); font-variant-numeric: tabular-nums; }
-.b-status { display: flex; justify-content: flex-start; align-items: center; }
+.b-item input:hover { background: var(--ivory); }
+.b-item input:focus { outline: none; border-color: var(--gold); background: #fff; box-shadow: 0 0 0 3px var(--gold-soft); }
+.b-selisih { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 5px; }
+.b-selisih.hemat { color: #3a2a10; background: var(--gold-soft); }
+.b-selisih.lebih { color: #7a1a1a; background: var(--rose-soft); }
 .b-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .b-row.paid { background: rgba(205,159,101,.10); border-left: 2px solid #CD9F65; }
 .b-row.paid:hover { background: rgba(61,80,39,.12); }
 .b-foot {
   display: grid;
-  grid-template-columns: 36px minmax(160px,1.5fr) 118px minmax(110px,1fr) minmax(110px,1fr) minmax(110px,1fr) minmax(120px,1fr) 120px 76px;
-  gap: 10px;
+  grid-template-columns: 34px minmax(170px,1.5fr) 130px minmax(170px,1fr) 110px 28px 72px;
+  gap: 8px;
   padding: 14px 20px;
   background: var(--ivory);
   font-weight: 600;
   border-top: 2px solid var(--line);
-  min-width: 1080px;
+  min-width: 0;
   padding-right: 0;
 }
 .b-foot .r { text-align: right; font-variant-numeric: tabular-nums; color: var(--plum); }
 .b-foot .lbl { color: var(--muted); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; align-self: center; }
+.b-foot-lbl { grid-column: 1 / span 2; color: var(--muted); font-weight: 500; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; align-self: center; }
 .bf-cell { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 .bf-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 500; }
 .b-detail-hint { font-size: 11px; color: var(--gold); margin-top: 2px; padding-left: 9px; }
@@ -780,35 +838,7 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 }
 @media (min-width: 681px) { .bm-lbl { display: none; } }
 
-/* ✨ Vendor Table & Toggle ✨ */
-.table-scroll { overflow-x: auto; }
-.v-head, .v-row {
-  display: grid;
-  grid-template-columns: 36px minmax(150px,1.2fr) minmax(170px,1.5fr) 120px 140px minmax(160px,1.5fr) 110px 76px;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--line);
-  min-width: 1072px;
-  padding-right: 0;
-}
-/* Kolom checkbox (kiri) & aksi (kanan) tetap nempel saat tabel di-scroll */
-.v-actions {
-  position: sticky; right: 0; z-index: 2;
-  display: flex; gap: 6px; justify-content: flex-end; align-items: center;
-  background: inherit;
-  border-left: 1px solid var(--line);
-  padding-right: 12px;
-}
-.v-head .v-actions { background: var(--bg); }
-.v-head { font-weight: 500; color: var(--muted); background: var(--bg); font-size: 13px; }
-.v-row { font-size: 14px; background: #fff; transition: background .2s; }
-.v-row:hover { background: #fdfbfd; }
-.v-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.v-desc, .v-alamat { color: var(--muted); font-size: 13px; }
-
-/* Toggle Switch */
-.v-decide { display: flex; align-items: center; gap: 8px; }
+/* ✨ Toggle Switch ✨ (dipakai lewat komponen SwitchToggle.vue) */
 .switch { position: relative; display: inline-block; width: 34px; height: 20px; flex: none; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #d1c7ce; transition: .3s; border-radius: 20px; }
@@ -817,15 +847,6 @@ input:checked + .slider { background-color: var(--teal); }
 input:checked + .slider:before { transform: translateX(14px); }
 .v-lbl { font-size: 13px; font-weight: 500; color: var(--muted); }
 .v-lbl.on { color: var(--green); font-weight: 600; }
-
-@media (max-width: 900px) {
-  .v-head, .v-row {
-    grid-template-columns: 1fr 1fr 100px 76px;
-    min-width: 0;
-  }
-  .v-alamat, .v-hp, .v-desc { display: none; }
-  .v-actions { position: static; border-left: none; padding-right: 0; }
-}
 
 /* ✨ Custom Info Tooltip ✨ */
 .has-info-icon {
@@ -921,6 +942,8 @@ input:checked + .slider:before { transform: translateX(14px); }
   text-transform: uppercase;
   letter-spacing: .04em;
   font-weight: 500;
+  position: sticky;   /* top diset inline (headTop) */
+  z-index: 5;
 }
 .s-head .r, .s-row .r { text-align: right; }
 .s-row:hover { background: var(--ivory); }
@@ -997,6 +1020,8 @@ input:checked + .slider:before { transform: translateX(14px); }
   text-transform: uppercase;
   letter-spacing: .04em;
   font-weight: 500;
+  position: sticky;   /* top diset inline (headTop) */
+  z-index: 5;
 }
 .m-head .r, .m-row .r { text-align: right; }
 .m-row:hover { background: var(--ivory); }
@@ -1595,6 +1620,9 @@ button.hm-clickable:active { transform: translateY(0); }
 .b-prog-bar { flex: 1; height: 9px; background: var(--ivory); border: 1px solid var(--line); border-radius: 100px; overflow: hidden; }
 .b-prog-fill { height: 100%; background: linear-gradient(90deg, var(--gold), var(--wine)); border-radius: 100px; transition: width .4s; }
 .b-prog-pct { font-size: 13px; font-weight: 500; color: var(--muted); white-space: nowrap; flex: none; }
+.b-prog-selisih { font-size: 13px; font-weight: 500; white-space: nowrap; flex: none; }
+.b-prog-selisih.hemat { color: #8a6d2f; }
+.b-prog-selisih.lebih { color: var(--rose); }
 
 /* ── Budget Guide Card (Vue version) ── */
 .b-guide {

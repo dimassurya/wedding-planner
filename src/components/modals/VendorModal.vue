@@ -92,7 +92,7 @@
           <div class="field"><label>Website / Instagram</label><input v-model="form.website" type="text" placeholder="https://..."></div>
         </div>
         <div class="field"><label>Alamat</label><textarea v-model="form.alamat" rows="2"></textarea></div>
-        <div class="field"><label>Deskripsi (Isi Paket dsb.)</label><textarea v-model="form.deskripsi" rows="3"></textarea></div>
+        <div class="field"><label>Deskripsi (Isi Paket dsb.)</label><textarea ref="deskEl" class="autosize" v-model="form.deskripsi" rows="3" @input="autoGrowDesk"></textarea></div>
         <div class="modal-actions" style="margin-top:20px">
           <button type="button" class="btn btn-ghost" @click="$emit('close')">Batal</button>
           <button type="submit" class="btn primary">Simpan</button>
@@ -112,6 +112,16 @@ const props = defineProps({ show: Boolean, editId: { type: Number, default: null
 const emit  = defineEmits(['close'])
 const store = useWeddingStore()
 const namaInput = ref(null)
+const deskEl    = ref(null)
+
+// Deskripsi otomatis melar ngikutin isi, biar teks paket/isi vendor yang
+// panjang nggak kepotong di kotak kecil kayak sebelumnya.
+function autoGrowDesk() {
+  const el = deskEl.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = el.scrollHeight + 'px'
+}
 
 const tOrang    = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
 const tUndangan = computed(() => store.confirmedGuests.length)
@@ -128,7 +138,7 @@ watch(() => props.show, open => {
     form.value = blankForm()
     form.value.category = props.defaultCategory
   }
-  nextTick(() => namaInput.value?.focus())
+  nextTick(() => { namaInput.value?.focus(); autoGrowDesk() })
 })
 
 function togglePax() {
@@ -185,4 +195,5 @@ async function save() {
 <style scoped>
 .vm-cap-hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .vm-cap-hint.over { color: var(--rose); font-weight: 600; }
+textarea.autosize { min-height: 64px; max-height: 300px; overflow-y: auto; resize: none; }
 </style>

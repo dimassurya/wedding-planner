@@ -171,9 +171,9 @@ const groups = computed(() => {
 const firstFutureKey = computed(() => entries.value.find(e => e.date >= today)?.key ?? null)
 
 function markPaid(b) {
-  if (b.aktual > 0) b.dibayar = b.aktual
-  else { b.aktual = b.estimasi; b.dibayar = b.estimasi }
-  store.saveB()
+  // Lunasi termin terdekat lewat buku pembayaran (bukan set dibayar langsung).
+  if ((b.aktual || 0) <= 0 && b.estimasi > 0) { b.aktual = b.estimasi; store.saveB() }
+  store.payNextDue(b.id)
 }
 
 function toggleTask(it) {

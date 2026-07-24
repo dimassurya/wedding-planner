@@ -35,12 +35,13 @@
         <span class="mb-status" :style="{ background: store.bStatus(b).bg, color: store.bStatus(b).text }">
           <span class="mb-sdot" :style="{ background: store.bStatus(b).color }"></span>{{ store.bStatus(b).label }}
         </span>
+        <span v-if="selisihBadge(b)" class="mb-selisih" :class="selisihBadge(b).cls">{{ selisihBadge(b).label }}</span>
       </div>
 
       <div class="mb-stats">
         <div class="mb-stat">
-          <span class="mb-lbl">Aktual</span>
-          <span class="mb-val">Rp {{ grp(b.aktual) }}</span>
+          <span class="mb-lbl">{{ priceInfo(b)?.kind === 'estimasi' ? 'Estimasi' : 'Aktual' }}</span>
+          <span class="mb-val" :class="{ estimasi: priceInfo(b)?.kind === 'estimasi' }">Rp {{ grp(priceInfo(b)?.value || 0) }}</span>
         </div>
         <div class="mb-stat">
           <span class="mb-lbl">Belum Dibayar</span>
@@ -48,7 +49,7 @@
         </div>
         <div class="mb-stat">
           <span class="mb-lbl">Jatuh Tempo</span>
-          <span class="mb-val" :class="{ muted: !b.jatuhTempo }">{{ fmtDate(b.jatuhTempo) }}</span>
+          <span class="mb-val" :class="{ muted: !store.nextDue(b.id) }">{{ fmtDate(store.nextDue(b.id)) }}</span>
         </div>
       </div>
     </button>
@@ -58,7 +59,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
-import { grp, fmtDate } from '../utils/index'
+import { grp, fmtDate, fmt } from '../utils/index'
 
 const props = defineProps({ rows: { type: Array, default: () => [] } })
 const emit  = defineEmits(['open'])
@@ -90,6 +91,21 @@ function onCardClick(b) {
   } else {
     emit('open', b.id)
   }
+}
+
+function priceInfo(b) {
+  return store.bDisplayPrice(b)
+}
+
+function selisihBadge(b) {
+  // Dua-duanya harus keisi — kalau aktual masih 0, "selisih"-nya bukan
+  // hemat beneran, itu cuma estimasi yang belum direalisasi.
+  if (!b.estimasi || !b.aktual) return null
+  const d = store.bSelisih(b)
+  if (d === 0) return null
+  return d > 0
+    ? { label: `Hemat ${fmt(d)}`, cls: 'hemat' }
+    : { label: `Lebih ${fmt(-d)}`, cls: 'lebih' }
 }
 
 function originStyle(o) {
@@ -214,6 +230,17 @@ function originStyle(o) {
   border-radius: 50%;
 }
 
+.mb-selisih {
+  flex: none;
+  font-size: var(--m-label);
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+
+.mb-selisih.hemat { color: #7a5c28; background: var(--gold-soft); }
+.mb-selisih.lebih { color: #7a1a1a; background: var(--rose-soft); }
+
 .mb-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -247,6 +274,7 @@ function originStyle(o) {
 .mb-val.due   { color: var(--wine); }
 .mb-val.ok    { color: var(--green); }
 .mb-val.muted { color: var(--muted); font-weight: 500; }
+.mb-val.estimasi { color: #8a6d2f; font-style: italic; }
 
 .mb-hint {
   text-align: center;

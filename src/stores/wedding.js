@@ -72,6 +72,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   // ── App state ───────────────────────────────────────────────────
   const guests    = ref([])
   const budget    = ref([])
+  const payments  = ref([])   // buku pembayaran per item budget (budget_payments)
   const vendors   = ref([])
   const seserahan = ref([])
   const mahar     = ref([])
@@ -203,7 +204,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   // "mutasi array lalu panggil saveX() tanpa argumen" seperti sebelumnya).
   const _shadow = {
     guests: new Map(), timeline: new Map(),
-    budget: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
+    budget: new Map(), payments: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
     adminGroups: new Map(), adminItems: new Map(),
     checklistGroups: new Map(), checklistItems: new Map(),
   }
@@ -321,6 +322,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   // ── Save functions ─────────────────────────────────────────────────
   const saveG  = () => scheduleDiffSync('guests',   'guests',        guests)
   const saveB  = () => scheduleDiffSync('budget',   'budget_items',  budget)
+  const saveP  = () => scheduleDiffSync('payments', 'budget_payments', payments)
   const saveV  = () => scheduleDiffSync('vendors',  'vendors',       vendors)
   const saveA  = () => scheduleDiffSyncNested('admin',     'adminGroups',     'admin_groups',     'adminItems',     'admin_items',     admin)
   const saveCK = () => scheduleDiffSyncNested('checklist', 'checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist)
@@ -494,9 +496,140 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   const bSisa = b => Math.max((b.aktual || 0) - (b.dibayar || 0), 0)
 
-  function nextBudgetId() {
-    const nums = budget.value.map(b => b.id).filter(x => typeof x === 'number')
-    return nums.length ? Math.max(...nums) + 1 : 1
+  // Selisih = Estimasi - Aktual. Positif = hemat dari rencana, negatif =
+  // lebih dari rencana. Cuma berarti kalau estimasi DAN aktual dua-duanya
+  // udah diisi (>0) — kalau aktual masih 0, "selisih" itu bukan hemat,
+  // itu cuma estimasi yang belum direalisasi. Caller wajib cek keduanya
+  // sebelum nampilin badge ini (lihat bDisplayPrice).
+  const bSelisih = b => (b.estimasi || 0) - (b.aktual || 0)
+
+  // Angka harga yang ditampilin di UI: Aktual kalau udah diisi (harga
+  // nyata menang), fallback ke Estimasi kalau Aktual masih 0 (biar
+  // perencanaan sebelum ada harga pasti tetap kelihatan, bukan "Belum
+  // Diisi" doang). null kalau dua-duanya kosong.
+  function bDisplayPrice(b) {
+    if ((b.aktual || 0) > 0) return { value: b.aktual, kind: 'aktual', label: 'harga aktual' }
+    if ((b.estimasi || 0) > 0) return { value: b.estimasi, kind: 'estimasi', label: 'estimasi' }
+    return null
+  }
+
+  // Total selisih yang BENERAN sebanding — cuma dijumlah dari item yang
+  // punya estimasi (bukan bandingin total-aktual vs total-estimasi mentah,
+  // karena item tanpa estimasi bakal ikut nyumbang ke total aktual tapi
+  // nggak ke total estimasi, jadi kelihatan "over budget" padahal cuma
+  // belum pernah di-planning). Dipakai bareng di BudgetTab & HomeTab biar
+  // nggak nyimpang lagi kalau salah satu diedit sendiri-sendiri.
+  const budgetEstimasiSetCount = computed(() => budget.value.filter(b => (b.estimasi || 0) > 0).length)
+  const budgetSelisihTotal = computed(() =>
+    budget.value.reduce((s, b) => s + (b.estimasi ? bSelisih(b) : 0), 0)
+  )
+
+  // ── Buku pembayaran (budget_payments) ──────────────────────────────
+  // Entri pembayaran per item budget. paid=false -> rencana termin (belum
+  // dibayar), paid=true -> riwayat nyata. b.dibayar itu cache turunan:
+  // jumlah amount entri yang paid. Komponen lama tetap baca b.dibayar,
+  // jadi status/sisa/laporan nggak perlu diubah.
+  const itemPayments = itemId =>
+    payments.value.filter(p => p.budgetItemId === itemId)
+      .sort((a, b) => (a.dueDate || a.paidDate || '').localeCompare(b.dueDate || b.paidDate || ''))
+
+  const paidTotal = itemId =>
+    payments.value.reduce((s, p) => s + (p.budgetItemId === itemId && p.paid ? (p.amount || 0) : 0), 0)
+
+  // Tanggal jatuh tempo termin belum-lunas paling awal buat satu item.
+  // null kalau nggak ada termin belum-bayar yang punya tanggal.
+  function nextDue(itemId) {
+    const dues = payments.value
+      .filter(p => p.budgetItemId === itemId && !p.paid && p.dueDate)
+      .map(p => p.dueDate)
+      .sort()
+    return dues[0] || null
+  }
+
+  // Sinkron ulang cache turunan b.dibayar & b.jatuhTempo dari entri
+  // pembayaran, lalu jadwalkan saveB kalau ada yang berubah. b.jatuhTempo
+  // dijaga = termin belum-lunas terdekat supaya semua konsumen lama
+  // (reminder, agenda, home, timeline, kartu vendor) tetap jalan tanpa
+  // diubah. Dipanggil tiap entri pembayaran berubah.
+  function recalcDibayar(itemId) {
+    const b = budget.value.find(x => x.id === itemId)
+    if (!b) return
+    const total = paidTotal(itemId)
+    const due   = nextDue(itemId)
+    let changed = false
+    if (b.dibayar !== total) { b.dibayar = total; changed = true }
+    if ((b.jatuhTempo || null) !== due) { b.jatuhTempo = due; changed = true }
+    if (changed) saveB()
+  }
+
+  // Update cache b.dibayar & b.jatuhTempo semua item dari entri pembayaran.
+  // Return true kalau ada yang berubah. Tidak menyentuh server (silent).
+  function _recomputeDibayarLocal() {
+    let changed = false
+    budget.value.forEach(b => {
+      const total = paidTotal(b.id)
+      const due   = nextDue(b.id)
+      if (b.dibayar !== total) { b.dibayar = total; changed = true }
+      if ((b.jatuhTempo || null) !== due) { b.jatuhTempo = due; changed = true }
+    })
+    return changed
+  }
+
+  // Versi yang mem-persist koreksi ke server (dipakai saat load).
+  function _reconcileAllDibayar() {
+    if (_recomputeDibayarLocal()) saveB()
+  }
+
+  // Tambah entri pembayaran. Default: rencana termin belum dibayar.
+  // recalcDibayar dipanggil tanpa syarat — perubahan tanggal termin belum-
+  // bayar pun mempengaruhi cache jatuhTempo, jadi harus selalu disinkron.
+  function addPayment(itemId, { amount = 0, dueDate = null, paid = false, paidDate = null, paidBy = '', note = '' } = {}) {
+    const uid = ownerUserId.value || user.value?.id
+    payments.value.push({ owner_user_id: uid, budgetItemId: itemId, amount, dueDate, paid, paidDate, paidBy, note })
+    saveP()
+    recalcDibayar(itemId)
+  }
+
+  function updatePayment(payId, patch) {
+    const p = payments.value.find(x => x.id === payId)
+    if (!p) return
+    Object.assign(p, patch)
+    saveP()
+    recalcDibayar(p.budgetItemId)
+  }
+
+  function delPayment(payId) {
+    const p = payments.value.find(x => x.id === payId)
+    if (!p) return
+    const itemId = p.budgetItemId
+    payments.value = payments.value.filter(x => x.id !== payId)
+    saveP()
+    recalcDibayar(itemId)
+  }
+
+  // Quick-pay dari shortcut (agenda/tombol "Tandai Bayar" tanpa pilih termin):
+  // lunasi termin belum-bayar terdekat, atau kalau belum ada termin sama
+  // sekali, buat satu entri lunas sebesar sisa.
+  function payNextDue(itemId) {
+    const today = new Date().toISOString().slice(0, 10)
+    const open = payments.value
+      .filter(p => p.budgetItemId === itemId && !p.paid)
+      .sort((x, y) => (x.dueDate || '9999-12-31').localeCompare(y.dueDate || '9999-12-31'))
+    if (open.length) { togglePaymentPaid(open[0].id, true); return }
+    const b = budget.value.find(x => x.id === itemId)
+    const sisa = b ? bSisa(b) : 0
+    if (sisa > 0) addPayment(itemId, { amount: sisa, paid: true, paidDate: today, note: 'Pelunasan' })
+  }
+
+  // Toggle lunas/belum satu entri. Saat ditandai lunas & belum ada tanggal
+  // bayar, isi hari ini biar muncul benar di laporan arus kas.
+  function togglePaymentPaid(payId, isPaid) {
+    const p = payments.value.find(x => x.id === payId)
+    if (!p) return
+    p.paid = isPaid
+    if (isPaid && !p.paidDate) p.paidDate = new Date().toISOString().slice(0, 10)
+    saveP()
+    recalcDibayar(p.budgetItemId)
   }
 
   // "originType" gantiin skema lama yang overload kolom id jadi sentinel
@@ -517,7 +650,11 @@ export const useWeddingStore = defineStore('wedding', () => {
     const tHarga  = active.reduce((s, x) => s + (parseInt(x.harga)  || 0), 0)
     const bIdx = budget.value.findIndex(b => b.originType === 'seserahan_auto')
     if (active.length === 0 || (tBudget === 0 && tHarga === 0)) {
-      if (bIdx > -1) budget.value.splice(bIdx, 1)
+      if (bIdx > -1) {
+        const removedId = budget.value[bIdx].id
+        budget.value.splice(bIdx, 1)
+        if (removedId != null) _forgetPaymentsLocal(removedId)
+      }
     } else if (bIdx > -1) {
       budget.value[bIdx].estimasi = tBudget
       budget.value[bIdx].aktual   = tHarga
@@ -533,9 +670,13 @@ export const useWeddingStore = defineStore('wedding', () => {
     const tHarga = active.reduce((s, x) => s + (parseInt(x.harga) || 0), 0)
     const bIdx = budget.value.findIndex(b => b.originType === 'mahar_auto')
     if (active.length === 0 || tHarga === 0) {
-      if (bIdx > -1) budget.value.splice(bIdx, 1)
+      if (bIdx > -1) {
+        const removedId = budget.value[bIdx].id
+        budget.value.splice(bIdx, 1)
+        if (removedId != null) _forgetPaymentsLocal(removedId)
+      }
     } else if (bIdx > -1) {
-      budget.value[bIdx].estimasi = tHarga
+      // Sama kayak vendor: estimasi nggak ditimpa tiap sync, cuma aktual.
       budget.value[bIdx].aktual   = tHarga
       budget.value[bIdx].item     = 'Total Mahar'
     } else {
@@ -581,14 +722,24 @@ export const useWeddingStore = defineStore('wedding', () => {
       const cat = VENDOR_CATEGORIES.find(c => c.id === vendor.category)
       const catLabel = cat ? cat.label : vendor.category
       if (existingIdx > -1) {
-        budget.value[existingIdx].estimasi = vendor.harga
+        // Estimasi sengaja TIDAK ditimpa di sini — itu patokan rencana
+        // yang berdiri sendiri. Cuma aktual yang ngikutin harga vendor
+        // terbaru, biar badge selisih (estimasi vs aktual) tetap berarti.
+        // item (nama baris) & remarks sengaja SELALU disinkron ulang biar
+        // rename/ganti kategori vendor langsung kelihatan di Budget —
+        // konsisten sama Seserahan/Mahar yang juga selalu nimpa nama.
+        budget.value[existingIdx].item     = `${catLabel} - ${vendor.nama}`
         budget.value[existingIdx].aktual   = vendor.harga
         budget.value[existingIdx].remarks  = vendor.deskripsi
       } else {
         budget.value.push({ vendorId: vendor.id, originType: 'vendor', item: `${catLabel} - ${vendor.nama}`, estimasi: vendor.harga, aktual: vendor.harga, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: vendor.deskripsi })
       }
     } else {
-      if (existingIdx > -1) budget.value.splice(existingIdx, 1)
+      if (existingIdx > -1) {
+        const removedId = budget.value[existingIdx].id
+        budget.value.splice(existingIdx, 1)
+        if (removedId != null) _forgetPaymentsLocal(removedId)
+      }
     }
     saveB()
   }
@@ -608,7 +759,15 @@ export const useWeddingStore = defineStore('wedding', () => {
     return row.id
   }
 
-  function delBudget(id) {
+  // Buang entri pembayaran lokal item yang dihapus. Server sudah cascade
+  // (FK on delete cascade), ini cuma biar state lokal & shadow ikut bersih.
+  function _forgetPaymentsLocal(itemId) {
+    if (!payments.value.some(p => p.budgetItemId === itemId)) return
+    payments.value = payments.value.filter(p => p.budgetItemId !== itemId)
+    saveP()
+  }
+
+  async function delBudget(id) {
     const b = budget.value.find(x => x.id === id)
     if (!b) return false
     if (b.originType === 'seserahan_auto' || b.originType === 'mahar_auto') {
@@ -617,15 +776,27 @@ export const useWeddingStore = defineStore('wedding', () => {
       return false
     }
     if (b.vendorId) {
-      if (!confirm(`"${b.item}" berasal dari vendor yang Dipakai.\n\nMenghapus dari Budget akan menonaktifkan "Dipakai" pada vendor itu. Lanjutkan?`)) return false
+      const ok = await askConfirm({
+        title: 'Hapus item vendor?',
+        message: `"${b.item}" berasal dari vendor yang Dipakai. Menghapus dari Budget akan menonaktifkan "Dipakai" pada vendor itu.`,
+        confirmLabel: 'Hapus',
+      })
+      if (!ok) return false
       const v = vendors.value.find(x => x.id === b.vendorId)
       if (v) { v.jadi = false; saveV() }
       budget.value = budget.value.filter(x => x.id !== id)
+      _forgetPaymentsLocal(id)
       saveB(); toast('Item dihapus & vendor dinonaktifkan')
       return true
     }
-    if (!confirm(`Hapus item "${b.item || 'tanpa nama'}"?`)) return false
+    const ok = await askConfirm({
+      title: 'Hapus item?',
+      message: `"${b.item || 'tanpa nama'}" akan dihapus dari anggaran.`,
+      confirmLabel: 'Hapus',
+    })
+    if (!ok) return false
     budget.value = budget.value.filter(x => x.id !== id)
+    _forgetPaymentsLocal(id)
     saveB(); toast('Item dihapus')
     return true
   }
@@ -673,13 +844,22 @@ export const useWeddingStore = defineStore('wedding', () => {
     saveG(); toast('Tamu dihapus')
   }
 
-  function duplicateGuest(id) {
+  async function duplicateGuest(id) {
     const g = guests.value.find(x => x.id === id)
     if (!g) return
-    const newId = guests.value.length ? Math.max(...guests.value.map(x => x.id)) + 1 : 1
+    // PK di tabel guests di-generate server (sama seperti saveGuest untuk
+    // tamu baru) — insert dulu & tunggu id aslinya balik, JANGAN minting id
+    // lokal (Math.max+1 lama sempat dipakai di sini, tapi itu bikin baris
+    // sempat punya id palsu sebelum ditimpa id asli — key Vue berubah
+    // mendadak begitu id asli datang, bikin barisnya "berkedip"/remount).
+    const { id: _oldId, created_at, updated_at, owner_user_id, ...rest } = g
+    const uid = ownerUserId.value || user.value.id
+    const { data: row, error } = await supabase.from('guests')
+      .insert({ owner_user_id: uid, ...rest, nama: g.nama + ' (salin)' }).select().single()
+    if (error || !row) { toast('Gagal menduplikasi tamu, coba lagi'); return }
     const idx = guests.value.findIndex(x => x.id === id)
-    guests.value.splice(idx + 1, 0, { ...g, id: newId, nama: g.nama + ' (salin)' })
-    saveG()
+    guests.value.splice(idx + 1, 0, row)
+    _shadow.guests.set(row.id, JSON.parse(JSON.stringify(row)))
     toast('Tamu diduplikasi')
   }
 
@@ -889,10 +1069,10 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   function exportBudgetCSV() {
-    const head = ['No','Item','Status','Estimasi Budget','Aktual Budget','Selisih','Uang Muka','Sudah Dibayarkan','Sisa Pembayaran','Jatuh Tempo','Remarks']
+    const head = ['No','Item','Status','Estimasi Budget','Aktual Budget','Selisih','Sudah Dibayarkan','Sisa Pembayaran','Jatuh Tempo Terdekat','Remarks']
     const rows = budget.value.map((b, i) => {
       const st = bStatus(b)
-      return [i+1, b.item, st.label, b.estimasi, b.aktual, b.estimasi-b.aktual, b.uangMuka, b.dibayar, bSisa(b), b.jatuhTempo, b.remarks]
+      return [i+1, b.item, st.label, b.estimasi, b.aktual, b.estimasi-b.aktual, b.dibayar, bSisa(b), nextDue(b.id), b.remarks]
     })
     downloadCSV('anggaran-pernikahan.csv', toCSV(head, rows))
     toast('CSV anggaran diunduh')
@@ -925,14 +1105,32 @@ export const useWeddingStore = defineStore('wedding', () => {
     } else if (tab === 'budget') {
       const { stat, due } = fields
       if (!stat && !due) { toast('Pilih minimal satu perubahan'); return }
+      const today = new Date().toISOString().slice(0, 10)
       budget.value.forEach(b => {
         if (!isSelected(b.id)) return
-        if (stat === 'lunas') b.dibayar = b.aktual
-        else if (stat === 'belum') b.dibayar = 0
-        if (due) b.jatuhTempo = due
+        if (stat === 'lunas') {
+          // Lunasi lewat 1 entri pembayaran sebesar sisa (bukan set dibayar
+          // langsung) — biar konsisten dengan buku pembayaran.
+          const sisa = bSisa(b)
+          if (sisa > 0) addPayment(b.id, { amount: sisa, paid: true, paidDate: today, note: 'Pelunasan' })
+        } else if (stat === 'belum') {
+          payments.value.forEach(p => { if (p.budgetItemId === b.id && p.paid) p.paid = false })
+          recalcDibayar(b.id)
+        }
+        if (due) {
+          // Set jatuh tempo ke termin belum-lunas paling awal; kalau belum
+          // ada termin, buat satu sebesar sisa dengan tanggal itu.
+          const open = payments.value.filter(p => p.budgetItemId === b.id && !p.paid)
+          if (open.length) {
+            open.sort((x, y) => (x.dueDate || '').localeCompare(y.dueDate || ''))
+            open[0].dueDate = due
+          } else if (bSisa(b) > 0) {
+            addPayment(b.id, { amount: bSisa(b), dueDate: due, note: 'Pembayaran' })
+          }
+        }
         c++
       })
-      if (c) saveB()
+      if (c) { saveP(); saveB() }
     } else if (tab === 'seserahan') {
       const { stat } = fields
       if (!stat) { toast('Pilih minimal satu perubahan'); return }
@@ -969,7 +1167,9 @@ export const useWeddingStore = defineStore('wedding', () => {
         toast('Item Budget terpilih dikelola otomatis — tidak bisa dihapus dari sini')
         return
       }
+      const deletedIds = deletable.map(x => x.id)
       budget.value = budget.value.filter(x => !isSelected(x.id) || budgetOrigin(x)?.managed)
+      deletedIds.forEach(id => { if (id != null) _forgetPaymentsLocal(id) })
       saveB()
       if (blocked.length) toast(`${blocked.length} item otomatis tidak dihapus`)
     }
@@ -988,6 +1188,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       data: {
         guests: guests.value,
         budget: budget.value,
+        payments: payments.value,
         vendors: vendors.value,
         seserahan: seserahan.value,
         mahar: mahar.value,
@@ -1010,8 +1211,13 @@ export const useWeddingStore = defineStore('wedding', () => {
       const counts = [['guests','tamu'],['budget','budget'],['vendors','vendor'],['seserahan','seserahan'],['mahar','mahar'],['admin','administrasi'],['checklist','checklist'],['timeline','timeline']].map(([k,l]) => Array.isArray(d[k]) ? `${d[k].length} ${l}` : null).filter(Boolean)
       const when = payload.exportedAt ? new Date(payload.exportedAt).toLocaleDateString('id-ID') : 'tidak diketahui'
       const hasSettings = payload.settings && Object.keys(payload.settings).length > 0
-      const settingsNote = hasSettings ? '\nSettings aplikasi juga akan dipulihkan (profil pasangan, onboarding, filter, reminder, dan urutan tab).' : ''
-      if (!confirm(`Impor data dari file (dibuat ${when})?\n\nIsi: ${counts.join(', ')}.${settingsNote}\n\nSEMUA data kamu saat ini akan DIGANTI.`)) return
+      const settingsNote = hasSettings ? ' Settings aplikasi juga akan dipulihkan (profil pasangan, onboarding, filter, reminder, dan urutan tab).' : ''
+      const ok = await askConfirm({
+        title: 'Impor & ganti semua data?',
+        message: `File dibuat ${when}. Isi: ${counts.join(', ')}.${settingsNote} SEMUA data kamu saat ini akan DIGANTI dan tidak bisa dikembalikan.`,
+        confirmLabel: 'Impor & Ganti',
+      })
+      if (!ok) return
 
       if (Array.isArray(d.guests))    guests.value    = d.guests
       if (Array.isArray(d.vendors))   vendors.value   = d.vendors
@@ -1034,6 +1240,12 @@ export const useWeddingStore = defineStore('wedding', () => {
             : 'manual'
           ),
         }))
+        // Item budget dapat id baru saat di-insert ulang, jadi entri
+        // pembayaran lama (referensi budgetItemId lama) pasti yatim —
+        // dikosongkan, sama seperti link vendorId yang juga tak dipertahankan
+        // pada restore. File backup tetap menyimpan payments buat recovery
+        // manual kalau perlu.
+        payments.value = []
       }
       _applySettingsPayload(payload.settings)
 
@@ -1044,6 +1256,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         _diffAndSync('guests', 'guests', guests.value),
         _diffAndSync('timeline', 'timeline_tasks', timeline.value),
         _diffAndSync('budget', 'budget_items', budget.value),
+        _diffAndSync('payments', 'budget_payments', payments.value),
         _diffAndSync('vendors', 'vendors', vendors.value),
         _diffAndSync('seserahan', 'seserahan_items', seserahan.value),
         _diffAndSync('mahar', 'mahar_items', mahar.value),
@@ -1065,7 +1278,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     mahar:     { label: 'mahar',        get: () => mahar.value,     apply: v => { mahar.value = v; saveM() } },
     admin:     { label: 'administrasi', get: () => admin.value,     apply: v => { admin.value = v; saveA() } },
     checklist: { label: 'checklist',    get: () => checklist.value, apply: v => { checklist.value = v; saveCK() } },
-    budget:    { label: 'budget',       get: () => budget.value,    apply: v => { budget.value = v; saveB() } },
+    budget:    { label: 'budget',       get: () => budget.value,    apply: v => { budget.value = v; payments.value = []; saveB(); saveP() } },
     timeline:  { label: 'timeline',     get: () => timeline.value,  apply: v => { timeline.value = v; saveTL() } },
   }
 
@@ -1080,12 +1293,17 @@ export const useWeddingStore = defineStore('wedding', () => {
     const cfg = TAB_IO[tab]
     if (!cfg) return
     const reader = new FileReader()
-    reader.onload = e => {
+    reader.onload = async e => {
       let payload
       try { payload = JSON.parse(e.target.result) } catch { toast('File tidak bisa dibaca'); return }
       if (!payload || payload.app !== 'wedding-planner' || !Array.isArray(payload.data)) { toast('Bukan file data Wedding Planner'); return }
       if (payload.tab && payload.tab !== tab) { toast(`File ini untuk tab "${payload.tab}", bukan "${cfg.label}"`); return }
-      if (!confirm(`Ganti semua data ${cfg.label} dengan ${payload.data.length} item dari file ini?`)) return
+      const ok = await askConfirm({
+        title: `Ganti data ${cfg.label}?`,
+        message: `Semua data ${cfg.label} saat ini akan diganti dengan ${payload.data.length} item dari file ini.`,
+        confirmLabel: 'Ganti',
+      })
+      if (!ok) return
       cfg.apply(payload.data)
       toast(`Data ${cfg.label} diimpor`)
     }
@@ -1111,20 +1329,29 @@ export const useWeddingStore = defineStore('wedding', () => {
   // _loadGuestsAndTimeline) biar resikonya kecil, sama seperti keputusan
   // Wave 1 dulu.
   async function _loadBudgetVendorsSeserahanMahar(ownerId) {
-    const [{ data: b }, { data: v }, { data: s }, { data: m }] = await Promise.all([
+    const [{ data: b }, { data: p }, { data: v }, { data: s }, { data: m }] = await Promise.all([
       supabase.from('budget_items').select('*').eq('owner_user_id', ownerId).order('id'),
+      supabase.from('budget_payments').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('vendors').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('seserahan_items').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('mahar_items').select('*').eq('owner_user_id', ownerId).order('id'),
     ])
     budget.value    = b || []
+    payments.value  = p || []
     vendors.value   = v || []
     seserahan.value = s || []
     mahar.value     = m || []
     _seedShadow('budget', budget.value)
+    _seedShadow('payments', payments.value)
     _seedShadow('vendors', vendors.value)
     _seedShadow('seserahan', seserahan.value)
     _seedShadow('mahar', mahar.value)
+
+    // dibayar itu cache turunan dari jumlah entri pembayaran lunas. Rekap
+    // ulang saat load kalau ada yang meleset dari sinkronisasi lintas-device
+    // (mis. entri diedit di HP, budget_items belum keburu ke-update). Sekali
+    // di sini murah & bikin status/sisa selalu konsisten dengan buku bayar.
+    _reconcileAllDibayar()
 
     // Migrasi-lama: tandai baris budget seed (BUDGET_SEED) yang belum
     // punya originType/template sebagai 'template'. HARUS jalan SETELAH
@@ -1209,7 +1436,9 @@ export const useWeddingStore = defineStore('wedding', () => {
     await supabase.from('wedding_data').insert({ user_id: userId, settings: {} })
     // guests & vendors & mahar: array kosong, tidak ada seed
     guests.value  = []; vendors.value = []; mahar.value = []
+    payments.value = []
     _seedShadow('guests', []); _seedShadow('vendors', []); _seedShadow('mahar', [])
+    _seedShadow('payments', [])
 
     // timeline: seed di-insert ke timeline_tasks, id lokal dibuang biar
     // server generate PK asli
@@ -1309,7 +1538,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   // masih dipakai kolom wedding_data lain yang belum dinormalisasi).
   const _lastRowWriteAt = {
     guests: new Map(), timeline: new Map(),
-    budget: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
+    budget: new Map(), payments: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
     adminGroups: new Map(), adminItems: new Map(),
     checklistGroups: new Map(), checklistItems: new Map(),
   }
@@ -1328,6 +1557,16 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (local) Object.assign(local, n)
     else arrRef.value.push(n)
     _shadow[col].set(n.id, JSON.parse(JSON.stringify(n)))
+  }
+
+  // Perubahan entri pembayaran dari device lain. Setelah apply, rekap cache
+  // b.dibayar lokal TANPA saveB — nilai otoritatif dibayar tetap datang
+  // lewat realtime budget_items, jadi trigger saveB di sini cuma bikin
+  // echo-loop. Payload DELETE cuma bawa id (replica identity default), jadi
+  // rekap semua item, bukan gantungin ke old.budgetItemId.
+  function _applyPaymentChange(p) {
+    _applyRowChange('payments', payments, p)
+    _recomputeDibayarLocal()
   }
 
   // Buffer event item yang nyampe SEBELUM grup induknya ada di array lokal.
@@ -1427,6 +1666,10 @@ export const useWeddingStore = defineStore('wedding', () => {
         event: '*', schema: 'public', table: 'budget_items',
         filter: `owner_user_id=eq.${listenId}`,
       }, p => _applyRowChange('budget', budget, p))
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'budget_payments',
+        filter: `owner_user_id=eq.${listenId}`,
+      }, p => _applyPaymentChange(p))
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'vendors',
         filter: `owner_user_id=eq.${listenId}`,
@@ -1660,7 +1903,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         isPartner.value = false
         partnerEmail.value = ''
         _channel?.unsubscribe()
-        guests.value = []; budget.value = []; vendors.value = []
+        guests.value = []; budget.value = []; payments.value = []; vendors.value = []
         seserahan.value = []; mahar.value = []; admin.value = []
         checklist.value = []; timeline.value = []
         couple.value = { pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '' }
@@ -1719,7 +1962,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     quickAddTarget, quickAddNonce, requestQuickAdd,
     reminders, saveReminderSettings, markReminderNotified,
     // state
-    guests, budget, vendors, seserahan, mahar, admin, checklist, timeline,
+    guests, budget, payments, vendors, seserahan, mahar, admin, checklist, timeline,
     activeTab, tabOrder, bFilter, vFilter, selectedMap,
     toastMsg, toastVisible,
     confirmShow, confirmTitle, confirmMessage, confirmOk, confirmCancel, confirmDanger,
@@ -1732,10 +1975,12 @@ export const useWeddingStore = defineStore('wedding', () => {
     isSelected, toggleSelected, clearSelected,
     // core
     init, toast,
-    saveG, saveB, saveV, saveS, saveM, saveA, saveCK, saveTL, saveTabOrder,
+    saveG, saveB, saveP, saveV, saveS, saveM, saveA, saveCK, saveTL, saveTabOrder,
     // budget
-    bStatus, bSisa, nextBudgetId, budgetOrigin,
+    bStatus, bSisa, bSelisih, bDisplayPrice, budgetSelisihTotal, budgetEstimasiSetCount, budgetOrigin,
     addBudgetItem, delBudget, removeBudgetEmptyItem,
+    // pembayaran (buku bayar)
+    itemPayments, paidTotal, nextDue, addPayment, updatePayment, delPayment, togglePaymentPaid, payNextDue, recalcDibayar,
     // sync
     syncSeserahanToBudget, syncMaharToBudget, handleVendorDecision,
     // guest

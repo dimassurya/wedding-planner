@@ -33,7 +33,7 @@
     </div>
 
     <!-- Category chips -->
-    <div class="controls">
+    <div class="controls st-toolbar" :class="{ sticky: !isMobile }" ref="toolbarRef">
       <div id="vChips" class="chips">
         <button v-for="c in VENDOR_CATEGORIES" :key="c.id" class="fchip" :class="{ on: store.vFilter === c.id }" @click="store.vFilter = c.id">{{ c.label }}</button>
       </div>
@@ -59,7 +59,7 @@
       </div></div>
 
       <div v-else class="vt-table">
-        <div class="vt-headrow">
+        <div class="vt-headrow" :style="{ top: headTop + 'px' }">
           <span></span>
           <span>Vendor</span>
           <span>Kapasitas</span>
@@ -155,12 +155,14 @@ import BudgetDetailModal from '../components/modals/BudgetDetailModal.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileVendorList from '../mobile layout/MobileVendorList.vue'
 import TourBtn from '../components/TourBtn.vue'
+import { useStickyThead } from '../composables/useStickyThead'
 
 const store     = useWeddingStore()
 const modalShow = ref(false)
 const editId    = ref(null)
 const importRef = ref(null)
 const isMobile  = useIsMobile()
+const { toolbarRef, headTop } = useStickyThead()
 
 const expandedId = ref(null)
 const payShow    = ref(false)
@@ -296,7 +298,7 @@ function onImport(e) {
   border: 1px solid var(--line);
   border-radius: 14px;
   box-shadow: var(--shadow);
-  overflow: hidden;
+  overflow: clip;   /* clip (bukan hidden) biar headrow bisa sticky ke halaman */
 }
 
 .vt-headrow {
@@ -310,6 +312,8 @@ function onImport(e) {
   letter-spacing: .04em;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
+  position: sticky;   /* top diset inline (headTop) */
+  z-index: 5;
 }
 
 .vt-row-wrap { border-left: 3px solid var(--line); }
@@ -376,7 +380,7 @@ function onImport(e) {
 .vt-span2 { grid-column: 1 / -1; }
 .vt-link { color: var(--plum); text-decoration: none; word-break: break-all; }
 .vt-link:hover { text-decoration: underline; }
-.vt-desc { margin-top: 8px; font-size: 13px; color: #5f4a4a; font-style: italic; line-height: 1.5; }
+.vt-desc { margin-top: 8px; font-size: 13px; color: #5f4a4a; font-style: italic; line-height: 1.5; white-space: pre-wrap; }
 .vt-empty-info { margin-top: 12px; font-size: 12.5px; color: var(--muted); }
 
 .vt-payblock { margin-top: 12px; padding: 11px 13px; background: var(--ivory); border-radius: 12px; }

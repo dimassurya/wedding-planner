@@ -267,6 +267,7 @@ function payInfo(v) {
   color: #5f4a4a;
   font-style: italic;
   line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 /* Actions */

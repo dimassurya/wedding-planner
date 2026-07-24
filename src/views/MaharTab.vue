@@ -15,7 +15,7 @@
       </div>
     </div>
 
-    <div class="controls">
+    <div class="controls st-toolbar" :class="{ sticky: !isMobile }" ref="toolbarRef">
       <button class="icon-btn solid" @click="addItem">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Tambah Item
       </button>
@@ -31,9 +31,9 @@
     <MobileMaharList v-if="isMobile" :rows="store.mahar" v-model:editId="mobileEditId" />
 
     <!-- Table (PC) -->
-    <div v-else class="card table-card">
-      <div class="table-scroll">
-      <div class="m-head">
+    <div v-else class="card st-card">
+      <div class="st-inner">
+      <div class="m-head" :style="{ top: headTop + 'px' }">
         <div class="m-cbx"><input type="checkbox" class="cbx" :checked="allSel" :indeterminate.prop="someSel && !allSel" @change="toggleAll"></div>
         <div>Item</div><div>Status</div><div class="r">Harga / Nilai</div><div class="m-actions"></div>
       </div>
@@ -76,11 +76,13 @@ import SwitchToggle from '../components/SwitchToggle.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileMaharList from '../mobile layout/MobileMaharList.vue'
 import TourBtn from '../components/TourBtn.vue'
+import { useStickyThead } from '../composables/useStickyThead'
 
 const store        = useWeddingStore()
 const importRef    = ref(null)
 const isMobile     = useIsMobile()
 const mobileEditId = ref(null)
+const { toolbarRef, headTop } = useStickyThead()
 
 // Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
 watch(() => store.quickAddNonce, () => {

@@ -187,8 +187,13 @@ function delTugas(g, it) {
   store.saveCK()
 }
 
-function delFase(g) {
-  if (!confirm(`Hapus fase "${g.fase}" beserta semua tugasnya?`)) return
+async function delFase(g) {
+  const ok = await store.askConfirm({
+    title: 'Hapus fase?',
+    message: `Fase "${g.fase}" beserta semua tugasnya akan dihapus.`,
+    confirmLabel: 'Hapus',
+  })
+  if (!ok) return
   store.checklist.splice(store.checklist.findIndex(x => x.id === g.id), 1)
   store.saveCK()
 }

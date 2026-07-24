@@ -67,7 +67,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           </button>
         </div>
-        <div class="adm-head"><div>No</div><div>Syarat</div><div>Status</div><div></div></div>
+        <div class="adm-head"><div class="adm-h-center">No</div><div>Syarat</div><div>Status</div><div></div></div>
         <div class="adm-rows">
           <div v-if="!g.items.length" class="empty" style="padding:28px 20px"><div>Belum ada syarat di bagian ini.</div></div>
           <div v-for="(it, i) in g.items" :key="it.id" class="adm-row" :class="{ done: it.status }" :data-gid="g.id" :data-id="it.id">
@@ -208,6 +208,9 @@ function onImport(e) {
 </script>
 
 <style scoped>
+/* Data kolom "No" (.adm-no) rata tengah, header disamain. */
+.adm-h-center { text-align: center; }
+
 .adm-group-head {
   background: var(--plum) !important;
   border-bottom: 1px solid rgba(255,255,255,.15) !important;

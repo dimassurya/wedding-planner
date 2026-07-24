@@ -10,6 +10,9 @@
     <div class="b-prog-wrap">
       <div class="b-prog-bar"><div class="b-prog-fill" :style="{ width: pctPaid + '%' }"></div></div>
       <span class="b-prog-pct">{{ pctPaid }}% terbayar</span>
+      <span v-if="tEstSet > 0" class="b-prog-selisih" :class="tSelisih >= 0 ? 'hemat' : 'lebih'">
+        {{ tSelisih >= 0 ? 'Hemat ' + fmt(tSelisih) : 'Lebih ' + fmt(-tSelisih) }} dari rencana
+      </span>
     </div>
 
     <!-- Controls -->
@@ -43,11 +46,11 @@
       <dl class="b-guide-list">
         <div><dt>Estimasi</dt><dd>anggaran rencana</dd></div>
         <div><dt>Aktual</dt><dd>harga jadi / nyata</dd></div>
-        <div><dt>Dibayar</dt><dd>uang yang sudah keluar</dd></div>
+        <div><dt>Dibayar</dt><dd>total termin yang sudah lunas</dd></div>
         <div><dt>Belum Dibayar</dt><dd>sisa tagihan (Aktual − Dibayar)</dd></div>
       </dl>
       <div class="b-guide-foot">
-        Klik ikon <svg style="vertical-align:middle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg> untuk detail & catatan.
+        Klik kolom Dibayar atau ikon <svg style="vertical-align:middle" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg> untuk buka buku pembayaran — catat termin, tanggal, & siapa yang bayar.
       </div>
     </div>
 
@@ -55,17 +58,15 @@
     <MobileBudgetList v-if="isMobile" :rows="visRows" @open="openDetail" />
 
     <!-- Table (PC) -->
-    <div v-else class="card table-card">
-      <div class="table-scroll">
+    <div v-else class="card b-table-card">
+      <div class="b-table-inner">
       <div class="b-head">
         <div class="b-cbx"><input type="checkbox" class="cbx" :checked="allVisSel" :indeterminate.prop="someVisSel && !allVisSel" @change="toggleAll"></div>
         <div>Item</div>
-        <div class="r">Status</div>
-        <div class="lE r">Estimasi</div>
-        <div class="lA r">Aktual</div>
-        <div class="lD r">Dibayar</div>
-        <div class="lS r">Belum Dibayar</div>
-        <div class="lT r">Jatuh Tempo</div>
+        <div class="b-head-c">Harga</div>
+        <div class="b-head-c">Pembayaran</div>
+        <div class="b-head-c">Jatuh Tempo</div>
+        <div></div>
         <div class="b-actions"></div>
       </div>
 
@@ -74,28 +75,34 @@
         <div>{{ store.budget.length ? 'Tidak ada item pada filter ini.' : 'Klik Tambah Item untuk mulai.' }}</div>
       </div>
 
-      <div v-for="b in visRows" :key="b.id" class="b-row" :class="{ paid: store.bStatus(b).key === 'lunas', sel: store.isSelected(b.id) }" :data-id="b.id">
+      <template v-for="b in visRows" :key="b.id">
+      <div class="b-row" :class="{ paid: store.bStatus(b).key === 'lunas', sel: store.isSelected(b.id) }" :data-id="b.id">
         <div class="b-cbx cbx-cell"><input type="checkbox" class="cbx rowcbx" :checked="store.isSelected(b.id)" @change="e => store.toggleSelected(b.id, e.target.checked)"></div>
         <div class="b-item">
           <input type="text" :data-bid="b.id" data-f="item" :value="b.item" placeholder="Nama item..." @input="onItemInput($event, b)" @blur="onItemBlur(b)">
           <span v-if="store.budgetOrigin(b)" class="b-origin" :class="store.budgetOrigin(b).cls" :title="store.budgetOrigin(b).tip">{{ store.budgetOrigin(b).label }}</span>
         </div>
-        <div class="b-status cStat">
-          <span class="chip" :style="{ background: store.bStatus(b).bg, color: store.bStatus(b).text }">
-            <span class="cdot" :style="{ background: store.bStatus(b).color }"></span>
-            {{ store.bStatus(b).label }}
-          </span>
+        <div class="b-price" @click="openDetail(b.id)" title="Kelola item">
+          <template v-if="store.bDisplayPrice(b)">
+            <div class="b-price-main">{{ fmt(store.bDisplayPrice(b).value) }}</div>
+            <div class="b-price-label" :class="store.bDisplayPrice(b).kind">{{ store.bDisplayPrice(b).label }}</div>
+            <div v-if="store.bDisplayPrice(b).kind === 'aktual' && selisihBadge(b)" class="b-selisih" :class="selisihBadge(b).cls">{{ selisihBadge(b).label }}</div>
+          </template>
+          <div v-else class="b-price-empty">Belum diisi</div>
         </div>
-        <div class="bm-lbl lE">Estimasi</div>
-        <div class="bcell cE"><span class="rp">Rp</span><input type="text" inputmode="numeric" :value="grp(b.estimasi)" @input="onCurInput($event, b, 'estimasi')"></div>
-        <div class="bm-lbl lA">Aktual</div>
-        <div class="bcell cA"><span class="rp">Rp</span><input type="text" inputmode="numeric" :value="grp(b.aktual)" @input="onCurInput($event, b, 'aktual')"></div>
-        <div class="bm-lbl lD">Dibayar</div>
-        <div class="bcell cD"><span class="rp">Rp</span><input type="text" inputmode="numeric" :value="grp(b.dibayar)" @input="onCurInput($event, b, 'dibayar')"></div>
-        <div class="bm-lbl lS">Belum Dibayar</div>
-        <div class="b-sisa cS">{{ fmt(store.bSisa(b)) }}</div>
-        <div class="bm-lbl lT">Jatuh Tempo</div>
-        <div class="cT r" :style="{ fontSize: '13px', color: b.jatuhTempo ? 'var(--ink)' : 'var(--muted)' }">{{ fmtDate(b.jatuhTempo) }}</div>
+        <div class="b-progress">
+          <div class="b-seg-bar">
+            <div v-for="(s, i) in rowSegments(b)" :key="i" class="b-seg" :class="s.cls" :style="{ flex: s.amount }"></div>
+          </div>
+          <div class="b-progress-txt">{{ b.aktual > 0 ? fmt(store.paidTotal(b.id)) + ' dari ' + fmt(b.aktual) : '—' }}</div>
+        </div>
+        <div class="b-due">
+          <span v-if="dueBadge(b)" class="b-due-badge" :class="dueBadge(b).cls">{{ dueBadge(b).label }}</span>
+          <span v-else class="b-due-empty">—</span>
+        </div>
+        <button class="b-expand-btn" :class="{ open: expandedIds.has(b.id) }" @click="toggleExpand(b.id)" :aria-expanded="expandedIds.has(b.id)" :aria-label="expandedIds.has(b.id) ? 'Tutup daftar termin' : 'Lihat daftar termin'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
         <div class="b-actions r">
           <button class="act item-action-btn" @click="openDetail(b.id)" title="Detail">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6E151A" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1" stroke-linecap="round"/></svg>
@@ -108,14 +115,24 @@
           </button>
         </div>
       </div>
+      <div v-if="expandedIds.has(b.id)" class="b-termin-panel">
+        <div v-if="!store.itemPayments(b.id).length" class="b-termin-empty">Belum ada termin pembayaran.</div>
+        <div v-for="p in store.itemPayments(b.id)" :key="p.id" class="b-termin-row">
+          <span class="b-termin-dot" :class="{ on: p.paid }"></span>
+          <span class="b-termin-note">{{ p.note || 'Termin' }}</span>
+          <span class="b-termin-date">{{ p.paid ? 'Lunas ' + fmtDate(p.paidDate) : (p.dueDate ? 'Jatuh tempo ' + fmtDate(p.dueDate) : 'Belum ada tanggal') }}</span>
+          <span class="b-termin-amt">{{ fmt(p.amount) }}</span>
+        </div>
+        <button class="b-termin-manage" @click="openDetail(b.id)">Kelola pembayaran →</button>
+      </div>
+      </template>
 
       <!-- Footer totals -->
       <div v-if="visRows.length" class="b-foot">
         <div class="b-foot-lbl">Total</div>
-        <div class="fEst r">{{ fmt(tEst) }}</div>
-        <div class="fAkt r">{{ fmt(tAkt) }}</div>
-        <div class="fDib r">{{ fmt(tDib) }}</div>
-        <div class="fSis r">{{ fmt(tSis) }}</div>
+        <div class="r">{{ fmt(tAkt) }}</div>
+        <div class="b-foot-progress">{{ fmt(tDib) }} dari {{ fmt(tAkt) }}</div>
+        <div class="r">{{ fmt(tSis) }}</div>
       </div>
       </div>
     </div>
@@ -128,7 +145,7 @@
 <script setup>
 import { ref, computed, nextTick, watch } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
-import { fmt, grp, num, fmtDate } from '../utils/index'
+import { fmt, fmtDate, daysLeft } from '../utils/index'
 import BudgetDetailModal from '../components/modals/BudgetDetailModal.vue'
 import BudgetSchedule from '../components/BudgetSchedule.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
@@ -143,6 +160,7 @@ const newItemId   = ref(null)
 const isMobile    = useIsMobile()
 const detailIsNew = ref(false)
 const view        = ref('table')
+const expandedIds = ref(new Set())
 
 // Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
 watch(() => store.quickAddNonce, () => {
@@ -180,7 +198,7 @@ const BUDGET_STEPS = computed(() => [
     title: isMobile.value ? 'Kartu Item' : 'Baris Item',
     desc: isMobile.value
       ? 'Setiap kartu menampilkan nama, status, harga aktual, sisa tagihan, dan jatuh tempo. Ketuk untuk buka detail lengkap dan edit semua kolom.'
-      : 'Edit nama, estimasi, aktual, dan dibayar langsung di baris. Kolom Belum Dibayar dan status pembayaran terhitung otomatis.',
+      : 'Edit nama langsung di baris. Klik kolom Harga atau Pembayaran untuk buka detail & catat termin. Panah di kanan bisa dibuka buat mengintip daftar termin tanpa buka detail penuh.',
   },
   {
     selector: isMobile.value ? '.mb-origin' : '.b-origin',
@@ -189,16 +207,16 @@ const BUDGET_STEPS = computed(() => [
     desc: 'Badge kecil yang menandai dari mana item ini berasal — template bawaan, dari tab Vendor, Seserahan, atau Mahar. Item dari tab lain dikelola di sumber asalnya dan tidak bisa dihapus langsung dari sini.',
   },
   {
-    selector: isMobile.value ? '.mb-status' : '.b-status',
+    selector: isMobile.value ? '.mb-status' : '.b-progress',
     icon: '💳',
-    title: 'Status Otomatis',
-    desc: 'Status dihitung sendiri: Belum Bayar (dibayar = 0), Sebagian / DP (sudah bayar sebagian), Lunas (dibayar ≥ aktual). Tidak perlu diset manual — cukup update kolom Dibayar.',
+    title: 'Progress Pembayaran',
+    desc: 'Bar bersegmen menunjukkan tiap termin — hijau (lunas), kuning (akan datang), merah (telat). Dihitung otomatis dari buku pembayaran, tidak perlu diset manual.',
   },
   {
     selector: '.b-actions .act',
     icon: 'ℹ️',
-    title: 'Detail & Catatan',
-    desc: 'Klik ikon ini untuk membuka panel detail — isi jatuh tempo pembayaran, tambahkan catatan khusus, dan informasi tambahan untuk item ini.',
+    title: 'Buku Pembayaran',
+    desc: 'Klik ikon ini untuk membuka detail item — catat termin pembayaran (DP, cicilan, pelunasan), tanggal, siapa yang bayar, dan tandai lunas satu per satu. Kolom Dibayar terisi otomatis dari sini.',
   },
 ])
 
@@ -210,14 +228,79 @@ const CHIPS = [
   { f: 'lunas',  label: 'Lunas' },
 ]
 
-const tEst = computed(() => store.budget.reduce((s, b) => s + (b.estimasi || 0), 0))
+function selisihBadge(b) {
+  // Dua-duanya harus keisi — kalau aktual masih 0, "selisih"-nya bukan
+  // hemat beneran, itu cuma estimasi yang belum direalisasi.
+  if (!b.estimasi || !b.aktual) return null
+  const d = store.bSelisih(b)
+  if (d === 0) return null
+  return d > 0
+    ? { label: `Hemat ${fmt(d)}`, cls: 'hemat' }
+    : { label: `Lebih ${fmt(-d)}`, cls: 'lebih' }
+}
+
+// Progress bar tersegmen: satu segmen per termin, warna dari statusnya.
+// Sisa yang belum ada termin sama sekali dapat segmen netral, biar
+// kelihatan "ada duit yang belum direncanakan" — bukan seolah lunas.
+function rowSegments(b) {
+  const total = b.aktual || 0
+  if (total <= 0) return [{ amount: 1, cls: 'seg-empty' }]
+  const segs = store.itemPayments(b.id)
+    .filter(p => (p.amount || 0) > 0)
+    .map(p => {
+      let cls = 'seg-neutral'
+      if (p.paid) cls = 'seg-paid'
+      else if (p.dueDate) {
+        const d = daysLeft(p.dueDate)
+        cls = d < 0 ? 'seg-overdue' : (d <= 7 ? 'seg-soon' : 'seg-neutral')
+      }
+      return { amount: p.amount, cls }
+    })
+  const planned = segs.reduce((s, x) => s + x.amount, 0)
+  const remainder = total - planned
+  if (remainder > 0.5) segs.push({ amount: remainder, cls: 'seg-neutral' })
+  return segs.length ? segs : [{ amount: 1, cls: 'seg-empty' }]
+}
+
+function dueBadge(b) {
+  if ((b.aktual || 0) <= 0) return null
+  if (store.bSisa(b) <= 0) return { label: 'Lunas', cls: 'due-paid' }
+  const due = store.nextDue(b.id)
+  if (!due) return { label: 'Belum ada termin', cls: 'due-none' }
+  const d = daysLeft(due)
+  if (d < 0) return { label: `Telat ${-d} hari`, cls: 'due-overdue' }
+  if (d === 0) return { label: 'Hari ini', cls: 'due-soon' }
+  if (d <= 7) return { label: `${d} hari lagi`, cls: 'due-soon' }
+  return { label: fmtDate(due), cls: 'due-later' }
+}
+
+function toggleExpand(id) {
+  const s = new Set(expandedIds.value)
+  s.has(id) ? s.delete(id) : s.add(id)
+  expandedIds.value = s
+}
+
+const tEst    = computed(() => store.budget.reduce((s, b) => s + (b.estimasi || 0), 0))
+const tEstSet = computed(() => store.budgetEstimasiSetCount)
+const tSelisih = computed(() => store.budgetSelisihTotal)
 const tAkt = computed(() => store.budget.reduce((s, b) => s + (b.aktual || 0), 0))
 const tDib = computed(() => store.budget.reduce((s, b) => s + (b.dibayar || 0), 0))
 const tSis = computed(() => store.budget.reduce((s, b) => s + store.bSisa(b), 0))
 const pctPaid = computed(() => tAkt.value ? Math.round(tDib.value / tAkt.value * 100) : 0)
 
+// Urutan tampil: Vendor > Seserahan > Mahar > manual (nggak ada origin) >
+// Template paling bawah. Pengurutan cuma buat tampilan (visRows), array
+// asli store.budget nggak diubah — jadi nggak perlu persist apa-apa.
+const ORIGIN_RANK = { 'bo-vendor': 0, 'bo-ser': 1, 'bo-mahar': 2, 'bo-tpl': 4 }
+function originRank(b) {
+  const cls = store.budgetOrigin(b)?.cls
+  return cls != null ? (ORIGIN_RANK[cls] ?? 3) : 3
+}
+
 const visRows = computed(() =>
-  store.budget.filter(b => store.bFilter === 'all' || store.bStatus(b).key === store.bFilter)
+  store.budget
+    .filter(b => store.bFilter === 'all' || store.bStatus(b).key === store.bFilter)
+    .sort((a, b) => originRank(a) - originRank(b))
 )
 
 const allVisSel  = computed(() => visRows.value.length > 0 && visRows.value.every(b => store.isSelected(b.id)))
@@ -251,15 +334,6 @@ function onItemBlur(b) {
   if (!b.item?.trim()) store.removeBudgetEmptyItem(b.id)
 }
 
-function onCurInput(e, b, field) {
-  const len = e.target.value.length, start = e.target.selectionStart
-  e.target.value = grp(e.target.value)
-  b[field] = num(e.target.value)
-  const d = e.target.value.length - len
-  try { e.target.setSelectionRange(start + d, start + d) } catch (_) {}
-  store.saveB()
-}
-
 function openDetail(id) {
   detailId.value = id
   detailShow.value = true
@@ -283,4 +357,56 @@ function onImport(e) {
 
 <style scoped>
 .view-switch { padding-right: 10px; border-right: 1px solid var(--line); }
+.b-head-c { text-align: center; }
+
+/* margin negatif = padding: hover box kelihatan "empuk" tanpa nggeser
+   posisi teks dari tepi kolom aslinya — biar tetap presisi sejajar
+   sama header "Harga" yang nggak punya padding tambahan. */
+.b-price { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; cursor: pointer; padding: 7px 9px; margin: -7px -9px; border-radius: 8px; border: 1.5px solid transparent; transition: .15s; }
+.b-price:hover { background: var(--ivory); border-color: var(--line); }
+.b-price-main { font-weight: 600; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.b-price-empty { font-size: 13px; color: var(--muted); font-style: italic; }
+.b-price-label { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.b-price-label.estimasi { color: #8a6d2f; font-style: italic; }
+
+.b-progress { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.b-seg-bar { display: flex; gap: 2px; height: 6px; border-radius: 20px; overflow: hidden; }
+.b-seg { flex: 1; }
+.seg-paid    { background: var(--green); }
+.seg-soon    { background: #CD9F65; }
+.seg-overdue { background: var(--rose); }
+.seg-neutral { background: var(--line); }
+.seg-empty   { background: var(--ivory); }
+.b-progress-txt { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.b-due { display: flex; justify-content: flex-end; }
+.b-due-badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.due-overdue { color: #7a1a1a; background: var(--rose-soft); }
+.due-soon    { color: #7a5c28; background: var(--gold-soft); }
+.due-paid    { color: #2b5010; background: #EAF3DE; }
+.due-later   { color: var(--muted); font-weight: 500; }
+.due-none    { color: var(--muted); font-weight: 500; font-style: italic; }
+.b-due-empty { color: var(--muted); }
+
+.b-expand-btn {
+  flex: none; width: 28px; height: 28px; border: none; background: transparent;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  color: var(--muted); border-radius: 6px; transition: background .15s, color .15s;
+}
+.b-expand-btn:hover { background: var(--ivory); color: var(--plum); }
+.b-expand-btn svg { transition: transform .15s; }
+.b-expand-btn.open svg { transform: rotate(180deg); }
+
+.b-termin-panel { padding: 10px 20px 14px 58px; background: var(--ivory); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 7px; }
+.b-termin-empty { font-size: 12.5px; color: var(--muted); font-style: italic; }
+.b-termin-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.b-termin-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: none; }
+.b-termin-dot.on { background: var(--green); }
+.b-termin-note { flex: 1; min-width: 0; color: var(--ink); }
+.b-termin-date { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.b-termin-amt { font-weight: 600; font-variant-numeric: tabular-nums; flex: none; }
+.b-termin-manage { align-self: flex-start; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--plum); background: none; border: none; cursor: pointer; padding: 2px 0; }
+.b-termin-manage:hover { text-decoration: underline; }
+
+.b-foot-progress { font-size: 13px; font-weight: 600; color: var(--plum); }
 </style>

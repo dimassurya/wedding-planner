@@ -76,7 +76,11 @@
       <button class="hm-metric hm-clickable" @click="goTab('budget')">
         <div class="hm-m-num">{{ fmt(tAkt) }}</div>
         <div class="hm-m-lbl">Anggaran Aktual</div>
-        <div class="hm-m-sub">est. {{ fmt(tEst) }}</div>
+        <div class="hm-m-sub">
+          {{ store.budgetEstimasiSetCount > 0
+            ? (store.budgetSelisihTotal >= 0 ? 'Hemat ' + fmt(store.budgetSelisihTotal) : 'Lebih ' + fmt(-store.budgetSelisihTotal)) + ' dari rencana'
+            : 'Belum ada estimasi diisi' }}
+        </div>
         <span class="hm-m-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
       </button>
       <button class="hm-metric hm-clickable" @click="goTab('budget')">
@@ -293,7 +297,6 @@ const pria = computed(() => confirmedList.value.filter(g => META[g.relasi]?.side
 const wanita = computed(() => confirmedList.value.filter(g => META[g.relasi]?.side === 'wanita').reduce((s, g) => s + g.jumlah, 0))
 const lainnya = computed(() => Math.max(totalOrang.value - pria.value - wanita.value, 0))
 
-const tEst    = computed(() => store.budget.reduce((s, b) => s + (b.estimasi || 0), 0))
 const tAkt    = computed(() => store.budget.reduce((s, b) => s + (b.aktual || 0), 0))
 const tDib    = computed(() => store.budget.reduce((s, b) => s + (b.dibayar || 0), 0))
 const tSis    = computed(() => store.budget.reduce((s, b) => s + store.bSisa(b), 0))
@@ -442,11 +445,16 @@ const alerts = computed(() => {
     })
   }
 
-  if (tEst.value > 0 && tAkt.value > tEst.value) {
+  // Cuma bandingin item yang emang punya estimasi (store.budgetSelisihTotal) —
+  // bukan total-aktual vs total-estimasi mentah, karena item tanpa estimasi
+  // (mis. item manual yang cuma diisi Aktual) bakal bikin alert ini nyala
+  // terus padahal bukan overspend beneran.
+  if (store.budgetEstimasiSetCount > 0 && store.budgetSelisihTotal < 0) {
+    const over = -store.budgetSelisihTotal
     list.push({
       id: 'budget-overspent', severity: 'warning', icon: '💸',
       title: 'Anggaran aktual melebihi estimasi',
-      desc: `Aktual ${fmt(tAkt.value)} vs estimasi ${fmt(tEst.value)} — selisih ${fmt(tAkt.value - tEst.value)}.`,
+      desc: `${store.budgetEstimasiSetCount} item yang punya estimasi total-nya lebih ${fmt(over)} dari rencana.`,
       cta: 'Lihat Budget', action: () => { store.activeTab = 'budget'; store.bFilter = 'all' },
     })
   }
