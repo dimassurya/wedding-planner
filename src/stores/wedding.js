@@ -783,7 +783,10 @@ export const useWeddingStore = defineStore('wedding', () => {
       })
       if (!ok) return false
       const v = vendors.value.find(x => x.id === b.vendorId)
-      if (v) { v.jadi = false; saveV() }
+      // status di-reset ke 'incar' (bukan cuma jadi=false) — statusOf()
+      // baca v.status duluan kalau ada isinya, jadi kalau cuma jadi yang
+      // ditimpa, dropdown status di tab Vendor bakal nyangkut di "Dipakai".
+      if (v) { v.jadi = false; v.status = 'incar'; saveV() }
       budget.value = budget.value.filter(x => x.id !== id)
       _forgetPaymentsLocal(id)
       saveB(); toast('Item dihapus & vendor dinonaktifkan')
@@ -1098,7 +1101,21 @@ export const useWeddingStore = defineStore('wedding', () => {
       vendors.value.forEach(v => {
         if (!isSelected(v.id)) return
         if (kat) v.category = kat
-        if (stat) { v.jadi = (stat === 'jadi'); handleVendorDecision(v, v.jadi) }
+        if (stat) {
+          // Cuma proses vendor yang statusnya BENERAN berubah. Tanpa guard
+          // ini, bulk-edit ke status yang sama (mis. re-apply "Dipakai" ke
+          // vendor yang udah dipakai) manggil handleVendorDecision berkali-
+          // kali — kalau state lokal sempat nggak sinkron pas itu terjadi,
+          // baris Budget-nya bisa kegandain (kejadian nyata, sudah dibenerin
+          // datanya di database).
+          const newStatus = stat === 'jadi' ? 'dipakai' : 'batal'
+          const newJadi = newStatus === 'dipakai'
+          if (v.status !== newStatus || v.jadi !== newJadi) {
+            v.status = newStatus
+            v.jadi = newJadi
+            handleVendorDecision(v, newJadi)
+          }
+        }
         c++
       })
       if (c) saveV()
@@ -1157,7 +1174,14 @@ export const useWeddingStore = defineStore('wedding', () => {
     })
     if (!ok) return
     if (tab === 'tamu') { guests.value = guests.value.filter(x => !isSelected(x.id)); saveG() }
-    else if (tab === 'vendor') { vendors.value = vendors.value.filter(x => !isSelected(x.id)); saveV() }
+    else if (tab === 'vendor') {
+      // Vendor yang "Dipakai" bawa baris Budget-nya — samain kayak hapus
+      // vendor satuan (delVendor), biar nggak nyisa baris Budget yatim
+      // yang nyambung ke vendor yang udah kehapus.
+      vendors.value.filter(v => isSelected(v.id) && v.jadi).forEach(v => handleVendorDecision(v, false))
+      vendors.value = vendors.value.filter(x => !isSelected(x.id))
+      saveV()
+    }
     else if (tab === 'budget') {
       const selected = budget.value.filter(x => isSelected(x.id))
       const blocked = selected.filter(x => budgetOrigin(x)?.managed)
