@@ -24,6 +24,29 @@ export const KEHADIRAN_STATUS = {
 }
 export const KEHADIRAN_ORDER = ['belum', 'hadir', 'tidak', 'hampers']
 
+// "Informasi Penting" tamu — chip multi-select di form Tambah/Ubah Tamu
+// (progressive disclosure, section terpisah). Beberapa opsi punya field
+// tambahan (lihat `detail`) yang cuma nongol kalau chip-nya aktif.
+// CATATAN: ini baru struktur UI/form — belum ada kolom database & belum
+// kepakai di perhitungan/statistik/dashboard manapun. Disengaja: tahap
+// berikutnya baru nyambungin ke Business Logic (Perhitungan Orang,
+// Audience Tamu, dst) tanpa perlu bongkar ulang form-nya.
+// `phrase` dipakai Special Attention Card (GuestsTab) buat kalimat singular
+// "N tamu {phrase}." pas cuma satu kategori yang kepakai.
+export const INFORMASI_PENTING_OPTIONS = [
+  { id: 'vip',         label: 'VIP',                   icon: '⭐', phrase: 'adalah tamu VIP' },
+  { id: 'bayi',        label: 'Membawa Bayi',          icon: '👶', phrase: 'membawa bayi' },
+  { id: 'lansia',      label: 'Lansia',                icon: '🧓', phrase: 'merupakan lansia' },
+  { id: 'kursiRoda',   label: 'Kursi Roda',            icon: '♿', phrase: 'menggunakan kursi roda' },
+  { id: 'tongkat',     label: 'Menggunakan Tongkat',   icon: '🦯', phrase: 'menggunakan tongkat' },
+  { id: 'vegetarian',  label: 'Vegetarian',            icon: '🥗', phrase: 'vegetarian' },
+  { id: 'vegan',       label: 'Vegan',                 icon: '🌱', phrase: 'vegan' },
+  { id: 'alergi',      label: 'Alergi',                icon: '⚠️', detail: 'alergi', phrase: 'punya alergi' },
+  { id: 'menginap',    label: 'Menginap',              icon: '🏨', detail: 'menginap', phrase: 'akan menginap' },
+  { id: 'pendamping',  label: 'Membutuhkan Pendamping',icon: '🤝', detail: 'pendamping', phrase: 'butuh pendamping' },
+  { id: 'parkir',      label: 'Parkir Khusus',         icon: '🅿️', phrase: 'butuh parkir khusus' },
+]
+
 export const GUEST_SEED = [
   ['papa dimsur',4,'cpp'],['lek yum',2,'cpp'],['nia',2,'cpp'],['dila',2,'cpp'],['mbak tatik',3,'cpp'],
   ['mbak ina',4,'cpp'],['mbak santi',4,'cpp'],['mbak tia',3,'cpp'],['pakde',1,'cpp'],['mas riski',2,'cpp'],

@@ -1,94 +1,183 @@
 <template>
   <section class="panel active" id="panel-tamu">
-    <!-- Stats -->
-    <div class="stat-grid">
-      <div class="stat a-plum">
-        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
-        <div class="num">{{ store.confirmedGuests.length }}</div><div class="lbl">Undangan diperhitungkan</div>
+
+    <!-- ═══ 1. Hero Dashboard ═══ -->
+    <div class="gh-hero">
+      <div class="gh-hero-top">
+        <span class="gh-hero-title">👥 Ringkasan Tamu</span>
       </div>
-      <div class="stat a-gold">
-        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-        <div class="num">{{ totalOrang }}</div><div class="lbl">Total tamu (orang)</div>
+      <div class="gh-hero-nums">
+        <div class="gh-hero-num-item">
+          <div class="gh-hero-num">{{ totalUndangan }}</div>
+          <div class="gh-hero-num-lbl">Undangan</div>
+        </div>
+        <div class="gh-hero-num-sep"></div>
+        <div class="gh-hero-num-item">
+          <div class="gh-hero-num">{{ totalOrangSemua }}</div>
+          <div class="gh-hero-num-lbl">Orang</div>
+        </div>
       </div>
-      <div class="stat a-teal">
-        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-        <div class="num">{{ hadirOrang }}</div><div class="lbl">Tamu hadir (orang)</div>
+      <div class="gh-hero-bar"><span :style="{ width: rsvpPct + '%' }"></span></div>
+      <div class="gh-hero-bar-row">
+        <span class="gh-hero-pct">{{ rsvpPct }}% RSVP</span>
+        <span class="gh-hero-belum">⏳ {{ belumKonfirmasiCount }} belum konfirmasi</span>
       </div>
-      <div class="stat a-rose">
-        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
-        <div class="num">{{ tidakOrang }}</div><div class="lbl">Tamu tidak hadir (orang)</div>
+
+      <!-- Compact Summary — Interactive Statistic Chip, gantiin 4 Card besar
+           Hadir/Tidak/Hampers/Belum yang lama. Sekaligus shortcut filter
+           kehadiran buat Data Grid di bawah (klik lagi buat balik ke Semua). -->
+      <div class="gh-hero-chips">
+        <button type="button" class="gh-hchip" :class="{ on: filterKehadiran === 'all' }" @click="setFilterKehadiran('all')">Semua</button>
+        <button v-for="k in KEHADIRAN_ORDER" :key="k" type="button" class="gh-hchip" :class="{ on: filterKehadiran === k }" @click="setFilterKehadiran(k)">
+          {{ KEHADIRAN_ICONS[k] }} {{ kehOrangCounts[k] }} {{ KEHADIRAN_STATUS[k].label }}
+        </button>
       </div>
     </div>
 
-    <!-- Breakdown -->
-    <div class="gbreakdown">
-      <div class="bg-grid">
-        <div class="bgrp bgrp-pria">
-          <div class="bgrp-head"><span>Pihak Pria</span><b>{{ pria }} org</b></div>
-          <div v-for="k in ['cpp','teman_pria','tetangga_pria']" :key="k" class="bg-row">
-            <span class="bg-dot" :style="{ background: META[k].color }"></span>
-            <span class="bg-type">{{ META[k].group }}</span>
-            <span class="bg-val">{{ byPax[k] || 0 }} org</span>
-            <span class="bg-sub">{{ byCnt[k] || 0 }} und</span>
+    <!-- ═══ 2. Statistik Lengkap (Collapsible) ═══
+         Bagian dari Dashboard (bukan area kerja) — makanya ditaruh tepat
+         di bawah Hero, sebelum Search/Filter/Toolbar/Data Grid. Tertutup
+         default, dibuka lewat header-nya sendiri. Isi: Ringkasan Pihak
+         Tamu, Yang Perlu Ditindaklanjuti. RSVP Breakdown (Hadir/Tidak
+         Hadir/Hampers/Belum) SUDAH DIHAPUS — duplikat sama Progress Bar +
+         Compact Summary Chip yang udah ada di Hero Dashboard. -->
+    <div ref="detailRef" class="gh-detail">
+      <button type="button" class="gh-detail-head" @click="toggleDetail">
+        <span>📊 Statistik Lengkap</span>
+        <span class="gh-detail-toggle">{{ detailOpen ? '▲ Tutup' : '▼ Lihat Detail' }}</span>
+      </button>
+
+      <transition name="gh-detail-exp">
+        <div v-if="detailOpen" class="gh-detail-body">
+          <div class="gh-detail-section">
+            <div class="gh-detail-lbl">Ringkasan Pihak Tamu</div>
+            <div class="gh-pihak-grid">
+              <!-- Compact Insight Panel — bukan card statistik gede, tujuannya
+                   biar calon pengantin langsung paham kondisi tiap pihak
+                   (orang/undangan, progress RSVP, komposisi relasi, tamu
+                   berkebutuhan khusus, follow-up) dalam beberapa detik. -->
+              <div class="gh-pihak-panel side-pria">
+                <div class="gh-pp-head">
+                  <span class="gh-pp-ico">👨</span>
+                  <span class="gh-pp-title">Pihak Pria</span>
+                  <span class="gh-pp-meta">{{ priaInsight.totalOrang }} Orang · {{ priaInsight.totalUndangan }} Undangan</span>
+                </div>
+
+                <div class="gh-pp-row">
+                  <span class="gh-pp-pct">{{ priaInsight.pct }}% RSVP</span>
+                  <span class="gh-pp-sub">{{ priaInsight.doneCount }}/{{ priaInsight.totalUndangan }} undangan terkonfirmasi</span>
+                </div>
+
+                <div class="gh-pp-relasi">
+                  <span v-for="r in priaInsight.relasi" :key="r.key" class="gh-pp-rel-item">{{ r.icon }} {{ r.label }} <b>{{ r.count }}</b></span>
+                </div>
+
+                <div v-if="priaInsight.categories.length" class="gh-pp-attn">
+                  <span v-for="c in priaInsight.top" :key="c.id" class="gh-pp-attn-tag">{{ c.icon }} {{ c.count }} {{ c.label }}</span>
+                  <span v-if="priaInsight.extra > 0" class="gh-pp-attn-tag muted">+{{ priaInsight.extra }} lainnya</span>
+                </div>
+
+                <div class="gh-pp-followup" :class="{ done: priaInsight.belumCount === 0 }">
+                  {{ priaInsight.belumCount > 0 ? `⏳ ${priaInsight.belumCount} RSVP belum dikonfirmasi` : '✅ Semua RSVP selesai' }}
+                </div>
+
+                <button type="button" class="gh-pp-cta" @click="onPihakFilter('pria')">Lihat Tamu →</button>
+              </div>
+
+              <div class="gh-pihak-panel side-wanita">
+                <div class="gh-pp-head">
+                  <span class="gh-pp-ico">👩</span>
+                  <span class="gh-pp-title">Pihak Wanita</span>
+                  <span class="gh-pp-meta">{{ wanitaInsight.totalOrang }} Orang · {{ wanitaInsight.totalUndangan }} Undangan</span>
+                </div>
+
+                <div class="gh-pp-row">
+                  <span class="gh-pp-pct">{{ wanitaInsight.pct }}% RSVP</span>
+                  <span class="gh-pp-sub">{{ wanitaInsight.doneCount }}/{{ wanitaInsight.totalUndangan }} undangan terkonfirmasi</span>
+                </div>
+
+                <div class="gh-pp-relasi">
+                  <span v-for="r in wanitaInsight.relasi" :key="r.key" class="gh-pp-rel-item">{{ r.icon }} {{ r.label }} <b>{{ r.count }}</b></span>
+                </div>
+
+                <div v-if="wanitaInsight.categories.length" class="gh-pp-attn">
+                  <span v-for="c in wanitaInsight.top" :key="c.id" class="gh-pp-attn-tag">{{ c.icon }} {{ c.count }} {{ c.label }}</span>
+                  <span v-if="wanitaInsight.extra > 0" class="gh-pp-attn-tag muted">+{{ wanitaInsight.extra }} lainnya</span>
+                </div>
+
+                <div class="gh-pp-followup" :class="{ done: wanitaInsight.belumCount === 0 }">
+                  {{ wanitaInsight.belumCount > 0 ? `⏳ ${wanitaInsight.belumCount} RSVP belum dikonfirmasi` : '✅ Semua RSVP selesai' }}
+                </div>
+
+                <button type="button" class="gh-pp-cta" @click="onPihakFilter('wanita')">Lihat Tamu →</button>
+              </div>
+            </div>
+            <div v-if="byPax.lainnya" class="gh-pihak-lain">
+              <span class="gh-pihak-dot" :style="{ background: META.lainnya.color }"></span>
+              Lainnya (tanpa pihak) — <b>{{ byPax.lainnya }} orang</b> · {{ byCnt.lainnya }} undangan
+            </div>
+            <p v-if="notCounted > 0" class="g-confirm-info">
+              Statistik dihitung dari {{ store.confirmedGuests.length }} undangan · {{ notCounted }} tidak dihitung (tidak hadir/kirim hampers)
+            </p>
+            <p v-else class="g-confirm-info">Semua {{ store.confirmedGuests.length }} undangan dihitung di statistik</p>
+          </div>
+
+          <div class="gh-detail-section">
+            <div class="gh-detail-lbl">📋 Yang Perlu Ditindaklanjuti</div>
+            <div class="gh-status-row">
+              <div class="gh-status-chip">⏳ Belum Konfirmasi <b>{{ belumKonfirmasiCount }}</b></div>
+              <div class="gh-status-chip muted">📨 Belum Dihubungi <b>—</b></div>
+              <div class="gh-status-chip muted">📞 Perlu Follow Up <b>—</b></div>
+            </div>
           </div>
         </div>
-        <div class="bgrp bgrp-wanita">
-          <div class="bgrp-head"><span>Pihak Wanita</span><b>{{ wanita }} org</b></div>
-          <div v-for="k in ['cpw','teman_wanita','tetangga_wanita']" :key="k" class="bg-row">
-            <span class="bg-dot" :style="{ background: META[k].color }"></span>
-            <span class="bg-type">{{ META[k].group }}</span>
-            <span class="bg-val">{{ byPax[k] || 0 }} org</span>
-            <span class="bg-sub">{{ byCnt[k] || 0 }} und</span>
+      </transition>
+    </div>
+
+    <!-- ═══ 3. Insight Card — SATU card, isinya dinamis mengikuti kondisi
+         data (bukan kumpulan statistik). Tujuannya kasih tahu apa yang
+         perlu dilakukan, bukan sekadar angka. ═══ -->
+    <div class="gh-insight">
+      <div class="gh-insight-head">✨ Insight Hari Ini</div>
+
+      <div class="gh-insight-row" :class="{ clickable: belumKonfirmasiCount > 0 }" @click="belumKonfirmasiCount > 0 && setFilterKehadiran('belum')">
+        <span class="gh-insight-ico">{{ belumKonfirmasiCount > 0 ? '⏳' : '🎉' }}</span>
+        <span v-if="belumKonfirmasiCount > 0"><b>{{ belumKonfirmasiCount }} undangan</b> belum memberikan konfirmasi.</span>
+        <span v-else>Seluruh tamu telah memberikan konfirmasi.</span>
+      </div>
+
+      <div v-if="store.capacityOver !== null" class="gh-insight-row clickable" @click="store.activeTab = 'vendor'">
+        <span class="gh-insight-ico">{{ store.capacityOver > 0 ? '⚠️' : '✅' }}</span>
+        <span v-if="store.capacityOver > 0"><b>Kelebihan {{ store.capacityOver }} orang</b> dari kapasitas venue ({{ store.totalGuestPax }}/{{ store.venueCapacity }}).</span>
+        <span v-else>Masih muat, <b>sisa {{ -store.capacityOver }} kursi</b> dari kapasitas venue.</span>
+      </div>
+
+      <!-- Special Attention — satu ringkasan gabungan, BUKAN satu baris per
+           kategori (VIP/Lansia/Kursi Roda/dst digabung jadi satu kalimat +
+           tag ringkas). Cuma nongol kalau ada tamu berkebutuhan khusus. -->
+      <div v-if="specialAttention.total > 0" class="gh-insight-row clickable" @click="onAttentionDetail">
+        <span class="gh-insight-ico">⚠️</span>
+        <div class="gh-insight-content">
+          <span>{{ specialAttention.summary }}</span>
+          <div v-if="specialAttention.categories.length > 1" class="gh-insight-tags">
+            <span v-for="c in specialAttention.top" :key="c.id" class="gh-insight-tag">{{ c.icon }} {{ c.label }} ({{ c.count }})</span>
+            <span v-if="specialAttention.extra > 0" class="gh-insight-tag muted">+{{ specialAttention.extra }} kategori lainnya</span>
           </div>
         </div>
       </div>
-      <div v-if="byPax.lainnya" class="bgrp bgrp-lain">
-        <div class="bg-row">
-          <span class="bg-dot" :style="{ background: META.lainnya.color }"></span>
-          <span class="bg-type">Lainnya (tanpa pihak)</span>
-          <span class="bg-val">{{ byPax.lainnya }} org</span>
-          <span class="bg-sub">{{ byCnt.lainnya }} und</span>
-        </div>
+
+      <!-- Micro Insight ("Hari Ini") — butuh timestamp per-tamu (kapan
+           ditambahkan/RSVP berubah) buat tracking beneran, yang belum ada
+           di data model sekarang. Placeholder netral dulu, business logic
+           nyata (RSVP baru/tamu baru hari ini) nyusul di tahap berikutnya. -->
+      <div class="gh-insight-row">
+        <span class="gh-insight-ico">🎉</span>
+        <span>Tidak ada perubahan hari ini.</span>
       </div>
     </div>
 
-    <p v-if="notCounted > 0" id="gConfirmInfo" class="g-confirm-info">
-      Statistik dihitung dari {{ store.confirmedGuests.length }} undangan · {{ notCounted }} tidak dihitung (tidak hadir/kirim hampers)
-    </p>
-    <p v-else class="g-confirm-info">Semua {{ store.confirmedGuests.length }} undangan dihitung di statistik</p>
-
-    <!-- Warning kapasitas venue (baca dari venue yang dipakai; null = belum ada) -->
-    <button
-      v-if="store.capacityOver !== null"
-      class="g-cap" :class="store.capacityOver > 0 ? 'over' : 'ok'"
-      @click="store.activeTab = 'vendor'"
-    >
-      <span class="g-cap-ico">
-        <svg v-if="store.capacityOver > 0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-      </span>
-      <span class="g-cap-body">
-        <template v-if="store.capacityOver > 0">
-          <b>Kelebihan {{ store.capacityOver }} orang</b> dari kapasitas venue
-        </template>
-        <template v-else>
-          Masih muat · <b>sisa {{ -store.capacityOver }} kursi</b>
-        </template>
-        <span class="g-cap-sub">{{ store.totalGuestPax }} tamu / {{ store.venueCapacity }} kapasitas</span>
-      </span>
-      <svg class="g-cap-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
-    </button>
-
-    <!-- Filter kehadiran + controls: satu toolbar yang sticky saat scroll -->
-    <div class="g-toolbar" :class="{ sticky: !isMobile }" ref="toolbarRef">
-    <!-- Filter kehadiran -->
-    <div id="gKehChips" class="chips">
-      <button class="fchip" :class="{ on: filterKehadiran === 'all' }" @click="filterKehadiran = 'all'">Semua Kehadiran</button>
-      <button v-for="k in KEHADIRAN_ORDER" :key="k" class="fchip" :class="{ on: filterKehadiran === k }" @click="filterKehadiran = k">{{ KEHADIRAN_STATUS[k].label }}</button>
-    </div>
-
-    <!-- Controls -->
-    <div class="controls">
+    <!-- ═══ 4. Toolbar ═══ -->
+    <div class="controls g-toolbar sticky" ref="toolbarRef">
       <div class="search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9C7575" stroke-width="2"/><path d="M21 21l-4-4" stroke="#9C7575" stroke-width="2" stroke-linecap="round"/></svg>
         <input v-model="search" type="text" placeholder="Cari nama tamu...">
@@ -100,25 +189,27 @@
       <button class="icon-btn solid" @click="openAdd">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Tambah Tamu
       </button>
-      <button class="icon-btn" @click="store.exportGuestsCSV()">Ekspor</button>
-      <div class="tab-io">
-        <button class="icon-btn tio-btn" @click="store.exportTab('tamu')">Export</button>
-        <button class="icon-btn tio-btn" @click="importRef?.click()">Import</button>
-        <input ref="importRef" type="file" accept=".json,application/json" hidden @change="onImport">
+      <div class="gh-overflow-wrap" ref="overflowWrapRef">
+        <button type="button" class="icon-btn gh-overflow-btn" aria-label="Menu lainnya" @click="overflowOpen = !overflowOpen">⋮</button>
+        <div v-if="overflowOpen" class="gh-overflow-menu">
+          <button type="button" @click="overflowOpen = false; store.exportGuestsCSV()">📊 Ekspor CSV</button>
+          <button type="button" @click="overflowOpen = false; store.exportTab('tamu')">📤 Export Data</button>
+          <button type="button" @click="overflowOpen = false; importRef?.click()">📥 Import Data</button>
+          <button type="button" @click="overflowOpen = false; store.startTour(TAMU_STEPS)">🧭 Panduan</button>
+        </div>
       </div>
-      <TourBtn :steps="TAMU_STEPS" />
-    </div>
+      <input ref="importRef" type="file" accept=".json,application/json" hidden @change="onImport">
     </div>
 
-    <!-- Daftar tamu: kartu untuk mobile -->
+    <!-- Daftar tamu: kartu untuk mobile (tidak diubah) -->
     <MobileGuestList v-if="isMobile" :rows="visRows" @edit="openEdit" />
 
-    <!-- Table (PC) -->
-    <div v-else class="card g-table-card">
-      <div class="g-table-inner">
-      <div class="t-head" :style="{ top: headTop + 'px' }">
-        <div class="t-cbx"><input type="checkbox" class="cbx" :checked="allVisSelected" :indeterminate.prop="someVisSelected && !allVisSelected" @change="toggleAll"></div>
-        <div class="t-h-center">No</div><div>Nama Tamu</div><div class="t-h-center">Jumlah Orang</div><div>Relasi</div><div>Kehadiran</div><div class="t-actions"></div>
+    <!-- ═══ 5. Data Grid (PC) ═══ -->
+    <div v-else class="card gh-table-card">
+      <div class="gh-table-inner">
+      <div class="gh-thead" :style="{ top: headTop + 'px' }">
+        <div class="gh-cbx"><input type="checkbox" class="cbx" :checked="allVisSelected" :indeterminate.prop="someVisSelected && !allVisSelected" @change="toggleAll"></div>
+        <div class="gh-h-center">No</div><div>Nama Tamu</div><div class="gh-h-center">Jumlah</div><div>Relasi</div><div>Informasi Penting</div><div>Kehadiran</div><div class="gh-actions"></div>
       </div>
 
       <div v-if="!visRows.length" class="empty">
@@ -126,28 +217,33 @@
         <div>{{ search || filterRelasi !== 'all' || filterKehadiran !== 'all' ? 'Tidak ada yang cocok.' : 'Klik Tambah Tamu untuk mulai.' }}</div>
       </div>
 
-      <div v-for="(g, i) in visRows" :key="g.id" class="t-row" :class="{ sel: store.isSelected(g.id), unconfirmed: (g.kehadiran || 'belum') === 'tidak' }" :data-id="g.id">
-        <div class="t-cbx"><input type="checkbox" class="cbx rowcbx" :checked="store.isSelected(g.id)" @change="e => store.toggleSelected(g.id, e.target.checked)"></div>
-        <div class="t-no">{{ i + 1 }}</div>
-        <div class="t-name">{{ g.nama }}</div>
-        <div class="t-pax-wrap"><span class="t-pax">{{ g.jumlah }}</span></div>
-        <div class="t-meta">
-          <span class="chip" :style="{ background: META[g.relasi]?.bg, color: META[g.relasi]?.text }">
-            <span class="cdot" :style="{ background: META[g.relasi]?.color }"></span>
-            {{ META[g.relasi]?.label }}{{ g.undangan && g.undangan !== 'keduanya' ? ` · ${g.undangan}` : '' }}
+      <div v-for="(g, i) in visRows" :key="g.id" class="gh-trow" :class="{ sel: store.isSelected(g.id), unconfirmed: (g.kehadiran || 'belum') === 'tidak' }" :data-id="g.id">
+        <div class="gh-cbx"><input type="checkbox" class="cbx rowcbx" :checked="store.isSelected(g.id)" @change="e => store.toggleSelected(g.id, e.target.checked)"></div>
+        <div class="gh-no">{{ i + 1 }}</div>
+        <div class="gh-name">{{ g.nama }}</div>
+        <div class="gh-pax-wrap"><span class="gh-pax">{{ g.jumlah }}</span></div>
+        <div class="gh-meta">
+          <span class="gh-relasi-badge" :style="{ background: META[g.relasi]?.bg, color: META[g.relasi]?.text }">
+            {{ META[g.relasi]?.short }}{{ g.undangan && g.undangan !== 'keduanya' ? ` · ${g.undangan}` : '' }}
           </span>
         </div>
-        <div class="t-konf">
+        <div class="gh-info-cell">
+          <template v-if="infoPentingIcons(g).length">
+            <span v-for="ic in infoPentingIcons(g).slice(0, 3)" :key="ic" class="gh-info-badge">{{ ic }}</span>
+            <span v-if="infoPentingIcons(g).length > 3" class="gh-info-more">+{{ infoPentingIcons(g).length - 3 }}</span>
+          </template>
+        </div>
+        <div class="gh-konf">
           <select
-            class="t-keh-sel"
+            class="gh-keh-sel"
             :class="'ks-' + (g.kehadiran || 'belum')"
             :value="g.kehadiran || 'belum'"
             @change="e => setKehadiran(g, e.target.value)"
           >
-            <option v-for="k in KEHADIRAN_ORDER" :key="k" :value="k">{{ KEHADIRAN_STATUS[k].label }}</option>
+            <option v-for="k in KEHADIRAN_ORDER" :key="k" :value="k">{{ KEHADIRAN_ICONS[k] }} {{ KEHADIRAN_STATUS[k].label }}</option>
           </select>
         </div>
-        <div class="t-actions">
+        <div class="gh-actions">
           <button class="act item-action-btn" @click="openEdit(g.id)" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6E151A" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
           </button>
@@ -161,13 +257,12 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
-import { META, ORDER, KEHADIRAN_STATUS, KEHADIRAN_ORDER } from '../data/constants'
+import { META, ORDER, KEHADIRAN_STATUS, KEHADIRAN_ORDER, INFORMASI_PENTING_OPTIONS } from '../data/constants'
 import GuestModal from '../components/modals/GuestModal.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileGuestList from '../mobile layout/MobileGuestList.vue'
-import TourBtn from '../components/TourBtn.vue'
 import { useStickyThead } from '../composables/useStickyThead'
 
 const store = useWeddingStore()
@@ -183,33 +278,35 @@ watch(() => store.quickAddNonce, () => {
   if (store.quickAddTarget === 'tamu') openAdd()
 })
 
+const KEHADIRAN_ICONS = { belum: '🟡', hadir: '🟢', tidak: '🔴', hampers: '🎁' }
+
 const TAMU_STEPS = computed(() => [
   {
-    selector: '#panel-tamu .stat-grid',
-    icon: '📊',
-    title: 'Ringkasan Tamu',
-    desc: 'Empat angka utama di sini: undangan diperhitungkan, total tamu (orang), serta berapa yang sudah hadir dan tidak hadir.',
-  },
-  {
-    selector: '#panel-tamu .gbreakdown',
+    selector: '#panel-tamu .gh-hero',
     icon: '👥',
-    title: 'Breakdown per Pihak',
-    desc: 'Rincian per kategori relasi — calon pengantin, teman, tetangga. Angka ini tidak menghitung tamu yang ditandai tidak hadir atau kirim hampers.',
+    title: 'Ringkasan Tamu',
+    desc: 'Total undangan & orang, progress RSVP, dan chip Hadir/Tidak Hadir/Hampers/Belum Konfirmasi — ketuk salah satu chip buat langsung filter daftar tamu di bawah.',
   },
   {
-    selector: '#panel-tamu #gKehChips',
-    icon: '✅',
-    title: 'Filter Kehadiran',
-    desc: 'Ketuk salah satu chip untuk fokus ke tamu dengan status kehadiran tertentu — Hadir, Tidak Hadir, Kirim Hampers, atau Belum Konfirmasi.',
+    selector: '#panel-tamu .gh-detail-head',
+    icon: '📊',
+    title: 'Statistik Lengkap',
+    desc: 'Ringkasan Pihak Pria/Wanita dan Yang Perlu Ditindaklanjuti tersimpan di sini — ketuk buat buka, biar halaman utama tetap ringkas.',
+  },
+  {
+    selector: '#panel-tamu .gh-insight',
+    icon: '✨',
+    title: 'Insight Hari Ini',
+    desc: 'Kartu ini kasih tahu apa yang perlu ditindaklanjuti — RSVP yang belum masuk, kapasitas venue, dan tamu berkebutuhan khusus. Cuma tampil kalau memang relevan.',
   },
   {
     selector: '#panel-tamu .controls',
     icon: '🔍',
     title: 'Cari, Filter & Tambah',
-    desc: 'Ketik nama untuk mencari, atau filter berdasarkan relasi. Ketuk "Tambah Tamu" untuk mengisi data undangan baru.',
+    desc: 'Ketik nama untuk mencari, atau filter berdasarkan relasi. Ketuk "Tambah Tamu" untuk mengisi data undangan baru. Menu ⋮ berisi Ekspor CSV, Export/Import data, dan Panduan.',
   },
   {
-    selector: '.t-row, .mg-card',
+    selector: isMobile.value ? '.mg-card' : '.gh-trow',
     icon: '📋',
     title: isMobile.value ? 'Kartu Tamu' : 'Baris Tamu',
     desc: isMobile.value
@@ -217,8 +314,8 @@ const TAMU_STEPS = computed(() => [
       : 'Setiap baris adalah satu undangan. Klik pensil untuk edit, atau duplikasi kalau ada tamu dengan rombongan besar.',
   },
   {
-    selector: '.t-konf, .mg-keh-sel',
-    icon: '✅',
+    selector: isMobile.value ? '.mg-keh-sel' : '.gh-konf',
+    icon: '🟢',
     title: 'Kehadiran Tamu',
     desc: 'Belum Konfirmasi & Hadir dihitung di statistik; Tidak Hadir & Kirim Hampers dikeluarkan dari hitungan kursi/katering.',
   },
@@ -230,8 +327,64 @@ const modalShow = ref(false)
 const editId = ref(null)
 const importRef = ref(null)
 
-const totalOrang = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
+// ── Hero ──
+const totalUndangan   = computed(() => store.guests.length)
+const totalOrangSemua = computed(() => store.guests.reduce((s, g) => s + g.jumlah, 0))
+const belumKonfirmasiList  = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'belum'))
+const belumKonfirmasiCount = computed(() => belumKonfirmasiList.value.length)
+const belumKonfirmasiOrang = computed(() => belumKonfirmasiList.value.reduce((s, g) => s + g.jumlah, 0))
+const rsvpDoneOrang = computed(() => totalOrangSemua.value - belumKonfirmasiOrang.value)
+const rsvpPct = computed(() => totalOrangSemua.value ? Math.round(rsvpDoneOrang.value / totalOrangSemua.value * 100) : 0)
 
+// ── Compact Summary chips (Hero) — dari store.guests langsung, sama pola
+// kayak hitungan lama. Klik chip yang lagi aktif balik ke "Semua". ──
+const hadirOrang   = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'hadir').reduce((s, g) => s + g.jumlah, 0))
+const tidakOrang   = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'tidak').reduce((s, g) => s + g.jumlah, 0))
+const hampersOrang = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'hampers').reduce((s, g) => s + g.jumlah, 0))
+const kehOrangCounts = computed(() => ({ hadir: hadirOrang.value, tidak: tidakOrang.value, hampers: hampersOrang.value, belum: belumKonfirmasiOrang.value }))
+function setFilterKehadiran(key) {
+  filterKehadiran.value = filterKehadiran.value === key ? 'all' : key
+}
+
+// ── Informasi Penting — g.informasiPenting belum kesimpen ke DB (lihat
+// memory/catatan di GuestModal.vue & constants.js), jadi ini akan selalu 0
+// sekarang. Ditulis begini biar begitu kolomnya beneran kesimpen di tahap
+// berikutnya, hitungan & Insight Card di bawah otomatis kepakai tanpa
+// refactor. ──
+const informasiPentingCounts = computed(() => {
+  const m = {}
+  INFORMASI_PENTING_OPTIONS.forEach(opt => { m[opt.id] = 0 })
+  store.guests.forEach(g => {
+    (g.informasiPenting?.flags || []).forEach(id => { if (id in m) m[id]++ })
+  })
+  return m
+})
+// Total = jumlah tamu unik dengan minimal 1 kebutuhan khusus (bukan jumlah
+// kategori dijumlah — satu tamu bisa punya lebih dari satu flag).
+const informasiPentingTotal = computed(() => store.guests.filter(g => (g.informasiPenting?.flags || []).length > 0).length)
+
+// ── Special Attention — satu ringkasan gabungan di dalam Insight Card,
+// BUKAN satu baris/card per kategori (lihat catatan desain di memory).
+// Cuma nongol kalau ada tamu dengan kebutuhan khusus. ──
+const specialAttention = computed(() => {
+  const categories = INFORMASI_PENTING_OPTIONS
+    .map(opt => ({ ...opt, count: informasiPentingCounts.value[opt.id] || 0 }))
+    .filter(c => c.count > 0)
+    .sort((a, b) => b.count - a.count)
+  const total = informasiPentingTotal.value
+  const top = categories.slice(0, 3)
+  const extra = categories.length - top.length
+  const summary = categories.length === 1
+    ? `${categories[0].count} tamu ${categories[0].phrase}.`
+    : `${total} tamu memiliki kebutuhan khusus.`
+  return { total, categories, top, extra, summary }
+})
+function onAttentionDetail() {
+  store.toast('Detail kebutuhan khusus segera hadir')
+}
+
+// ── byPax/byCnt: TIDAK diubah dari versi lama (dasar buat "Ringkasan Pihak
+// Tamu" di bawah & buat "Lainnya (tanpa pihak)"). ──
 const byPax = computed(() => {
   const m = {}
   ORDER.forEach(k => { m[k] = 0 })
@@ -244,12 +397,41 @@ const byCnt = computed(() => {
   store.confirmedGuests.forEach(g => { m[g.relasi] = (m[g.relasi] || 0) + 1 })
   return m
 })
-const pria   = computed(() => ['cpp','teman_pria','tetangga_pria'].reduce((s, k) => s + (byPax.value[k] || 0), 0))
-const wanita = computed(() => ['cpw','teman_wanita','tetangga_wanita'].reduce((s, k) => s + (byPax.value[k] || 0), 0))
 const notCounted = computed(() => store.guests.length - store.confirmedGuests.length)
 
-const hadirOrang = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'hadir').reduce((s, g) => s + g.jumlah, 0))
-const tidakOrang = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'tidak').reduce((s, g) => s + g.jumlah, 0))
+// ── Ringkasan Pihak Tamu (Compact Insight Panel) — dibangun dari
+// byPax/byCnt yang SAMA PERSIS (nggak ada perhitungan baru buat Total
+// Orang/Undangan/Distribusi Relasi, cuma disusun ulang tampilannya).
+// Progress RSVP & Follow Up itu turunan baru dari pool yang sama
+// (confirmedGuests per pihak), pakai definisi "belum" yang sama kayak
+// belumKonfirmasiList di atas. Kebutuhan Khusus baca dari SEMUA tamu
+// pihak itu (bukan cuma confirmedGuests), sama kayak informasiPentingCounts
+// global — cuma di-scope per pihak. ──
+const GROUP_ICONS = { Keluarga: '👨‍👩‍👧', Teman: '👫', Tetangga: '🏘️' }
+function buildPihakInsight(sideKeys) {
+  const pihakGuests = store.confirmedGuests.filter(g => sideKeys.includes(g.relasi))
+  const totalOrang = pihakGuests.reduce((s, g) => s + g.jumlah, 0)
+  const totalUndangan = pihakGuests.length
+  const belumCount = pihakGuests.filter(g => (g.kehadiran || 'belum') === 'belum').length
+  const belumOrang = pihakGuests.filter(g => (g.kehadiran || 'belum') === 'belum').reduce((s, g) => s + g.jumlah, 0)
+  const pct = totalOrang ? Math.round((totalOrang - belumOrang) / totalOrang * 100) : 0
+  const relasi = sideKeys.map(k => ({ key: k, icon: GROUP_ICONS[META[k].group] || '📌', label: META[k].group, count: byPax.value[k] || 0 }))
+
+  const sideGuests = store.guests.filter(g => sideKeys.includes(g.relasi))
+  const categories = INFORMASI_PENTING_OPTIONS
+    .map(opt => ({ ...opt, count: sideGuests.filter(g => (g.informasiPenting?.flags || []).includes(opt.id)).length }))
+    .filter(c => c.count > 0)
+    .sort((a, b) => b.count - a.count)
+  const top = categories.slice(0, 3)
+  const extra = categories.length - top.length
+
+  return { totalOrang, totalUndangan, doneCount: totalUndangan - belumCount, belumCount, pct, relasi, categories, top, extra }
+}
+const priaInsight   = computed(() => buildPihakInsight(['cpp', 'teman_pria', 'tetangga_pria']))
+const wanitaInsight = computed(() => buildPihakInsight(['cpw', 'teman_wanita', 'tetangga_wanita']))
+function onPihakFilter(side) {
+  store.toast('Filter tamu berdasarkan pihak segera hadir')
+}
 
 const visRows = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -272,6 +454,15 @@ function setKehadiran(g, val) {
   store.saveG()
 }
 
+// Badge Informasi Penting di Data Grid — g.informasiPenting belum pernah
+// ada di data asli (lihat memory guest-form-informasi-penting), jadi ini
+// akan selalu kosong sekarang. Ditulis begini biar begitu kolomnya beneran
+// kesimpen di tahap berikutnya, badge ini otomatis kepakai tanpa refactor.
+function infoPentingIcons(g) {
+  const flags = g.informasiPenting?.flags || []
+  return flags.map(id => INFORMASI_PENTING_OPTIONS.find(o => o.id === id)?.icon).filter(Boolean)
+}
+
 function openAdd()     { editId.value = null; modalShow.value = true }
 function openEdit(id)  { editId.value = id;   modalShow.value = true }
 
@@ -280,17 +471,165 @@ function onImport(e) {
   if (f) store.importTab('tamu', f)
   e.target.value = ''
 }
+
+// Statistik Lengkap (collapsible) — tertutup default, dibuka lewat header-nya
+// sendiri (tepat di bawah Hero). scrollIntoView tetap dipasang buat jaga-jaga
+// kalau user udah scroll jauh ke bawah pas toggle.
+const detailOpen = ref(false)
+const detailRef = ref(null)
+function toggleDetail() {
+  detailOpen.value = !detailOpen.value
+  if (detailOpen.value) nextTick(() => detailRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+}
+
+// Overflow menu (⋮) toolbar — klik luar / Esc buat nutup.
+const overflowOpen = ref(false)
+const overflowWrapRef = ref(null)
+function onDocClick(e) {
+  if (overflowOpen.value && !overflowWrapRef.value?.contains(e.target)) overflowOpen.value = false
+}
+function onDocKeydown(e) {
+  if (e.key === 'Escape' && overflowOpen.value) overflowOpen.value = false
+}
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+  document.addEventListener('keydown', onDocKeydown)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocClick)
+  document.removeEventListener('keydown', onDocKeydown)
+})
 </script>
 
 <style scoped>
-/* Kasih jarak antara baris filter kehadiran dan baris kontrol di bawahnya */
-#gKehChips { margin-bottom: 14px; }
+/* ── 1. Hero Dashboard ── */
+.gh-hero {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 26px 28px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(36,8,8,.05);
+}
+.gh-hero-title { font-family: 'Cormorant Garamond', serif; font-size: 21px; font-weight: 600; color: var(--cacao); }
+.gh-hero-nums { display: flex; align-items: baseline; gap: 20px; margin-top: 14px; }
+.gh-hero-num-item { display: flex; flex-direction: column; }
+.gh-hero-num { font-family: 'Cormorant Garamond', serif; font-size: 34px; font-weight: 700; color: var(--plum); line-height: 1; font-variant-numeric: tabular-nums; }
+.gh-hero-num-lbl { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.gh-hero-num-sep { width: 1px; align-self: stretch; background: var(--line); }
 
-/* Toolbar filter+kontrol sticky (desktop). z-index di atas header tabel biar
-   header nempel rapi di bawahnya. padding-top keisi background toolbar — pas
-   pinned dia jadi jarak dari navbar + nutupin baris yang lewat, tanpa nutupin
-   card di atasnya waktu belum di-scroll (beda dari trik ::before yang selalu
-   nongol karena toolbar bukan di dalam overflow:clip). */
+.gh-hero-bar { position: relative; height: 12px; background: var(--gold-soft); border-radius: 100px; overflow: hidden; margin-top: 18px; }
+.gh-hero-bar > span { display: block; height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--plum), var(--wine)); transition: width .5s ease; }
+.gh-hero-bar-row { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; }
+.gh-hero-pct { font-weight: 700; color: var(--plum); }
+.gh-hero-belum { color: var(--muted); }
+
+/* Compact Summary — Interactive Statistic Chip (bukan Card), shortcut
+   filter kehadiran langsung dari Hero. */
+.gh-hero-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.gh-hchip {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-height: 36px; padding: 0 15px;
+  font-family: 'Jost', sans-serif; font-size: 12.5px; font-weight: 600; color: var(--ink);
+  background: var(--ivory); border: 1.5px solid var(--line); border-radius: 100px;
+  cursor: pointer; transition: background .15s, border-color .15s, color .15s, transform .1s;
+}
+.gh-hchip:hover { border-color: var(--gold); background: var(--gold-soft); transform: translateY(-1px); }
+.gh-hchip.on { background: var(--plum); border-color: var(--plum); color: #fff; }
+
+/* ── 3. Insight Card — satu card, dinamis per kondisi data ── */
+.gh-insight {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 18px;
+  padding: 18px 20px; margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(36,8,8,.05);
+}
+.gh-insight-head {
+  font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 700;
+  color: var(--cacao); margin-bottom: 8px;
+}
+.gh-insight-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 0; font-size: 13.5px; color: var(--ink); line-height: 1.45;
+}
+.gh-insight-row + .gh-insight-row { border-top: 1px dashed var(--line); }
+.gh-insight-row b { color: var(--plum); }
+.gh-insight-row.clickable { cursor: pointer; border-radius: 10px; margin: 0 -8px; padding: 9px 8px; transition: background .15s; }
+.gh-insight-row.clickable:hover { background: var(--gold-soft); }
+.gh-insight-ico { flex: none; font-size: 16px; line-height: 1.3; }
+.gh-insight-content { flex: 1; min-width: 0; }
+.gh-insight-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.gh-insight-tag {
+  display: inline-block; font-size: 11.5px; font-weight: 600; color: #7a5c28;
+  background: var(--gold-soft); border-radius: 100px; padding: 3px 10px;
+}
+.gh-insight-tag.muted { background: transparent; color: var(--muted); padding-left: 0; }
+
+/* ── Statistik Lengkap: isi .gh-detail (Ringkasan Pihak Tamu & lainnya) ── */
+.gh-status-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.gh-status-chip {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 100px;
+  padding: 9px 15px; font-size: 13px; color: var(--ink);
+}
+.gh-status-chip b { color: var(--plum); font-family: 'Cormorant Garamond', serif; font-size: 15px; }
+.gh-status-chip.muted { color: var(--muted); }
+.gh-status-chip.muted b { color: var(--muted); }
+
+/* ── Ringkasan Pihak Tamu — Compact Insight Panel (isi .gh-detail).
+   Bukan card statistik besar: header ringkas + baris-baris info dipisah
+   divider tipis, information density tinggi, tinggi panel diminimalkan. ── */
+.gh-pihak-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+@media (max-width: 650px) { .gh-pihak-grid { grid-template-columns: 1fr; } }
+.gh-pihak-panel {
+  background: var(--paper); border: 1px solid var(--line); border-left: 3px solid var(--line);
+  border-radius: 12px; padding: 12px 14px;
+}
+.gh-pihak-panel.side-pria   { border-left-color: var(--teal); }
+.gh-pihak-panel.side-wanita { border-left-color: var(--rose); }
+
+.gh-pp-head { display: flex; align-items: baseline; gap: 6px; }
+.gh-pp-ico { font-size: 14px; }
+.gh-pp-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+.gh-pp-meta { margin-left: auto; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.gh-pp-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 7px 0; border-top: 1px dashed var(--line); margin-top: 7px;
+}
+.gh-pp-pct { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 700; color: var(--plum); }
+.gh-pp-sub { font-size: 11px; color: var(--muted); }
+
+.gh-pp-relasi {
+  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  padding: 7px 0; border-top: 1px dashed var(--line);
+  font-size: 11.5px; color: var(--ink);
+}
+.gh-pp-relasi b { font-variant-numeric: tabular-nums; color: var(--plum); }
+
+.gh-pp-attn { display: flex; flex-wrap: wrap; gap: 5px; padding: 7px 0; border-top: 1px dashed var(--line); }
+.gh-pp-attn-tag {
+  font-size: 11px; font-weight: 600; color: #7a5c28;
+  background: var(--gold-soft); border-radius: 100px; padding: 2px 9px;
+}
+.gh-pp-attn-tag.muted { background: transparent; color: var(--muted); padding-left: 0; }
+
+.gh-pp-followup { padding: 7px 0; border-top: 1px dashed var(--line); font-size: 11.5px; font-weight: 600; color: #7a5c28; }
+.gh-pp-followup.done { color: var(--green); }
+
+.gh-pp-cta {
+  display: block; width: 100%; margin-top: 5px; padding-top: 7px;
+  border: none; border-top: 1px dashed var(--line); background: none; text-align: right;
+  font-family: 'Jost', sans-serif; font-size: 11.5px; font-weight: 600; color: var(--plum);
+  cursor: pointer;
+}
+.gh-pp-cta:hover { color: var(--wine); }
+
+.gh-pihak-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+.gh-pihak-lain { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+
+.g-confirm-info { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+
+/* ── 4. Toolbar ── */
 .g-toolbar.sticky {
   position: sticky;
   top: 72px;
@@ -298,59 +637,112 @@ function onImport(e) {
   background: var(--ivory);
   padding-top: 22px;
   padding-bottom: 12px;
-  /* bg dilebarin ke kiri/kanan (margin negatif + padding saling meniadakan)
-     biar nutupin bayangan card yang mekar ke sisi luar pas di-scroll di belakang.
-     konten tetap sejajar sama card di bawah. */
   margin-left: -30px;
   margin-right: -30px;
   padding-left: 30px;
   padding-right: 30px;
 }
-.g-toolbar.sticky .controls { margin-bottom: 0; }
+.gh-overflow-wrap { position: relative; flex: none; }
+.gh-overflow-btn { font-size: 18px; line-height: 1; }
+.gh-overflow-menu {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 40;
+  min-width: 180px;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(36,8,8,.16);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.gh-overflow-menu button {
+  text-align: left; padding: 10px 12px; border: none; background: none; border-radius: 9px;
+  font-family: 'Jost', sans-serif; font-size: 13.5px; color: var(--cacao); cursor: pointer;
+}
+.gh-overflow-menu button:hover { background: var(--gold-soft); }
 
-.g-cap {
-  display: flex;
+/* ── 5. Data Grid ──
+   Prioritas lebar: Nama (flex, paling gede) > Kehadiran (fixed, tapi lebih
+   kecil dari Nama) > Informasi Penting (fixed, kompak, cuma icon) > Relasi
+   (ngikutin isi teksnya sendiri lewat badge, kolomnya dibikin pas-pasan)
+   > Jumlah (paling kecil, cuma angka) > Aksi (icon button doang). Semua
+   baris (.gh-trow) & header (.gh-thead) WAJIB pakai grid-template-columns
+   yang SAMA PERSIS biar kolomnya tetap rapi sejajar antar baris. */
+.gh-table-card { overflow: clip; }
+.gh-table-inner { min-width: 0; }
+.gh-thead, .gh-trow {
+  display: grid;
+  grid-template-columns: 26px 28px minmax(0,1fr) 54px 118px 92px 148px 40px;
   align-items: center;
   gap: 10px;
-  width: 100%;
-  text-align: left;
-  padding: 11px 14px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: var(--paper);
-  cursor: pointer;
-  margin-bottom: 14px;
-  font-family: inherit;
-  transition: transform .15s, box-shadow .15s;
+  padding: 8px 16px;
+  min-width: 0;
 }
-.g-cap:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(36,8,8,.10); }
-.g-cap.over  { border-left: 3px solid var(--rose); }
-.g-cap.ok    { border-left: 3px solid var(--green); }
-.g-cap-ico { flex: none; display: inline-flex; }
-.g-cap.over .g-cap-ico { color: var(--rose); }
-.g-cap.ok   .g-cap-ico { color: var(--green); }
-.g-cap-body { flex: 1; min-width: 0; font-size: 13.5px; color: var(--ink); display: flex; flex-direction: column; gap: 1px; }
-.g-cap-body b { color: var(--plum); }
-.g-cap.over .g-cap-body b { color: var(--rose); }
-.g-cap-sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.g-cap-arrow { flex: none; color: var(--muted); }
-
-/* Header "No" & "Jumlah Orang" datanya rata tengah (.t-no, .t-pax) —
-   headernya disamain biar nggak nyempil ke kiri sendirian. */
-.t-h-center { text-align: center; }
-
-.t-keh-sel {
-  font-family: 'Jost', sans-serif;
-  font-size: 12.5px;
-  font-weight: 600;
-  border: 1px solid var(--line);
-  border-radius: 100px;
-  padding: 5px 10px;
-  cursor: pointer;
-  background: var(--paper);
+.gh-thead {
+  background: var(--plum); color: #fff;
+  font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+  position: sticky; z-index: 5;
+  padding: 11px 16px;
 }
-.t-keh-sel.ks-belum   { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
-.t-keh-sel.ks-hadir   { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
-.t-keh-sel.ks-tidak   { color: #7a1a1a; background: #F8E8E8; border-color: #e8c6c6; }
-.t-keh-sel.ks-hampers { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
+.gh-trow { min-height: 44px; }
+.gh-trow + .gh-trow { border-top: 1px solid var(--line); }
+.gh-trow.sel { background: rgba(129,1,0,.04); }
+.gh-trow.unconfirmed { opacity: .7; }
+.gh-h-center { text-align: center; }
+.gh-cbx { display: flex; }
+.gh-no { text-align: center; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.gh-name { font-size: 14px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Relasi — badge ringkas (short label, bukan label penuh), lebar ngikutin isi */
+.gh-meta { min-width: 0; overflow: hidden; }
+.gh-relasi-badge {
+  display: inline-block; max-width: 100%;
+  padding: 4px 10px; border-radius: 100px;
+  font-size: 12px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Informasi Penting — icon doang; kalau kosong, cell dibiarkan kosong
+   (tanpa placeholder "-" atau tanda apapun, sesuai prinsip Empty State). */
+.gh-info-cell { display: flex; align-items: center; gap: 3px; font-size: 14px; }
+.gh-info-badge { line-height: 1; }
+.gh-info-more { font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 1px; }
+
+.gh-pax-wrap { text-align: center; }
+.gh-pax { font-family: 'Cormorant Garamond', serif; font-size: 15px; font-weight: 700; color: var(--plum); }
+.gh-actions { display: flex; justify-content: flex-end; }
+
+.gh-keh-sel {
+  font-family: 'Jost', sans-serif; font-size: 12.5px; font-weight: 600;
+  border: 1px solid var(--line); border-radius: 100px; padding: 5px 10px;
+  cursor: pointer; background: var(--paper);
+}
+.gh-keh-sel.ks-belum   { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
+.gh-keh-sel.ks-hadir   { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
+.gh-keh-sel.ks-tidak   { color: #7a1a1a; background: #F8E8E8; border-color: #e8c6c6; }
+.gh-keh-sel.ks-hampers { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
+
+/* ── 2. Statistik Lengkap (Collapsible) — bagian dari Dashboard, tepat di
+   bawah Hero. Accordion/expandable panel, bukan modal. ── */
+.gh-detail { margin-bottom: 16px; }
+.gh-detail-head {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 18px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--paper); cursor: pointer;
+  font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 600; color: var(--cacao);
+  transition: border-color .15s, background .15s;
+}
+.gh-detail-head:hover { border-color: var(--gold); background: var(--gold-soft); }
+.gh-detail-toggle { font-family: 'Jost', sans-serif; font-size: 12.5px; font-weight: 600; color: var(--plum); }
+
+.gh-detail-body { padding: 18px 4px 4px; }
+.gh-detail-section { margin-bottom: 20px; }
+.gh-detail-section:last-child { margin-bottom: 0; }
+.gh-detail-lbl {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted); margin-bottom: 10px;
+}
+
+.gh-detail-exp-enter-active, .gh-detail-exp-leave-active {
+  transition: opacity .22s ease, max-height .22s ease;
+  overflow: hidden;
+}
+.gh-detail-exp-enter-from, .gh-detail-exp-leave-to { opacity: 0; max-height: 0; }
+.gh-detail-exp-enter-to, .gh-detail-exp-leave-from { opacity: 1; max-height: 2000px; }
 </style>
