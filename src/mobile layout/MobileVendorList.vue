@@ -1,12 +1,22 @@
 <template>
   <div class="mv-wrap">
-    <div v-if="!rows.length" class="mv-empty">
-      <div class="mv-empty-big">Tidak ada vendor</div>
-      <div>Belum ada data vendor untuk kategori ini.</div>
+    <div v-if="!rows.length && !hasCandidates" class="mv-empty">
+      <div class="mv-empty-ico">{{ emptyIcon }}</div>
+      <div class="mv-empty-big">Belum ada Vendor {{ emptyCategoryLabel }}</div>
+      <div>Tambahkan vendor pertama agar persiapanmu semakin lengkap.</div>
+      <button type="button" class="mv-empty-btn" @click="$emit('add')">+ Tambah Vendor</button>
     </div>
 
-    <div v-for="v in rows" :key="v.id" class="mv-card" :class="['mvs-' + statusKey(v), { expanded: expandedId === v.id }]">
+    <div v-else-if="!rows.length" class="mv-empty">
+      <div class="mv-empty-ico">🔍</div>
+      <div class="mv-empty-big">Tidak ada vendor yang cocok</div>
+      <div>Coba ubah kata pencarian atau filter yang dipakai.</div>
+      <button type="button" class="mv-empty-btn mv-empty-btn-ghost" @click="$emit('reset-filter')">Reset Filter</button>
+    </div>
+
+    <div v-for="v in rows" :key="v.id" class="mv-card" :class="['mvs-' + cardStatusKey(v), { expanded: expandedId === v.id }]">
       <div class="mv-row" @click="toggleExpand(v.id)">
+        <span class="mv-cat-ico">{{ catIcon(v.category) }}</span>
         <button type="button" class="mv-exp-btn" @click.stop="toggleExpand(v.id)" :aria-label="expandedId === v.id ? 'Tutup detail' : 'Buka detail'">
           <svg class="mv-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
         </button>
@@ -23,9 +33,13 @@
               <option v-for="k in VENDOR_STATUS_ORDER" :key="k" :value="k">{{ VENDOR_STATUS[k].label }}</option>
             </select>
           </div>
+          <div class="mv-catlbl">{{ catLabel(v.category) }}</div>
           <div class="mv-sub">
             <span class="mv-price">Rp {{ grp(v.harga) }} <small>· {{ tipeHargaTag(v) }}</small></span>
             <span v-if="v.namaPaket" class="mv-cap">{{ v.namaPaket }}</span>
+          </div>
+          <div v-if="cardStatusKey(v) === 'included'" class="mv-inc-src">
+            🔗 Included dari {{ catLabel(store.vendorIncludedByOther(v.id).category) }}
           </div>
         </div>
       </div>
@@ -52,7 +66,7 @@
         <div v-if="v.tipeHarga === 'stall'" class="mv-paxinfo">@ Rp {{ grp(v.hargaStall) }} × {{ v.jumlahStall }} stall</div>
 
         <!-- Detail info -->
-        <div v-if="!v.pic && !v.hp && !v.alamat && !v.email && !v.website && !v.instagram && !(v.genreMusik && v.genreMusik.length) && !v.durasiTampil && !v.deskripsi && !v.catatan && v.category !== 'musik' && v.category !== 'fotografer' && v.category !== 'mua' && v.category !== 'mc' && v.category !== 'souvenir' && v.category !== 'wo' && v.category !== 'venue' && v.category !== 'catering'" class="mv-empty-info">Belum ada info tambahan — lengkapi lewat tombol Edit.</div>
+        <div v-if="!v.pic && !v.hp && !v.alamat && !v.email && !v.website && !v.instagram && !(v.genreMusik && v.genreMusik.length) && !v.durasiTampil && !v.deskripsi && !v.catatan && !(v.includedVendors && v.includedVendors.length) && v.category !== 'musik' && v.category !== 'fotografer' && v.category !== 'mua' && v.category !== 'mc' && v.category !== 'souvenir' && v.category !== 'wo' && v.category !== 'venue' && v.category !== 'catering'" class="mv-empty-info">Belum ada info tambahan — lengkapi lewat tombol Edit.</div>
         <div v-else class="mv-details">
           <div v-if="v.pic" class="mv-detail-row">
             <span class="mv-detail-lbl">👤 PIC</span>
@@ -113,6 +127,17 @@
           <div v-if="v.alamat" class="mv-detail-row">
             <span class="mv-detail-lbl">📍 Alamat</span>
             <span class="mv-detail-val">{{ v.alamat }}</span>
+          </div>
+
+          <div v-if="v.includedVendors && v.includedVendors.length" class="mv-section">
+            <div class="mv-section-lbl">🔗 Included Vendor</div>
+            <div class="mv-checklist">
+              <span v-for="(inc, idx) in v.includedVendors" :key="idx">
+                ✓ {{ includedVendorLabel(inc) }}
+                <template v-if="includedVendorRef(inc)"> — {{ includedVendorRef(inc).nama }}</template>
+                <template v-if="inc.catatan"> ({{ inc.catatan }})</template>
+              </span>
+            </div>
           </div>
 
           <template v-if="v.category === 'mua'">
@@ -318,17 +343,46 @@ import { VENDOR_CATEGORIES, VENDOR_STATUS, VENDOR_STATUS_ORDER } from '../data/c
 import { grp, fmtDate } from '../utils/index'
 import { openWa } from './waLink'
 
-defineProps({ rows: { type: Array, default: () => [] } })
-defineEmits(['edit'])
+defineProps({
+  rows: { type: Array, default: () => [] },
+  hasCandidates: { type: Boolean, default: false },
+  emptyIcon: { type: String, default: '💍' },
+  emptyCategoryLabel: { type: String, default: '' },
+})
+defineEmits(['edit', 'add', 'reset-filter'])
 
 const store = useWeddingStore()
 const expandedId = ref(null)
 
+const CAT_ICONS = { wo: '📋', venue: '🏛', catering: '🍽', dekorasi: '🌸', musik: '🎶', fotografer: '📸', mua: '💄', mc: '🎤', souvenir: '🎁' }
+const catIcon = id => CAT_ICONS[id] || '💍'
+const catLabel = id => { const c = VENDOR_CATEGORIES.find(x => x.id === id); return c ? c.label : id }
+
 const tOrang    = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
 const tUndangan = computed(() => store.confirmedGuests.length)
 
-const statusKey = v => v.jadi ? 'dipakai' : 'batal'
+// 'included' murni status turunan (vendor ini ditunjuk sbg Included Vendor
+// oleh vendor lain yang jadi=true) — dipakai buat WARNA KARTU aja, bukan
+// buat <select>, soalnya 'included' bukan option yang bisa dipilih user
+// (lihat VENDOR_STATUS_ORDER, cuma 3: dipakai/dipertimbangkan/batal).
+const cardStatusKey = v => {
+  if (v.jadi) return 'dipakai'
+  if (store.vendorIncludedByOther(v.id)) return 'included'
+  return v.status === 'dipertimbangkan' ? 'dipertimbangkan' : 'batal'
+}
+// Ini yang dipakai buat <select> — selalu salah satu dari 3 option asli
+// (nggak pernah 'included'), biar dropdown-nya valid & bisa diklik normal.
+const statusKey = v => v.jadi ? 'dipakai' : (v.status === 'dipertimbangkan' ? 'dipertimbangkan' : 'batal')
 function toggleExpand(id) { expandedId.value = expandedId.value === id ? null : id }
+
+function includedVendorLabel(inc) {
+  const c = VENDOR_CATEGORIES.find(x => x.id === inc.category)
+  return c ? c.label : 'Lainnya'
+}
+function includedVendorRef(inc) {
+  if (!inc.vendorId) return null
+  return store.vendors.find(v => v.id === inc.vendorId) || null
+}
 
 const TIPE_HARGA_TAGS = { pax: 'Per pax', item: 'Per item', jam: 'Per jam', sesi: 'Per sesi', orang: 'Per orang', sewa: 'Sewa Venue', box: 'Per box', stall: 'Per stall' }
 const tipeHargaTag = v => TIPE_HARGA_TAGS[v.tipeHarga] || 'All in'
@@ -383,6 +437,32 @@ function payInfo(v) {
   flex-direction: column;
   gap: 10px;
 }
+.mv-empty {
+  background: var(--paper);
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  padding: 44px 24px;
+  text-align: center;
+}
+.mv-empty-ico {
+  width: 52px; height: 52px; margin: 0 auto 14px;
+  display: grid; place-items: center;
+  font-size: 24px; background: var(--gold-soft); border-radius: 50%;
+}
+.mv-empty-big {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 19px; font-weight: 600; color: var(--cacao);
+  margin-bottom: 6px;
+}
+.mv-empty div:not(.mv-empty-ico):not(.mv-empty-big) { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+.mv-empty-btn {
+  min-height: 44px; padding: 0 20px;
+  border: none; border-radius: 100px;
+  background: var(--plum); color: #fff;
+  font-family: 'Jost', sans-serif; font-size: 13.5px; font-weight: 600;
+  cursor: pointer;
+}
+.mv-empty-btn-ghost { background: var(--paper); border: 1.5px solid var(--line); color: var(--plum); }
 .mv-card {
   display: flex;
   flex-direction: column;
@@ -395,6 +475,8 @@ function payInfo(v) {
 }
 .mv-card.mvs-dipakai { border-left-color: var(--green); }
 .mv-card.mvs-batal   { border-left-color: var(--rose); }
+.mv-card.mvs-dipertimbangkan { border-left-color: var(--gold); }
+.mv-card.mvs-included        { border-left-color: var(--teal); }
 
 /* Row (klik buka/tutup) */
 .mv-row {
@@ -403,6 +485,11 @@ function payInfo(v) {
   gap: 8px;
   padding: 12px 14px;
   cursor: pointer;
+}
+.mv-cat-ico {
+  flex: none; width: 28px; height: 28px; margin-top: 1px;
+  display: grid; place-items: center;
+  font-size: 14px; background: var(--gold-soft); border-radius: 8px;
 }
 .mv-exp-btn {
   display: grid;
@@ -455,6 +542,8 @@ function payInfo(v) {
   border-radius: 100px;
   padding: 2px 9px;
 }
+.mv-catlbl { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+.mv-inc-src { font-size: 11.5px; color: var(--teal); font-weight: 600; }
 .mv-status-sel {
   font-family: 'Jost', sans-serif;
   font-size: var(--m-sub, 12px);
@@ -468,6 +557,7 @@ function payInfo(v) {
 }
 .mv-status-sel.vs-dipakai { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
 .mv-status-sel.vs-batal   { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
+.mv-status-sel.vs-dipertimbangkan { color: #7a5c28; background: var(--gold-soft); border-color: var(--gold); }
 
 /* Body (expand ke bawah) */
 .mv-body {

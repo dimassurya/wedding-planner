@@ -69,15 +69,21 @@ export const BUDGET_SEED = [
 ].map((item, i) => ({ id: i + 1, item, estimasi: 0, aktual: 0, uangMuka: 0, dibayar: 0, jatuhTempo: '', remarks: '', template: true }))
 
 // Status hubungan vendor (bukan status pembayaran — itu di Budget).
-// Cuma 2 state — "dipakai" = masuk anggaran otomatis (perilaku lama
-// jadi=true). Key 'batal' dipertahankan (bukan diganti 'tidak_dipakai')
-// biar nggak perlu migrasi data lama yang udah kepasang, cuma labelnya
-// yang diubah.
+// "dipakai" = masuk anggaran otomatis (perilaku lama jadi=true). Key
+// 'batal' dipertahankan (bukan diganti 'tidak_dipakai') biar nggak perlu
+// migrasi data lama yang udah kepasang, cuma labelnya yang diubah.
+// 'dipertimbangkan' = kandidat yang lagi dipikirin, belum diputuskan.
+// 'included' BUKAN pilihan manual — status turunan (bukan disimpan di
+// row), muncul kalau vendor ini ditandai sebagai "sudah termasuk" di
+// Included Vendor milik vendor lain yang jadi=true. Makanya nggak masuk
+// VENDOR_STATUS_ORDER (yang isinya pilihan buat <select> form).
 export const VENDOR_STATUS = {
-  dipakai: { label: 'Dipakai',        color: '#3B6D11', bg: '#EAF3DE', text: '#2b5010' },
-  batal:   { label: 'Tidak Dipakai',  color: '#9C7575', bg: '#EDE5E2', text: '#6b4848' },
+  dipakai:         { label: 'Dipakai',         icon: '✓', color: '#3B6D11', bg: '#EAF3DE',        text: '#2b5010' },
+  dipertimbangkan: { label: 'Dipertimbangkan', icon: '⭐', color: '#7a5c28', bg: 'var(--gold-soft)', text: '#7a5c28' },
+  included:        { label: 'Included',        icon: '🔗', color: '#0A1D4B', bg: 'var(--teal-soft)', text: '#0A1D4B' },
+  batal:           { label: 'Belum Dipilih',   icon: '○', color: '#9C7575', bg: '#EDE5E2',        text: '#6b4848' },
 }
-export const VENDOR_STATUS_ORDER = ['dipakai', 'batal']
+export const VENDOR_STATUS_ORDER = ['dipakai', 'dipertimbangkan', 'batal']
 
 // Jenis paket, sistem harga, buffet, include, & kebijakan — cuma relevan
 // buat kategori Catering.
@@ -173,6 +179,17 @@ export const VENDOR_CATEGORIES = [
   { id: 'mua',       label: 'Makeup Artist' },
   { id: 'mc',        label: 'MC' },
   { id: 'souvenir',  label: 'Souvenir' },
+]
+
+// Kategori yang bisa dipilih di section "Included Vendor" pada form vendor
+// (vendor lain yang udah termasuk dalam paket vendor ini). Sengaja dibuat
+// terpisah dari VENDOR_CATEGORIES: mencakup juga hal di luar Modul Vendor
+// (Undangan/Mahar/Seserahan) yang punya tab/tabel sendiri-sendiri — di
+// sini cuma dicatat sebagai label bebas ('lainnya'), TIDAK terhubung ke
+// data tab tsb, biar nggak nyenggol modul lain di luar scope task ini.
+export const INCLUDED_VENDOR_CATEGORY_OPTIONS = [
+  ...VENDOR_CATEGORIES,
+  { id: 'lainnya', label: 'Lainnya' },
 ]
 
 export const SESERAHAN_SEED = []

@@ -70,16 +70,15 @@
             </div>
 
             <label class="vm-sub-lbl">Layanan yang Didapat</label>
-            <div class="vm-repeat-list">
-              <div v-for="(item, idx) in form.layananDidapat" :key="idx" class="vm-layanan-row">
-                <div class="vm-layanan-row-top">
-                  <input type="text" v-model="item.nama" placeholder="cth: Koordinasi Vendor" class="vm-repeat-name">
-                  <button type="button" class="vm-repeat-del" @click="removeLayananItem(idx)" aria-label="Hapus item">✕</button>
-                </div>
-                <input type="text" v-model="item.keterangan" placeholder="Keterangan (opsional)" class="vm-layanan-ket">
-              </div>
-              <button type="button" class="vm-repeat-add" @click="addLayananItem">+ Tambah Layanan</button>
-            </div>
+            <RepeatableCard
+              :items="form.layananDidapat"
+              :fields="layananDidapatFields"
+              icon="📋"
+              :title="item => item.nama || 'Layanan baru'"
+              :subtitle="item => item.keterangan"
+              :new-item="() => ({ nama: '', keterangan: '' })"
+              add-label="+ Tambah Layanan"
+            />
 
             <div class="row2">
               <div class="field">
@@ -135,14 +134,15 @@
             </div>
 
             <label class="vm-sub-lbl">Struktur Tim</label>
-            <div class="vm-repeat-list">
-              <div v-for="(item, idx) in form.strukturTim" :key="idx" class="vm-repeat-row">
-                <input type="text" v-model="item.posisi" placeholder="cth: Team Leader" class="vm-repeat-name">
-                <input type="number" min="1" v-model.number="item.jumlah" class="vm-repeat-qty">
-                <button type="button" class="vm-repeat-del" @click="removeTimItem(idx)" aria-label="Hapus item">✕</button>
-              </div>
-              <button type="button" class="vm-repeat-add" @click="addTimItem">+ Tambah Posisi</button>
-            </div>
+            <RepeatableCard
+              :items="form.strukturTim"
+              :fields="strukturTimFields"
+              icon="👥"
+              :title="item => item.posisi || 'Posisi baru'"
+              :subtitle="item => item.jumlah ? `${item.jumlah} orang` : null"
+              :new-item="() => ({ posisi: '', jumlah: 1 })"
+              add-label="+ Tambah Posisi"
+            />
 
             <div class="row2">
               <div class="field">
@@ -849,14 +849,15 @@
             </div>
 
             <div class="vm-section-lbl">Isi Paket Souvenir</div>
-            <div class="vm-repeat-list">
-              <div v-for="(item, idx) in form.isiPaketSouvenir" :key="idx" class="vm-repeat-row">
-                <input type="text" v-model="item.nama" placeholder="cth: Mug Keramik" class="vm-repeat-name">
-                <input type="number" min="1" v-model.number="item.jumlah" class="vm-repeat-qty">
-                <button type="button" class="vm-repeat-del" @click="removeSouvenirItem(idx)" aria-label="Hapus item">✕</button>
-              </div>
-              <button type="button" class="vm-repeat-add" @click="addSouvenirItem">+ Tambah Item</button>
-            </div>
+            <RepeatableCard
+              :items="form.isiPaketSouvenir"
+              :fields="isiPaketSouvenirFields"
+              icon="🎁"
+              :title="item => item.nama || 'Item baru'"
+              :subtitle="item => item.jumlah > 1 ? `×${item.jumlah}` : null"
+              :new-item="() => ({ nama: '', jumlah: 1 })"
+              add-label="+ Tambah Item"
+            />
 
             <div class="vm-section-lbl">Packaging</div>
             <div class="row2">
@@ -999,14 +1000,15 @@
             </div>
 
             <label class="vm-sub-lbl">Area Acara</label>
-            <div class="vm-repeat-list">
-              <div v-for="(item, idx) in form.areaAcara" :key="idx" class="vm-repeat-row">
-                <input type="text" v-model="item.nama" placeholder="cth: Ballroom Utama" class="vm-repeat-name">
-                <input type="number" min="0" v-model.number="item.kapasitas" class="vm-repeat-qty" placeholder="Orang">
-                <button type="button" class="vm-repeat-del" @click="removeAreaAcara(idx)" aria-label="Hapus item">✕</button>
-              </div>
-              <button type="button" class="vm-repeat-add" @click="addAreaAcara">+ Tambah Area</button>
-            </div>
+            <RepeatableCard
+              :items="form.areaAcara"
+              :fields="areaAcaraFields"
+              icon="🏛"
+              :title="item => item.nama || 'Area baru'"
+              :subtitle="item => item.kapasitas ? `${item.kapasitas} orang` : null"
+              :new-item="() => ({ nama: '', kapasitas: 0 })"
+              add-label="+ Tambah Area"
+            />
 
             <div class="vm-section-lbl">🏢 Fasilitas</div>
             <div class="vm-repeat-list">
@@ -1031,21 +1033,15 @@
             </div>
 
             <label class="vm-sub-lbl">Vendor Rekanan</label>
-            <div class="vm-repeat-list">
-              <div v-for="(item, idx) in form.vendorRekanan" :key="idx" class="vm-layanan-row">
-                <div class="vm-layanan-row-top">
-                  <div class="select-wrap" style="flex:1">
-                    <select v-model="item.kategori">
-                      <option value="">Kategori</option>
-                      <option v-for="c in VENDOR_CATEGORIES" :key="c.id" :value="c.label">{{ c.label }}</option>
-                    </select>
-                  </div>
-                  <button type="button" class="vm-repeat-del" @click="removeVendorRekanan(idx)" aria-label="Hapus item">✕</button>
-                </div>
-                <input type="text" v-model="item.nama" placeholder="Nama vendor" class="vm-layanan-ket">
-              </div>
-              <button type="button" class="vm-repeat-add" @click="addVendorRekanan">+ Tambah Vendor Rekanan</button>
-            </div>
+            <RepeatableCard
+              :items="form.vendorRekanan"
+              :fields="vendorRekananFields"
+              icon="🤝"
+              :title="item => item.nama || 'Vendor rekanan baru'"
+              :subtitle="item => item.kategori"
+              :new-item="() => ({ kategori: '', nama: '' })"
+              add-label="+ Tambah Vendor Rekanan"
+            />
 
             <div class="field"><label>Deskripsi</label><textarea ref="deskEl" class="autosize" v-model="form.deskripsi" rows="3" @input="autoGrowDesk"></textarea></div>
             <div class="field"><label>Catatan</label><textarea v-model="form.catatan" rows="2"></textarea></div>
@@ -1208,17 +1204,15 @@
 
             <template v-if="form.jenisPaketCatering.includes('Food Stall')">
               <div class="vm-section-lbl">🍜 Food Stall</div>
-              <div class="vm-repeat-list">
-                <div v-for="(item, idx) in form.foodStall" :key="idx" class="vm-layanan-row">
-                  <div class="vm-layanan-row-top">
-                    <input type="text" v-model="item.nama" placeholder="cth: Bakso" class="vm-repeat-name">
-                    <input type="number" min="1" v-model.number="item.jumlah" class="vm-repeat-qty" placeholder="Jumlah">
-                    <button type="button" class="vm-repeat-del" @click="removeFoodStall(idx)" aria-label="Hapus item">✕</button>
-                  </div>
-                  <input type="text" v-model="item.keterangan" placeholder="Keterangan (opsional)" class="vm-layanan-ket">
-                </div>
-                <button type="button" class="vm-repeat-add" @click="addFoodStall">+ Tambah Stall</button>
-              </div>
+              <RepeatableCard
+                :items="form.foodStall"
+                :fields="foodStallFields"
+                icon="🍜"
+                :title="item => item.nama || 'Stall baru'"
+                :subtitle="item => [item.jumlah > 1 ? `×${item.jumlah}` : null, item.keterangan].filter(Boolean)"
+                :new-item="() => ({ nama: '', jumlah: 1, keterangan: '' })"
+                add-label="+ Tambah Stall"
+              />
             </template>
 
             <div class="vm-section-lbl">🔥 Live Cooking</div>
@@ -1302,19 +1296,15 @@
             </div>
 
             <div class="vm-section-lbl">💵 Biaya Tambahan</div>
-            <div class="vm-repeat-list">
-              <div v-for="(item, idx) in form.biayaTambahan" :key="idx" class="vm-layanan-row">
-                <div class="vm-layanan-row-top">
-                  <input type="text" v-model="item.nama" placeholder="cth: Transport" class="vm-repeat-name">
-                  <div class="cur-wrap vm-biaya-cur"><span class="cur-rp">Rp</span>
-                    <input class="cur" type="text" inputmode="numeric" :value="grp(item.nominal)" @input="onBiayaNominal(item, $event)">
-                  </div>
-                  <button type="button" class="vm-repeat-del" @click="removeBiayaTambahan(idx)" aria-label="Hapus item">✕</button>
-                </div>
-                <input type="text" v-model="item.keterangan" placeholder="Keterangan (opsional)" class="vm-layanan-ket">
-              </div>
-              <button type="button" class="vm-repeat-add" @click="addBiayaTambahan">+ Tambah Biaya</button>
-            </div>
+            <RepeatableCard
+              :items="form.biayaTambahan"
+              :fields="biayaTambahanFields"
+              icon="💵"
+              :title="item => item.nama || 'Biaya baru'"
+              :subtitle="item => [item.nominal ? `Rp ${grp(item.nominal)}` : null, item.keterangan].filter(Boolean)"
+              :new-item="() => ({ nama: '', nominal: 0, keterangan: '' })"
+              add-label="+ Tambah Biaya"
+            />
 
             <div class="field"><label>Deskripsi</label><textarea ref="deskEl" class="autosize" v-model="form.deskripsi" rows="3" @input="autoGrowDesk"></textarea></div>
             <div class="field"><label>Catatan</label><textarea v-model="form.catatan" rows="2"></textarea></div>
@@ -1329,6 +1319,23 @@
           <div class="field"><label>Alamat</label><textarea v-model="form.alamat" rows="2"></textarea></div>
           <div class="field"><label>Deskripsi (Isi Paket dsb.)</label><textarea ref="deskEl" class="autosize" v-model="form.deskripsi" rows="3" @input="autoGrowDesk"></textarea></div>
         </template>
+
+        <!-- Included Vendor — berlaku buat semua kategori, bukan cuma satu.
+             Vendor lain yang udah termasuk dalam paket vendor ini (mis. Venue
+             yang paketnya udah include Catering & WO), biar kategori itu
+             otomatis dianggap terpenuhi tanpa nambah budget dobel. -->
+        <div class="vm-section-lbl">🔗 Included Vendor</div>
+        <div class="vm-inc-hint">Vendor lain yang paketnya sudah termasuk dalam paket vendor ini (mis. Venue yang sudah include Catering & WO). Kategori yang di-include otomatis dianggap terpenuhi, tanpa menambah total budget.</div>
+        <RepeatableCard
+          :items="form.includedVendors"
+          :fields="includedVendorFields"
+          :icon="includedVendorIcon"
+          :title="includedVendorTitle"
+          :subtitle="includedVendorSubtitle"
+          :new-item="() => ({ category: '', vendorId: null, catatan: '' })"
+          add-label="+ Tambah Included Vendor"
+        />
+
         <div class="modal-actions" style="margin-top:20px">
           <button type="button" class="btn btn-ghost" @click="$emit('close')">Batal</button>
           <button type="submit" class="btn primary">Simpan</button>
@@ -1341,8 +1348,14 @@
 <script setup>
 import { ref, watch, nextTick, computed } from 'vue'
 import { useWeddingStore } from '../../stores/wedding'
-import { VENDOR_CATEGORIES, VENDOR_STATUS, VENDOR_STATUS_ORDER, GENRE_MUSIK, DURASI_LIPUTAN_OPTIONS, LIPUTAN_ACARA_OPTIONS, HASIL_FOTOVIDEO_OPTIONS, BUSANA_OPTIONS, LAYANAN_TAMBAHAN_OPTIONS, ACARA_MC_OPTIONS, DURASI_MC_OPTIONS, BAHASA_MC_OPTIONS, ADAT_MC_OPTIONS, GAYA_MC_OPTIONS, NAMA_SOUVENIR_OPTIONS, PACKAGING_OPTIONS, CUSTOMISASI_OPTIONS, ESTIMASI_PRODUKSI_OPTIONS, JENIS_LAYANAN_WO_OPTIONS, JUMLAH_MEETING_OPTIONS, JUMLAH_CREW_OPTIONS, KOORDINASI_VENDOR_OPTIONS, DOKUMEN_WO_OPTIONS, JENIS_VENUE_OPTIONS, KONSEP_VENUE_OPTIONS, FASILITAS_VENUE_OPTIONS, KEBIJAKAN_VENUE_OPTIONS, JENIS_PAKET_CATERING_OPTIONS, INCLUDE_CATERING_OPTIONS, DURASI_PELAYANAN_CATERING_OPTIONS, SISTEM_REFILL_OPTIONS, KEBIJAKAN_CATERING_OPTIONS } from '../../data/constants'
+import { VENDOR_CATEGORIES, VENDOR_STATUS, VENDOR_STATUS_ORDER, GENRE_MUSIK, DURASI_LIPUTAN_OPTIONS, LIPUTAN_ACARA_OPTIONS, HASIL_FOTOVIDEO_OPTIONS, BUSANA_OPTIONS, LAYANAN_TAMBAHAN_OPTIONS, ACARA_MC_OPTIONS, DURASI_MC_OPTIONS, BAHASA_MC_OPTIONS, ADAT_MC_OPTIONS, GAYA_MC_OPTIONS, NAMA_SOUVENIR_OPTIONS, PACKAGING_OPTIONS, CUSTOMISASI_OPTIONS, ESTIMASI_PRODUKSI_OPTIONS, JENIS_LAYANAN_WO_OPTIONS, JUMLAH_MEETING_OPTIONS, JUMLAH_CREW_OPTIONS, KOORDINASI_VENDOR_OPTIONS, DOKUMEN_WO_OPTIONS, JENIS_VENUE_OPTIONS, KONSEP_VENUE_OPTIONS, FASILITAS_VENUE_OPTIONS, KEBIJAKAN_VENUE_OPTIONS, JENIS_PAKET_CATERING_OPTIONS, INCLUDE_CATERING_OPTIONS, DURASI_PELAYANAN_CATERING_OPTIONS, SISTEM_REFILL_OPTIONS, KEBIJAKAN_CATERING_OPTIONS, INCLUDED_VENDOR_CATEGORY_OPTIONS } from '../../data/constants'
 import { grp, num } from '../../utils/index'
+import RepeatableCard from '../RepeatableCard.vue'
+
+// Icon kategori kecil buat ringkasan card Included Vendor — dupe kecil dari
+// yang dipakai VendorTab.vue, sengaja nggak diimpor lintas file biar
+// VendorModal tetap berdiri sendiri (sama kayak TIPE_HARGA_TAGS di tab lain).
+const CAT_ICONS = { wo: '📋', venue: '🏛', catering: '🍽', dekorasi: '🌸', musik: '🎶', fotografer: '📸', mua: '💄', mc: '🎤', souvenir: '🎁', lainnya: '🔗' }
 
 const props = defineProps({ show: Boolean, editId: { type: Number, default: null }, defaultCategory: { type: String, default: 'wo' } })
 const emit  = defineEmits(['close'])
@@ -1404,7 +1417,7 @@ const isSouvenir = computed(() => form.value.category === 'souvenir')
 // di Home/Tamu (lihat store.venueCapacity), bukan kapasitas lagi.
 const isVenue = computed(() => form.value.category === 'venue')
 
-const blankForm = () => ({ category: props.defaultCategory, nama: '', namaPaket: '', pic: '', alamat: '', hp: '', email: '', website: '', instagram: '', harga: 0, deskripsi: '', tipeHarga: 'paket', hargaPax: 0, paxPengali: 'orang', paxManualVal: 1, hargaItem: 0, jumlahItem: 1, kapasitas: 0, status: 'batal', genreMusik: [], durasiTampil: '', bisaRequestLagu: false, hargaJam: 0, totalJam: 1, hargaSesi: 0, totalSesi: 1, catatan: '', includePrewedding: false, durasiPrewedding: '', durasiLiputan: '', liputanAcara: [], jumlahFotografer: 0, jumlahVideografer: 0, jumlahContentCreator: 0, hasilFotoVideo: [], estimasiPreview: '', estimasiFotoJadi: '', estimasiVideoJadi: '', makeupPengantinWanita: false, makeupPengantinPria: false, hairdo: false, hijabdo: false, includeBusana: false, busanaList: [], layananTambahan: [], trialMakeup: false, jumlahTrial: 1, touchUp: false, durasiPendampingan: '', hargaOrang: 0, jumlahOrang: 1, acaraDibawakan: [], durasiMembawakan: '', bahasaMc: [], adatMc: [], gayaMc: '', namaSouvenir: '', isiPaketSouvenir: [], includePackaging: false, jenisPackaging: '', customisasi: [], jumlahSouvenir: '', minimalOrder: '', estimasiProduksi: '', estimasiPengiriman: '', jenisLayananWO: '', layananDidapat: [], jumlahMeeting: '', includeSurveyVenue: false, jumlahSurvey: 1, includeGladiBersih: false, koordinasiVendor: [], jumlahCrewHariH: '', strukturTim: [], jumlahKonsumsiTim: 0, dokumenDidapat: [], jenisVenue: '', konsepVenue: [], kapasitasMin: 0, kapasitasMaks: 0, jamMulai: '', jamSelesai: '', areaAcara: [], fasilitasVenue: [], kebijakanVenue: [], vendorRekanan: [], jenisPaketCatering: [], hargaBox: 0, jumlahBox: 1, hargaStall: 0, jumlahStall: 1, buffetAppetizer: [], buffetMainCourse: [], buffetDessert: [], buffetBeverage: [], foodStall: [], includeLiveCooking: false, liveCookingList: [], includeCatering: [], durasiPelayanan: '', jumlahWaiter: 0, jumlahChef: 0, sistemRefill: '', includeFoodTasting: false, jumlahSesiFoodTasting: 1, kebijakanCatering: [], biayaTambahan: [] })
+const blankForm = () => ({ category: props.defaultCategory, nama: '', namaPaket: '', pic: '', alamat: '', hp: '', email: '', website: '', instagram: '', harga: 0, deskripsi: '', tipeHarga: 'paket', hargaPax: 0, paxPengali: 'orang', paxManualVal: 1, hargaItem: 0, jumlahItem: 1, kapasitas: 0, status: 'batal', genreMusik: [], durasiTampil: '', bisaRequestLagu: false, hargaJam: 0, totalJam: 1, hargaSesi: 0, totalSesi: 1, catatan: '', includePrewedding: false, durasiPrewedding: '', durasiLiputan: '', liputanAcara: [], jumlahFotografer: 0, jumlahVideografer: 0, jumlahContentCreator: 0, hasilFotoVideo: [], estimasiPreview: '', estimasiFotoJadi: '', estimasiVideoJadi: '', makeupPengantinWanita: false, makeupPengantinPria: false, hairdo: false, hijabdo: false, includeBusana: false, busanaList: [], layananTambahan: [], trialMakeup: false, jumlahTrial: 1, touchUp: false, durasiPendampingan: '', hargaOrang: 0, jumlahOrang: 1, acaraDibawakan: [], durasiMembawakan: '', bahasaMc: [], adatMc: [], gayaMc: '', namaSouvenir: '', isiPaketSouvenir: [], includePackaging: false, jenisPackaging: '', customisasi: [], jumlahSouvenir: '', minimalOrder: '', estimasiProduksi: '', estimasiPengiriman: '', jenisLayananWO: '', layananDidapat: [], jumlahMeeting: '', includeSurveyVenue: false, jumlahSurvey: 1, includeGladiBersih: false, koordinasiVendor: [], jumlahCrewHariH: '', strukturTim: [], jumlahKonsumsiTim: 0, dokumenDidapat: [], jenisVenue: '', konsepVenue: [], kapasitasMin: 0, kapasitasMaks: 0, jamMulai: '', jamSelesai: '', areaAcara: [], fasilitasVenue: [], kebijakanVenue: [], vendorRekanan: [], jenisPaketCatering: [], hargaBox: 0, jumlahBox: 1, hargaStall: 0, jumlahStall: 1, buffetAppetizer: [], buffetMainCourse: [], buffetDessert: [], buffetBeverage: [], foodStall: [], includeLiveCooking: false, liveCookingList: [], includeCatering: [], durasiPelayanan: '', jumlahWaiter: 0, jumlahChef: 0, sistemRefill: '', includeFoodTasting: false, jumlahSesiFoodTasting: 1, kebijakanCatering: [], biayaTambahan: [], includedVendors: [] })
 const form = ref(blankForm())
 
 watch(() => props.show, open => {
@@ -1412,7 +1425,7 @@ watch(() => props.show, open => {
   if (props.editId) {
     const v = store.vendors.find(x => x.id === props.editId)
     if (v) {
-      form.value = { category: v.category, nama: v.nama, namaPaket: v.namaPaket || '', pic: v.pic || '', alamat: v.alamat || '', hp: v.hp || '', email: v.email || '', website: v.website || '', instagram: v.instagram || '', harga: v.harga || 0, deskripsi: v.deskripsi || '', tipeHarga: v.tipeHarga || 'paket', hargaPax: v.hargaPax || 0, paxPengali: v.paxPengali || 'orang', paxManualVal: v.paxManualVal || 1, hargaItem: v.hargaItem || 0, jumlahItem: v.jumlahItem || 1, kapasitas: v.kapasitas || 0, status: v.jadi ? 'dipakai' : 'batal', genreMusik: v.genreMusik || [], durasiTampil: v.durasiTampil || '', bisaRequestLagu: !!v.bisaRequestLagu, hargaJam: v.hargaJam || 0, totalJam: v.totalJam || 1, hargaSesi: v.hargaSesi || 0, totalSesi: v.totalSesi || 1, catatan: v.catatan || '', includePrewedding: !!v.includePrewedding, durasiPrewedding: v.durasiPrewedding || '', durasiLiputan: v.durasiLiputan || '', liputanAcara: v.liputanAcara || [], jumlahFotografer: v.jumlahFotografer || 0, jumlahVideografer: v.jumlahVideografer || 0, jumlahContentCreator: v.jumlahContentCreator || 0, hasilFotoVideo: v.hasilFotoVideo || [], estimasiPreview: v.estimasiPreview || '', estimasiFotoJadi: v.estimasiFotoJadi || '', estimasiVideoJadi: v.estimasiVideoJadi || '', makeupPengantinWanita: !!v.makeupPengantinWanita, makeupPengantinPria: !!v.makeupPengantinPria, hairdo: !!v.hairdo, hijabdo: !!v.hijabdo, includeBusana: !!v.includeBusana, busanaList: v.busanaList || [], layananTambahan: v.layananTambahan || [], trialMakeup: !!v.trialMakeup, jumlahTrial: v.jumlahTrial || 1, touchUp: !!v.touchUp, durasiPendampingan: v.durasiPendampingan || '', hargaOrang: v.hargaOrang || 0, jumlahOrang: v.jumlahOrang || 1, acaraDibawakan: v.acaraDibawakan || [], durasiMembawakan: v.durasiMembawakan || '', bahasaMc: v.bahasaMc || [], adatMc: v.adatMc || [], gayaMc: v.gayaMc || '', namaSouvenir: v.namaSouvenir || '', isiPaketSouvenir: (v.isiPaketSouvenir || []).map(x => ({ ...x })), includePackaging: !!v.includePackaging, jenisPackaging: v.jenisPackaging || '', customisasi: v.customisasi || [], jumlahSouvenir: v.jumlahSouvenir || '', minimalOrder: v.minimalOrder || '', estimasiProduksi: v.estimasiProduksi || '', estimasiPengiriman: v.estimasiPengiriman || '', jenisLayananWO: v.jenisLayananWO || '', layananDidapat: (v.layananDidapat || []).map(x => ({ ...x })), jumlahMeeting: v.jumlahMeeting || '', includeSurveyVenue: !!v.includeSurveyVenue, jumlahSurvey: v.jumlahSurvey || 1, includeGladiBersih: !!v.includeGladiBersih, koordinasiVendor: v.koordinasiVendor || [], jumlahCrewHariH: v.jumlahCrewHariH || '', strukturTim: (v.strukturTim || []).map(x => ({ ...x })), jumlahKonsumsiTim: v.jumlahKonsumsiTim || 0, dokumenDidapat: v.dokumenDidapat || [], jenisVenue: v.jenisVenue || '', konsepVenue: v.konsepVenue || [], kapasitasMin: v.kapasitasMin || 0, kapasitasMaks: v.kapasitasMaks || 0, jamMulai: v.jamMulai || '', jamSelesai: v.jamSelesai || '', areaAcara: (v.areaAcara || []).map(x => ({ ...x })), fasilitasVenue: (v.fasilitasVenue || []).map(x => ({ ...x })), kebijakanVenue: v.kebijakanVenue || [], vendorRekanan: (v.vendorRekanan || []).map(x => ({ ...x })), jenisPaketCatering: v.jenisPaketCatering || [], hargaBox: v.hargaBox || 0, jumlahBox: v.jumlahBox || 1, hargaStall: v.hargaStall || 0, jumlahStall: v.jumlahStall || 1, buffetAppetizer: v.buffetAppetizer || [], buffetMainCourse: v.buffetMainCourse || [], buffetDessert: v.buffetDessert || [], buffetBeverage: v.buffetBeverage || [], foodStall: (v.foodStall || []).map(x => ({ ...x })), includeLiveCooking: !!v.includeLiveCooking, liveCookingList: v.liveCookingList || [], includeCatering: v.includeCatering || [], durasiPelayanan: v.durasiPelayanan || '', jumlahWaiter: v.jumlahWaiter || 0, jumlahChef: v.jumlahChef || 0, sistemRefill: v.sistemRefill || '', includeFoodTasting: !!v.includeFoodTasting, jumlahSesiFoodTasting: v.jumlahSesiFoodTasting || 1, kebijakanCatering: v.kebijakanCatering || [], biayaTambahan: (v.biayaTambahan || []).map(x => ({ ...x })) }
+      form.value = { category: v.category, nama: v.nama, namaPaket: v.namaPaket || '', pic: v.pic || '', alamat: v.alamat || '', hp: v.hp || '', email: v.email || '', website: v.website || '', instagram: v.instagram || '', harga: v.harga || 0, deskripsi: v.deskripsi || '', tipeHarga: v.tipeHarga || 'paket', hargaPax: v.hargaPax || 0, paxPengali: v.paxPengali || 'orang', paxManualVal: v.paxManualVal || 1, hargaItem: v.hargaItem || 0, jumlahItem: v.jumlahItem || 1, kapasitas: v.kapasitas || 0, status: v.jadi ? 'dipakai' : 'batal', genreMusik: v.genreMusik || [], durasiTampil: v.durasiTampil || '', bisaRequestLagu: !!v.bisaRequestLagu, hargaJam: v.hargaJam || 0, totalJam: v.totalJam || 1, hargaSesi: v.hargaSesi || 0, totalSesi: v.totalSesi || 1, catatan: v.catatan || '', includePrewedding: !!v.includePrewedding, durasiPrewedding: v.durasiPrewedding || '', durasiLiputan: v.durasiLiputan || '', liputanAcara: v.liputanAcara || [], jumlahFotografer: v.jumlahFotografer || 0, jumlahVideografer: v.jumlahVideografer || 0, jumlahContentCreator: v.jumlahContentCreator || 0, hasilFotoVideo: v.hasilFotoVideo || [], estimasiPreview: v.estimasiPreview || '', estimasiFotoJadi: v.estimasiFotoJadi || '', estimasiVideoJadi: v.estimasiVideoJadi || '', makeupPengantinWanita: !!v.makeupPengantinWanita, makeupPengantinPria: !!v.makeupPengantinPria, hairdo: !!v.hairdo, hijabdo: !!v.hijabdo, includeBusana: !!v.includeBusana, busanaList: v.busanaList || [], layananTambahan: v.layananTambahan || [], trialMakeup: !!v.trialMakeup, jumlahTrial: v.jumlahTrial || 1, touchUp: !!v.touchUp, durasiPendampingan: v.durasiPendampingan || '', hargaOrang: v.hargaOrang || 0, jumlahOrang: v.jumlahOrang || 1, acaraDibawakan: v.acaraDibawakan || [], durasiMembawakan: v.durasiMembawakan || '', bahasaMc: v.bahasaMc || [], adatMc: v.adatMc || [], gayaMc: v.gayaMc || '', namaSouvenir: v.namaSouvenir || '', isiPaketSouvenir: (v.isiPaketSouvenir || []).map(x => ({ ...x })), includePackaging: !!v.includePackaging, jenisPackaging: v.jenisPackaging || '', customisasi: v.customisasi || [], jumlahSouvenir: v.jumlahSouvenir || '', minimalOrder: v.minimalOrder || '', estimasiProduksi: v.estimasiProduksi || '', estimasiPengiriman: v.estimasiPengiriman || '', jenisLayananWO: v.jenisLayananWO || '', layananDidapat: (v.layananDidapat || []).map(x => ({ ...x })), jumlahMeeting: v.jumlahMeeting || '', includeSurveyVenue: !!v.includeSurveyVenue, jumlahSurvey: v.jumlahSurvey || 1, includeGladiBersih: !!v.includeGladiBersih, koordinasiVendor: v.koordinasiVendor || [], jumlahCrewHariH: v.jumlahCrewHariH || '', strukturTim: (v.strukturTim || []).map(x => ({ ...x })), jumlahKonsumsiTim: v.jumlahKonsumsiTim || 0, dokumenDidapat: v.dokumenDidapat || [], jenisVenue: v.jenisVenue || '', konsepVenue: v.konsepVenue || [], kapasitasMin: v.kapasitasMin || 0, kapasitasMaks: v.kapasitasMaks || 0, jamMulai: v.jamMulai || '', jamSelesai: v.jamSelesai || '', areaAcara: (v.areaAcara || []).map(x => ({ ...x })), fasilitasVenue: (v.fasilitasVenue || []).map(x => ({ ...x })), kebijakanVenue: v.kebijakanVenue || [], vendorRekanan: (v.vendorRekanan || []).map(x => ({ ...x })), jenisPaketCatering: v.jenisPaketCatering || [], hargaBox: v.hargaBox || 0, jumlahBox: v.jumlahBox || 1, hargaStall: v.hargaStall || 0, jumlahStall: v.jumlahStall || 1, buffetAppetizer: v.buffetAppetizer || [], buffetMainCourse: v.buffetMainCourse || [], buffetDessert: v.buffetDessert || [], buffetBeverage: v.buffetBeverage || [], foodStall: (v.foodStall || []).map(x => ({ ...x })), includeLiveCooking: !!v.includeLiveCooking, liveCookingList: v.liveCookingList || [], includeCatering: v.includeCatering || [], durasiPelayanan: v.durasiPelayanan || '', jumlahWaiter: v.jumlahWaiter || 0, jumlahChef: v.jumlahChef || 0, sistemRefill: v.sistemRefill || '', includeFoodTasting: !!v.includeFoodTasting, jumlahSesiFoodTasting: v.jumlahSesiFoodTasting || 1, kebijakanCatering: v.kebijakanCatering || [], biayaTambahan: (v.biayaTambahan || []).map(x => ({ ...x })), includedVendors: (v.includedVendors || []).map(x => ({ ...x })) }
       // Dekorasi/Band/Fotografer/MUA/MC/Souvenir/WO/Venue/Catering: jangan sembunyiin data yang udah keisi di balik toggle.
       if (v.category === 'dekorasi') showMoreDekorasi.value = !!(v.email || v.website || v.instagram || v.alamat || v.deskripsi)
       if (v.category === 'musik') showMoreBand.value = !!(v.pic || v.hp || v.email || v.website || v.instagram || v.alamat || (v.genreMusik && v.genreMusik.length) || v.durasiTampil || v.deskripsi || v.catatan)
@@ -1517,13 +1530,6 @@ function onSouvenirTipeHargaChange() {
   if (form.value.tipeHarga === 'item') calcItemTotal(false)
 }
 
-function addSouvenirItem() {
-  form.value.isiPaketSouvenir.push({ nama: '', jumlah: 1 })
-}
-function removeSouvenirItem(idx) {
-  form.value.isiPaketSouvenir.splice(idx, 1)
-}
-
 function onCateringTipeHargaChange() {
   if (form.value.tipeHarga === 'pax') calcPaxTotal(false)
   else if (form.value.tipeHarga === 'box') calcBoxTotal(false)
@@ -1560,44 +1566,6 @@ function removeStringItem(listKey, idx) {
   form.value[listKey].splice(idx, 1)
 }
 
-function addFoodStall() {
-  form.value.foodStall.push({ nama: '', jumlah: 1, keterangan: '' })
-}
-function removeFoodStall(idx) {
-  form.value.foodStall.splice(idx, 1)
-}
-
-function addBiayaTambahan() {
-  form.value.biayaTambahan.push({ nama: '', nominal: 0, keterangan: '' })
-}
-function removeBiayaTambahan(idx) {
-  form.value.biayaTambahan.splice(idx, 1)
-}
-function onBiayaNominal(item, e) {
-  e.target.value = grp(e.target.value)
-  item.nominal = num(e.target.value)
-}
-
-function addLayananItem() {
-  form.value.layananDidapat.push({ nama: '', keterangan: '' })
-}
-function removeLayananItem(idx) {
-  form.value.layananDidapat.splice(idx, 1)
-}
-function addTimItem() {
-  form.value.strukturTim.push({ posisi: '', jumlah: 1 })
-}
-function removeTimItem(idx) {
-  form.value.strukturTim.splice(idx, 1)
-}
-
-function addAreaAcara() {
-  form.value.areaAcara.push({ nama: '', kapasitas: 0 })
-}
-function removeAreaAcara(idx) {
-  form.value.areaAcara.splice(idx, 1)
-}
-
 // Fasilitas venue — sebagian item punya jumlah (mis. Toilet), sebagian
 // cuma checklist polos (mis. AC). jumlah null kalau nggak relevan.
 function isFasilitasChecked(nama) {
@@ -1619,12 +1587,72 @@ function setFasilitasQty(nama, val) {
   if (found) found.jumlah = val === '' ? null : Math.max(1, parseInt(val, 10) || 1)
 }
 
-function addVendorRekanan() {
-  form.value.vendorRekanan.push({ kategori: '', nama: '' })
+// Included Vendor — vendor lain yang paketnya udah termasuk di vendor ini.
+// Dropdown "Vendor" per baris cuma nampilin vendor kategori yang sama
+// dengan baris itu, dan nggak nampilin vendor yang lagi diedit ini sendiri
+// (nggak masuk akal include diri sendiri).
+function vendorOptionsFor(category) {
+  return store.vendors.filter(v => v.category === category && v.id !== props.editId)
 }
-function removeVendorRekanan(idx) {
-  form.value.vendorRekanan.splice(idx, 1)
+const includedVendorFields = [
+  {
+    key: 'category', label: 'Kategori', type: 'select', placeholder: 'Pilih kategori',
+    options: () => INCLUDED_VENDOR_CATEGORY_OPTIONS.map(c => ({ value: c.id, label: c.label })),
+    onChange: item => { item.vendorId = null },
+  },
+  {
+    key: 'vendorId', label: 'Vendor', type: 'select', valueType: 'number', full: true,
+    hidden: item => !item.category || item.category === 'lainnya',
+    options: item => [{ value: null, label: 'Vendor ditentukan kemudian' }, ...vendorOptionsFor(item.category).map(v => ({ value: v.id, label: v.nama + (v.namaPaket ? ' — ' + v.namaPaket : '') }))],
+  },
+  { key: 'catatan', label: 'Catatan (opsional)', type: 'text', placeholder: 'cth: vendor mengikuti paket ini', full: true },
+]
+function includedVendorIcon(item) { return CAT_ICONS[item.category] || '🔗' }
+function includedVendorTitle(item) {
+  if (!item.category) return 'Included vendor baru'
+  const c = INCLUDED_VENDOR_CATEGORY_OPTIONS.find(x => x.id === item.category)
+  return c ? c.label : item.category
 }
+function includedVendorSubtitle(item) {
+  const lines = []
+  if (item.category && item.category !== 'lainnya') {
+    const v = item.vendorId ? store.vendors.find(x => x.id === item.vendorId) : null
+    lines.push(v ? v.nama : 'Vendor ditentukan kemudian')
+  }
+  if (item.catatan) lines.push(item.catatan)
+  return lines
+}
+
+const layananDidapatFields = [
+  { key: 'nama', label: 'Nama Layanan', type: 'text', placeholder: 'cth: Koordinasi Vendor', full: true },
+  { key: 'keterangan', label: 'Keterangan (opsional)', type: 'textarea', placeholder: 'opsional', full: true },
+]
+const strukturTimFields = [
+  { key: 'posisi', label: 'Posisi', type: 'text', placeholder: 'cth: Team Leader' },
+  { key: 'jumlah', label: 'Jumlah', type: 'number' },
+]
+const isiPaketSouvenirFields = [
+  { key: 'nama', label: 'Nama Item', type: 'text', placeholder: 'cth: Mug Keramik' },
+  { key: 'jumlah', label: 'Jumlah', type: 'number' },
+]
+const areaAcaraFields = [
+  { key: 'nama', label: 'Nama Area', type: 'text', placeholder: 'cth: Ballroom Utama' },
+  { key: 'kapasitas', label: 'Kapasitas (orang)', type: 'number' },
+]
+const vendorRekananFields = [
+  { key: 'kategori', label: 'Kategori', type: 'select', placeholder: 'Pilih kategori', options: () => VENDOR_CATEGORIES.map(c => ({ value: c.label, label: c.label })) },
+  { key: 'nama', label: 'Nama Vendor', type: 'text', placeholder: 'Nama vendor rekanan', full: true },
+]
+const foodStallFields = [
+  { key: 'nama', label: 'Nama Stall', type: 'text', placeholder: 'cth: Bakso' },
+  { key: 'jumlah', label: 'Jumlah', type: 'number' },
+  { key: 'keterangan', label: 'Keterangan (opsional)', type: 'text', placeholder: 'opsional', full: true },
+]
+const biayaTambahanFields = [
+  { key: 'nama', label: 'Nama Biaya', type: 'text', placeholder: 'cth: Transport' },
+  { key: 'nominal', label: 'Nominal', type: 'currency' },
+  { key: 'keterangan', label: 'Keterangan (opsional)', type: 'text', placeholder: 'opsional', full: true },
+]
 
 function calcOrangTotal(force = true) {
   if (form.value.tipeHarga !== 'orang') return
@@ -1685,7 +1713,7 @@ function onHarga(e) {
 
 async function save() {
   if (!form.value.nama.trim()) return
-  const vData = { ...form.value, nama: form.value.nama.trim(), namaPaket: form.value.namaPaket.trim(), pic: form.value.pic.trim(), alamat: form.value.alamat.trim(), hp: form.value.hp.trim(), email: form.value.email.trim(), website: form.value.website.trim(), instagram: form.value.instagram.trim(), deskripsi: form.value.deskripsi.trim(), harga: form.value.harga, durasiTampil: form.value.durasiTampil.trim(), catatan: form.value.catatan.trim(), durasiPrewedding: form.value.durasiPrewedding.trim(), estimasiPreview: form.value.estimasiPreview.trim(), estimasiFotoJadi: form.value.estimasiFotoJadi.trim(), estimasiVideoJadi: form.value.estimasiVideoJadi.trim(), durasiPendampingan: form.value.durasiPendampingan.trim(), jumlahSouvenir: form.value.jumlahSouvenir.trim(), minimalOrder: form.value.minimalOrder.trim(), estimasiPengiriman: form.value.estimasiPengiriman.trim(), isiPaketSouvenir: form.value.isiPaketSouvenir.map(x => ({ nama: x.nama.trim(), jumlah: x.jumlah || 1 })).filter(x => x.nama), layananDidapat: form.value.layananDidapat.map(x => ({ nama: x.nama.trim(), keterangan: x.keterangan.trim() })).filter(x => x.nama), strukturTim: form.value.strukturTim.map(x => ({ posisi: x.posisi.trim(), jumlah: x.jumlah || 1 })).filter(x => x.posisi), areaAcara: form.value.areaAcara.map(x => ({ nama: x.nama.trim(), kapasitas: x.kapasitas || 0 })).filter(x => x.nama), vendorRekanan: form.value.vendorRekanan.map(x => ({ kategori: x.kategori.trim(), nama: x.nama.trim() })).filter(x => x.nama), foodStall: form.value.foodStall.map(x => ({ nama: x.nama.trim(), jumlah: x.jumlah || 1, keterangan: x.keterangan.trim() })).filter(x => x.nama), biayaTambahan: form.value.biayaTambahan.map(x => ({ nama: x.nama.trim(), nominal: x.nominal || 0, keterangan: x.keterangan.trim() })).filter(x => x.nama) }
+  const vData = { ...form.value, nama: form.value.nama.trim(), namaPaket: form.value.namaPaket.trim(), pic: form.value.pic.trim(), alamat: form.value.alamat.trim(), hp: form.value.hp.trim(), email: form.value.email.trim(), website: form.value.website.trim(), instagram: form.value.instagram.trim(), deskripsi: form.value.deskripsi.trim(), harga: form.value.harga, durasiTampil: form.value.durasiTampil.trim(), catatan: form.value.catatan.trim(), durasiPrewedding: form.value.durasiPrewedding.trim(), estimasiPreview: form.value.estimasiPreview.trim(), estimasiFotoJadi: form.value.estimasiFotoJadi.trim(), estimasiVideoJadi: form.value.estimasiVideoJadi.trim(), durasiPendampingan: form.value.durasiPendampingan.trim(), jumlahSouvenir: form.value.jumlahSouvenir.trim(), minimalOrder: form.value.minimalOrder.trim(), estimasiPengiriman: form.value.estimasiPengiriman.trim(), isiPaketSouvenir: form.value.isiPaketSouvenir.map(x => ({ nama: x.nama.trim(), jumlah: x.jumlah || 1 })).filter(x => x.nama), layananDidapat: form.value.layananDidapat.map(x => ({ nama: x.nama.trim(), keterangan: x.keterangan.trim() })).filter(x => x.nama), strukturTim: form.value.strukturTim.map(x => ({ posisi: x.posisi.trim(), jumlah: x.jumlah || 1 })).filter(x => x.posisi), areaAcara: form.value.areaAcara.map(x => ({ nama: x.nama.trim(), kapasitas: x.kapasitas || 0 })).filter(x => x.nama), vendorRekanan: form.value.vendorRekanan.map(x => ({ kategori: x.kategori.trim(), nama: x.nama.trim() })).filter(x => x.nama), foodStall: form.value.foodStall.map(x => ({ nama: x.nama.trim(), jumlah: x.jumlah || 1, keterangan: x.keterangan.trim() })).filter(x => x.nama), biayaTambahan: form.value.biayaTambahan.map(x => ({ nama: x.nama.trim(), nominal: x.nominal || 0, keterangan: x.keterangan.trim() })).filter(x => x.nama), includedVendors: form.value.includedVendors.map(x => ({ category: x.category, vendorId: x.vendorId || null, catatan: (x.catatan || '').trim() })).filter(x => x.category) }
   if (props.editId) {
     const idx = store.vendors.findIndex(x => x.id === props.editId)
     if (idx > -1) {
@@ -1782,44 +1810,6 @@ textarea.autosize { min-height: 64px; max-height: 300px; overflow-y: auto; resiz
   font-size: 13px;
   text-align: center;
 }
-.vm-repeat-name {
-  flex: 1;
-  min-width: 0;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--ink);
-  background: var(--paper);
-}
-.vm-repeat-del {
-  flex: none;
-  width: 26px;
-  height: 26px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--paper);
-  color: var(--rose);
-  cursor: pointer;
-  font-size: 12px;
-}
-.vm-repeat-del:hover { background: var(--rose-soft); border-color: var(--rose); }
-.vm-repeat-add {
-  width: 100%;
-  margin-top: 4px;
-  padding: 8px;
-  border: 1px dashed var(--line);
-  border-radius: 6px;
-  background: none;
-  color: var(--plum);
-  font-family: 'Jost', sans-serif;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.vm-repeat-add:hover { background: var(--gold-soft); border-color: var(--gold); }
 .vm-sub-lbl {
   display: block;
   font-size: 12.5px;
@@ -1827,21 +1817,11 @@ textarea.autosize { min-height: 64px; max-height: 300px; overflow-y: auto; resiz
   color: var(--ink);
   margin: 0 0 6px;
 }
-.vm-layanan-row {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--line);
-}
-.vm-layanan-row:last-child { border-bottom: none; }
-.vm-layanan-row-top { display: flex; align-items: center; gap: 8px; }
-.vm-layanan-ket {
-  width: 100%;
-  margin-top: 6px;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: 12.5px;
+.vm-inc-hint {
+  font-size: 12px;
   color: var(--muted);
-  background: var(--paper);
+  line-height: 1.5;
+  margin: -4px 0 8px;
 }
 .vm-readonly {
   width: 100%;
@@ -1897,17 +1877,4 @@ textarea.autosize { min-height: 64px; max-height: 300px; overflow-y: auto; resiz
   cursor: pointer;
 }
 .vm-strlist-add button:hover { background: var(--gold-soft); border-color: var(--gold); }
-.vm-biaya-cur { flex: none; width: 140px; }
-.vm-biaya-cur input.cur {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 6px 8px 6px 38px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font-family: 'Jost', sans-serif;
-  font-size: 13px;
-  color: var(--ink);
-  background: var(--paper);
-}
-.vm-biaya-cur .cur-rp { left: 10px; font-size: 13px; }
 </style>

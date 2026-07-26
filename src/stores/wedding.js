@@ -722,6 +722,23 @@ export const useWeddingStore = defineStore('wedding', () => {
     }
   }
 
+  // ── Included Vendor: kategori/vendor yang udah "included" lewat paket
+  // vendor lain (mis. Venue yang include Catering+WO+Dekorasi) ─────────
+  // Cuma vendor yang beneran "jadi" (dipakai) yang bisa nge-cover kategori
+  // lain — kandidat yang masih dipertimbangkan/belum diputuskan nggak
+  // dihitung, biar konsisten sama Budget (nggak ada yang "keitung" duluan
+  // sebelum user beneran milih paketnya).
+  function categoryIncludedBy(catId) {
+    return vendors.value.find(v => v.jadi && (v.includedVendors || []).some(inc => inc.category === catId)) || null
+  }
+  function vendorIncludedByOther(vendorId) {
+    for (const v of vendors.value) {
+      if (!v.jadi) continue
+      if ((v.includedVendors || []).some(inc => inc.vendorId === vendorId)) return v
+    }
+    return null
+  }
+
   // ── Vendor ↔ Budget ────────────────────────────────────────────────
   function handleVendorDecision(vendor, isJadi) {
     const existingIdx = budget.value.findIndex(b => b.vendorId === vendor.id)
@@ -2053,6 +2070,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     addTimelineTask, delTimeline, removeEmptyTimeline,
     // vendor
     addVendor, delVendor, setVendorStatus, vendorPayInfo,
+    categoryIncludedBy, vendorIncludedByOther,
     // seserahan
     addSeserahanItem, delSeserahan, removeEmptySeserahan,
     // mahar
