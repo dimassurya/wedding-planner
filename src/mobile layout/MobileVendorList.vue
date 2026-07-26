@@ -24,8 +24,8 @@
             </select>
           </div>
           <div class="mv-sub">
-            <span class="mv-price">Rp {{ grp(v.harga) }} <small>· {{ v.tipeHarga === 'pax' ? 'Per pax' : 'All in' }}</small></span>
-            <span v-if="capInfo(v)" class="mv-cap" :class="{ over: capInfo(v).over }">{{ v.kapasitas }} org</span>
+            <span class="mv-price">Rp {{ grp(v.harga) }} <small>· {{ tipeHargaTag(v) }}</small></span>
+            <span v-if="v.namaPaket" class="mv-cap">{{ v.namaPaket }}</span>
           </div>
         </div>
       </div>
@@ -44,27 +44,257 @@
 
         <!-- Pax breakdown -->
         <div v-if="v.tipeHarga === 'pax'" class="mv-paxinfo">@ Rp {{ grp(v.hargaPax) }} × {{ paxMultText(v) }}</div>
+        <div v-if="v.tipeHarga === 'item'" class="mv-paxinfo">@ Rp {{ grp(v.hargaItem) }} × {{ v.jumlahItem }} item</div>
+        <div v-if="v.tipeHarga === 'jam'" class="mv-paxinfo">@ Rp {{ grp(v.hargaJam) }} × {{ v.totalJam }} jam</div>
+        <div v-if="v.tipeHarga === 'sesi'" class="mv-paxinfo">@ Rp {{ grp(v.hargaSesi) }} × {{ v.totalSesi }} sesi</div>
+        <div v-if="v.tipeHarga === 'orang'" class="mv-paxinfo">@ Rp {{ grp(v.hargaOrang) }} × {{ v.jumlahOrang }} orang</div>
+        <div v-if="v.tipeHarga === 'box'" class="mv-paxinfo">@ Rp {{ grp(v.hargaBox) }} × {{ v.jumlahBox }} box</div>
+        <div v-if="v.tipeHarga === 'stall'" class="mv-paxinfo">@ Rp {{ grp(v.hargaStall) }} × {{ v.jumlahStall }} stall</div>
 
         <!-- Detail info -->
-        <div v-if="!v.hp && !v.alamat && !v.email && !v.website && !v.deskripsi" class="mv-empty-info">Belum ada info tambahan — lengkapi lewat tombol Edit.</div>
+        <div v-if="!v.pic && !v.hp && !v.alamat && !v.email && !v.website && !v.instagram && !(v.genreMusik && v.genreMusik.length) && !v.durasiTampil && !v.deskripsi && !v.catatan && v.category !== 'musik' && v.category !== 'fotografer' && v.category !== 'mua' && v.category !== 'mc' && v.category !== 'souvenir' && v.category !== 'wo' && v.category !== 'venue' && v.category !== 'catering'" class="mv-empty-info">Belum ada info tambahan — lengkapi lewat tombol Edit.</div>
         <div v-else class="mv-details">
+          <div v-if="v.pic" class="mv-detail-row">
+            <span class="mv-detail-lbl">👤 PIC</span>
+            <span class="mv-detail-val">{{ v.pic }}</span>
+          </div>
           <div v-if="v.hp" class="mv-detail-row">
-            <span class="mv-detail-lbl">📱 Telepon</span>
+            <span class="mv-detail-lbl">📱 WhatsApp</span>
             <span class="mv-detail-val">{{ v.hp }}</span>
           </div>
+          <div v-if="v.instagram" class="mv-detail-row">
+            <span class="mv-detail-lbl">📷 Instagram</span>
+            <span class="mv-detail-val">{{ v.instagram }}</span>
+          </div>
           <div v-if="v.website" class="mv-detail-row">
-            <span class="mv-detail-lbl">🌐 Website/IG</span>
+            <span class="mv-detail-lbl">🌐 Website</span>
             <span class="mv-detail-val"><a :href="v.website.startsWith('http') ? v.website : 'https://' + v.website" target="_blank" rel="noopener" class="mv-link">{{ v.website }}</a></span>
           </div>
           <div v-if="v.email" class="mv-detail-row">
             <span class="mv-detail-lbl">✉️ Email</span>
             <span class="mv-detail-val">{{ v.email }}</span>
           </div>
+          <div v-if="v.genreMusik && v.genreMusik.length" class="mv-detail-row">
+            <span class="mv-detail-lbl">🎵 Genre</span>
+            <span class="mv-detail-val">{{ v.genreMusik.join(', ') }}</span>
+          </div>
+          <div v-if="v.durasiTampil" class="mv-detail-row">
+            <span class="mv-detail-lbl">⏱️ Durasi Tampil</span>
+            <span class="mv-detail-val">{{ v.durasiTampil }}</span>
+          </div>
+          <div v-if="v.category === 'musik'" class="mv-detail-row">
+            <span class="mv-detail-lbl">🎤 Request Lagu</span>
+            <span class="mv-detail-val">{{ v.bisaRequestLagu ? 'Bisa' : 'Tidak bisa' }}</span>
+          </div>
+          <div v-if="v.category === 'fotografer'" class="mv-detail-row">
+            <span class="mv-detail-lbl">📸 Prewedding</span>
+            <span class="mv-detail-val">{{ v.includePrewedding ? (v.durasiPrewedding || 'Ya') : 'Tidak' }}</span>
+          </div>
+          <div v-if="v.durasiLiputan" class="mv-detail-row">
+            <span class="mv-detail-lbl">🎬 Durasi Liputan</span>
+            <span class="mv-detail-val">{{ v.durasiLiputan }}</span>
+          </div>
+          <div v-if="v.liputanAcara && v.liputanAcara.length" class="mv-detail-row">
+            <span class="mv-detail-lbl">📋 Liputan Acara</span>
+            <span class="mv-detail-val">{{ v.liputanAcara.join(', ') }}</span>
+          </div>
+          <div v-if="v.jumlahFotografer || v.jumlahVideografer || v.jumlahContentCreator" class="mv-detail-row">
+            <span class="mv-detail-lbl">👥 Tim</span>
+            <span class="mv-detail-val">{{ timText(v) }}</span>
+          </div>
+          <div v-if="v.hasilFotoVideo && v.hasilFotoVideo.length" class="mv-detail-row">
+            <span class="mv-detail-lbl">🎁 Hasil</span>
+            <span class="mv-detail-val">{{ v.hasilFotoVideo.join(', ') }}</span>
+          </div>
+          <div v-if="v.estimasiPreview || v.estimasiFotoJadi || v.estimasiVideoJadi" class="mv-detail-row">
+            <span class="mv-detail-lbl">⏳ Estimasi</span>
+            <span class="mv-detail-val">{{ estimasiText(v) }}</span>
+          </div>
           <div v-if="v.alamat" class="mv-detail-row">
             <span class="mv-detail-lbl">📍 Alamat</span>
             <span class="mv-detail-val">{{ v.alamat }}</span>
           </div>
+
+          <template v-if="v.category === 'mua'">
+            <div v-if="muaLayananPengantin(v).length" class="mv-section">
+              <div class="mv-section-lbl">💄 Layanan Pengantin</div>
+              <div class="mv-checklist">
+                <span v-for="l in muaLayananPengantin(v)" :key="l">✓ {{ l }}</span>
+              </div>
+            </div>
+            <div v-if="v.includeBusana && v.busanaList && v.busanaList.length" class="mv-section">
+              <div class="mv-section-lbl">👗 Busana</div>
+              <div class="mv-checklist">
+                <span v-for="b in v.busanaList" :key="b.jenis">✓ {{ b.jenis }}<template v-if="b.jumlah > 1"> ({{ b.jumlah }})</template></span>
+              </div>
+            </div>
+            <div v-if="v.layananTambahan && v.layananTambahan.length" class="mv-section">
+              <div class="mv-section-lbl">👨‍👩‍👧 Makeup Tambahan</div>
+              <div class="mv-checklist">
+                <span v-for="l in v.layananTambahan" :key="l.jenis">✓ {{ l.jenis }}<template v-if="l.jumlah > 1"> ({{ l.jumlah }})</template></span>
+              </div>
+            </div>
+            <div v-if="v.trialMakeup || v.touchUp" class="mv-section">
+              <div class="mv-section-lbl">✨ Benefit</div>
+              <div class="mv-checklist">
+                <span v-if="v.trialMakeup">✓ Trial Makeup ({{ v.jumlahTrial }}x)</span>
+                <span v-if="v.touchUp">✓ Touch Up<template v-if="v.durasiPendampingan"> — Pendampingan {{ v.durasiPendampingan }}</template></span>
+              </div>
+            </div>
+          </template>
+
+          <div v-if="v.category === 'mc' && ((v.acaraDibawakan && v.acaraDibawakan.length) || v.durasiMembawakan || (v.bahasaMc && v.bahasaMc.length) || (v.adatMc && v.adatMc.length) || v.gayaMc)" class="mv-section">
+            <div class="mv-section-lbl">🎤 Layanan</div>
+            <div class="mv-checklist">
+              <span v-if="v.acaraDibawakan && v.acaraDibawakan.length">Acara: {{ v.acaraDibawakan.join(', ') }}</span>
+              <span v-if="v.durasiMembawakan">Durasi: {{ v.durasiMembawakan }}</span>
+              <span v-if="v.bahasaMc && v.bahasaMc.length">Bahasa: {{ v.bahasaMc.join(', ') }}</span>
+              <span v-if="v.adatMc && v.adatMc.length">Adat: {{ v.adatMc.join(', ') }}</span>
+              <span v-if="v.gayaMc">Gaya: {{ v.gayaMc }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'souvenir' && (v.namaSouvenir || (v.isiPaketSouvenir && v.isiPaketSouvenir.length) || v.includePackaging || (v.customisasi && v.customisasi.length) || v.jumlahSouvenir || v.minimalOrder || v.estimasiProduksi || v.estimasiPengiriman)" class="mv-section">
+            <div class="mv-section-lbl">🎁 Informasi Souvenir</div>
+            <div class="mv-checklist">
+              <span v-if="v.namaSouvenir">Nama Souvenir: {{ v.namaSouvenir }}</span>
+              <span v-for="item in v.isiPaketSouvenir" :key="item.nama">✓ {{ item.nama }}<template v-if="item.jumlah > 1"> ×{{ item.jumlah }}</template></span>
+              <span v-if="v.includePackaging">Packaging: {{ v.jenisPackaging || 'Ya' }}</span>
+              <span v-if="v.customisasi && v.customisasi.length">Customisasi: {{ v.customisasi.join(', ') }}</span>
+              <span v-if="v.jumlahSouvenir">Jumlah Pesanan: {{ v.jumlahSouvenir }}</span>
+              <span v-if="v.minimalOrder">Minimal Order: {{ v.minimalOrder }}</span>
+              <span v-if="v.estimasiProduksi">Estimasi Produksi: {{ v.estimasiProduksi }}</span>
+              <span v-if="v.estimasiPengiriman">Estimasi Pengiriman: {{ v.estimasiPengiriman }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'wo' && (v.jenisLayananWO || (v.layananDidapat && v.layananDidapat.length) || v.jumlahMeeting || v.includeSurveyVenue || v.includeGladiBersih || (v.koordinasiVendor && v.koordinasiVendor.length))" class="mv-section">
+            <div class="mv-section-lbl">📋 Informasi Paket</div>
+            <div class="mv-checklist">
+              <span v-if="v.jenisLayananWO">Jenis Layanan: {{ v.jenisLayananWO }}</span>
+              <span v-for="l in v.layananDidapat" :key="l.nama">✓ {{ l.nama }}<template v-if="l.keterangan"> — {{ l.keterangan }}</template></span>
+              <span v-if="v.jumlahMeeting">Jumlah Meeting: {{ v.jumlahMeeting }}</span>
+              <span v-if="v.includeSurveyVenue">✓ Survey Venue<template v-if="v.jumlahSurvey > 1"> ({{ v.jumlahSurvey }}x)</template></span>
+              <span v-if="v.includeGladiBersih">✓ Gladi Bersih</span>
+              <span v-if="v.koordinasiVendor && v.koordinasiVendor.length">Koordinasi Vendor: {{ v.koordinasiVendor.join(', ') }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'wo' && (v.jumlahCrewHariH || (v.strukturTim && v.strukturTim.length) || v.jumlahKonsumsiTim)" class="mv-section">
+            <div class="mv-section-lbl">👥 Tim Wedding Organizer</div>
+            <div class="mv-checklist">
+              <span v-if="v.jumlahCrewHariH">Jumlah Crew Hari H: {{ v.jumlahCrewHariH }}</span>
+              <span v-for="t in v.strukturTim" :key="t.posisi">✓ {{ t.posisi }} ({{ t.jumlah }})</span>
+              <span v-if="woTotalPersonel(v) > 0">Total Personel: {{ woTotalPersonel(v) }} orang</span>
+              <span v-if="v.jumlahKonsumsiTim">Jumlah Konsumsi Tim: {{ v.jumlahKonsumsiTim }} orang</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'wo' && v.dokumenDidapat && v.dokumenDidapat.length" class="mv-section">
+            <div class="mv-section-lbl">📄 Dokumen</div>
+            <div class="mv-checklist">
+              <span v-for="d in v.dokumenDidapat" :key="d">✓ {{ d }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'venue' && (v.jenisVenue || (v.konsepVenue && v.konsepVenue.length) || v.kapasitasMin || v.kapasitasMaks || v.jamMulai || v.jamSelesai || (v.areaAcara && v.areaAcara.length))" class="mv-section">
+            <div class="mv-section-lbl">🏛 Informasi Venue</div>
+            <div class="mv-checklist">
+              <span v-if="v.jenisVenue">Jenis Venue: {{ v.jenisVenue }}</span>
+              <span v-if="v.konsepVenue && v.konsepVenue.length">Konsep: {{ v.konsepVenue.join(', ') }}</span>
+              <span v-if="v.kapasitasMin || v.kapasitasMaks">Kapasitas: {{ v.kapasitasMin }} - {{ v.kapasitasMaks }} Orang</span>
+              <span v-if="v.jamMulai || v.jamSelesai">Durasi: {{ v.jamMulai }} - {{ v.jamSelesai }}</span>
+              <span v-for="a in v.areaAcara" :key="a.nama">✓ {{ a.nama }}<template v-if="a.kapasitas"> — {{ a.kapasitas }} Orang</template></span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'venue' && v.fasilitasVenue && v.fasilitasVenue.length" class="mv-section">
+            <div class="mv-section-lbl">🏢 Fasilitas</div>
+            <div class="mv-checklist">
+              <span v-for="f in v.fasilitasVenue" :key="f.nama">✓ {{ f.nama }}<template v-if="f.jumlah"> ({{ f.jumlah }})</template></span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'venue' && ((v.kebijakanVenue && v.kebijakanVenue.length) || (v.vendorRekanan && v.vendorRekanan.length))" class="mv-section">
+            <div class="mv-section-lbl">📜 Kebijakan Venue</div>
+            <div class="mv-checklist">
+              <span v-for="k in v.kebijakanVenue" :key="k">✓ {{ k }}</span>
+              <span v-for="r in v.vendorRekanan" :key="r.nama">Rekanan {{ r.kategori }}: {{ r.nama }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'catering' && (v.jenisPaketCatering && v.jenisPaketCatering.length)" class="mv-section">
+            <div class="mv-section-lbl">🍽 Jenis Paket</div>
+            <div class="mv-checklist">
+              <span>{{ v.jenisPaketCatering.join(', ') }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'catering' && ((v.buffetAppetizer && v.buffetAppetizer.length) || (v.buffetMainCourse && v.buffetMainCourse.length) || (v.buffetDessert && v.buffetDessert.length) || (v.buffetBeverage && v.buffetBeverage.length))" class="mv-section">
+            <div class="mv-section-lbl">🥘 Buffet</div>
+            <div class="mv-checklist">
+              <span v-if="v.buffetAppetizer && v.buffetAppetizer.length">Appetizer: {{ v.buffetAppetizer.join(', ') }}</span>
+              <span v-if="v.buffetMainCourse && v.buffetMainCourse.length">Main Course: {{ v.buffetMainCourse.join(', ') }}</span>
+              <span v-if="v.buffetDessert && v.buffetDessert.length">Dessert: {{ v.buffetDessert.join(', ') }}</span>
+              <span v-if="v.buffetBeverage && v.buffetBeverage.length">Beverage: {{ v.buffetBeverage.join(', ') }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'catering' && v.foodStall && v.foodStall.length" class="mv-section">
+            <div class="mv-section-lbl">🍜 Food Stall</div>
+            <div class="mv-checklist">
+              <span v-for="s in v.foodStall" :key="s.nama">✓ {{ s.nama }}<template v-if="s.jumlah > 1"> ×{{ s.jumlah }}</template><template v-if="s.keterangan"> — {{ s.keterangan }}</template></span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'catering' && v.includeLiveCooking" class="mv-section">
+            <div class="mv-section-lbl">🔥 Live Cooking</div>
+            <div class="mv-checklist">
+              <span v-if="v.liveCookingList && v.liveCookingList.length">{{ v.liveCookingList.join(', ') }}</span>
+              <span v-else>✓ Tersedia</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'catering' && v.includeCatering && v.includeCatering.length" class="mv-section">
+            <div class="mv-section-lbl">✅ Include</div>
+            <div class="mv-checklist">
+              <span v-for="i in v.includeCatering" :key="i">✓ {{ i }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'catering' && (v.durasiPelayanan || v.jumlahWaiter || v.jumlahChef || v.sistemRefill)" class="mv-section">
+            <div class="mv-section-lbl">👨‍🍳 Pelayanan</div>
+            <div class="mv-checklist">
+              <span v-if="v.durasiPelayanan">Durasi: {{ v.durasiPelayanan }}</span>
+              <span v-if="v.jumlahWaiter">Waiter: {{ v.jumlahWaiter }} orang</span>
+              <span v-if="v.jumlahChef">Chef: {{ v.jumlahChef }} orang</span>
+              <span v-if="v.sistemRefill">Refill: {{ v.sistemRefill }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'catering' && v.includeFoodTasting" class="mv-section">
+            <div class="mv-section-lbl">🧪 Food Tasting</div>
+            <div class="mv-checklist">
+              <span>✓ Tersedia<template v-if="v.jumlahSesiFoodTasting > 1"> ({{ v.jumlahSesiFoodTasting }} sesi)</template></span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'catering' && v.kebijakanCatering && v.kebijakanCatering.length" class="mv-section">
+            <div class="mv-section-lbl">📋 Kebijakan</div>
+            <div class="mv-checklist">
+              <span v-for="k in v.kebijakanCatering" :key="k">✓ {{ k }}</span>
+            </div>
+          </div>
+
+          <div v-if="v.category === 'catering' && v.biayaTambahan && v.biayaTambahan.length" class="mv-section">
+            <div class="mv-section-lbl">💵 Biaya Tambahan</div>
+            <div class="mv-checklist">
+              <span v-for="b in v.biayaTambahan" :key="b.nama">{{ b.nama }}: Rp {{ grp(b.nominal) }}<template v-if="b.keterangan"> — {{ b.keterangan }}</template></span>
+            </div>
+          </div>
+
           <div v-if="v.deskripsi" class="mv-desc">{{ v.deskripsi }}</div>
+          <div v-if="v.catatan" class="mv-desc">📝 {{ v.catatan }}</div>
         </div>
 
         <!-- Actions -->
@@ -97,19 +327,49 @@ const expandedId = ref(null)
 const tOrang    = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
 const tUndangan = computed(() => store.confirmedGuests.length)
 
-const statusKey = v => v.status || (v.jadi ? 'dipakai' : 'incar')
+const statusKey = v => v.jadi ? 'dipakai' : 'batal'
 function toggleExpand(id) { expandedId.value = expandedId.value === id ? null : id }
+
+const TIPE_HARGA_TAGS = { pax: 'Per pax', item: 'Per item', jam: 'Per jam', sesi: 'Per sesi', orang: 'Per orang', sewa: 'Sewa Venue', box: 'Per box', stall: 'Per stall' }
+const tipeHargaTag = v => TIPE_HARGA_TAGS[v.tipeHarga] || 'All in'
+
+function timText(v) {
+  const parts = []
+  if (v.jumlahFotografer) parts.push(`${v.jumlahFotografer} Fotografer`)
+  if (v.jumlahVideografer) parts.push(`${v.jumlahVideografer} Videografer`)
+  if (v.jumlahContentCreator) parts.push(`${v.jumlahContentCreator} Content Creator`)
+  return parts.join(', ')
+}
+
+function estimasiText(v) {
+  const parts = []
+  if (v.estimasiPreview) parts.push(`Preview ${v.estimasiPreview}`)
+  if (v.estimasiFotoJadi) parts.push(`Foto ${v.estimasiFotoJadi}`)
+  if (v.estimasiVideoJadi) parts.push(`Video ${v.estimasiVideoJadi}`)
+  return parts.join(' · ')
+}
+
+function muaLayananPengantin(v) {
+  const out = []
+  if (v.makeupPengantinWanita) out.push('Makeup Pengantin Wanita')
+  if (v.makeupPengantinPria) out.push('Makeup Pengantin Pria')
+  if (v.hairdo) out.push('Hairdo')
+  if (v.hijabdo) out.push('Hijabdo')
+  return out
+}
+
+function woTotalPersonel(v) {
+  const sum = (v.strukturTim || []).reduce((s, x) => s + (x.jumlah || 0), 0)
+  if (sum > 0) return sum
+  const m = (v.jumlahCrewHariH || '').match(/\d+/)
+  return m ? parseInt(m[0], 10) : 0
+}
 
 function paxMultText(v) {
   if (v.paxPengali === 'orang') return `${tOrang.value} org`
   if (v.paxPengali === 'undangan') return `${tUndangan.value} undgn`
   if (v.paxPengali === 'hampers') return `${store.hampersCount} hampers`
   return v.paxManualVal
-}
-function capInfo(v) {
-  if (!v.kapasitas) return null
-  const diff = tOrang.value - v.kapasitas
-  return { muat: v.kapasitas, tamu: tOrang.value, over: diff > 0, delta: Math.abs(diff) }
 }
 
 function payInfo(v) {
@@ -133,9 +393,8 @@ function payInfo(v) {
   box-shadow: 0 1px 3px rgba(36, 8, 8, .05);
   overflow: hidden;
 }
-.mv-card.mvs-dihubungi { border-left-color: #0A1D4B; }
-.mv-card.mvs-dipakai   { border-left-color: var(--green); }
-.mv-card.mvs-batal     { border-left-color: var(--rose); }
+.mv-card.mvs-dipakai { border-left-color: var(--green); }
+.mv-card.mvs-batal   { border-left-color: var(--rose); }
 
 /* Row (klik buka/tutup) */
 .mv-row {
@@ -196,7 +455,6 @@ function payInfo(v) {
   border-radius: 100px;
   padding: 2px 9px;
 }
-.mv-cap.over { color: #7a1a1a; background: var(--rose-soft); }
 .mv-status-sel {
   font-family: 'Jost', sans-serif;
   font-size: var(--m-sub, 12px);
@@ -208,10 +466,8 @@ function payInfo(v) {
   background: var(--paper);
   flex: none;
 }
-.mv-status-sel.vs-incar     { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
-.mv-status-sel.vs-dihubungi { color: #0A1D4B; background: #E3E8F2; border-color: #b9c6e0; }
-.mv-status-sel.vs-dipakai   { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
-.mv-status-sel.vs-batal     { color: #7a1a1a; background: #F8E8E8; border-color: #e8c6c6; }
+.mv-status-sel.vs-dipakai { color: #2b5010; background: #EAF3DE; border-color: #bcd79a; }
+.mv-status-sel.vs-batal   { color: #6b4848; background: #EDE5E2; border-color: #ddc9c9; }
 
 /* Body (expand ke bawah) */
 .mv-body {
@@ -269,6 +525,9 @@ function payInfo(v) {
   line-height: 1.45;
   white-space: pre-wrap;
 }
+.mv-section { margin-top: 10px; }
+.mv-section-lbl { font-size: 10.5px; font-weight: 700; color: var(--plum); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
+.mv-checklist { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--ink); }
 
 /* Actions */
 .mv-actions {

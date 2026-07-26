@@ -918,11 +918,14 @@ input:checked + .slider:before { transform: translateX(14px); }
 /* ✨ Seserahan Table ✨ */
 .s-head, .s-row {
   display: grid;
-  grid-template-columns: 36px minmax(160px,1.5fr) 110px 130px 130px minmax(160px,1.5fr) 40px;
+  /* Semua kolom teks/angka dapat porsi tumbuh proporsional (fr) — dulu
+     cuma Item & Link yang 1.5fr, jadi dua-duanya rebutan sisa lebar dan
+     Status/Budget/Harga Aktual kejepit ngumpul di tengah. */
+  grid-template-columns: 36px minmax(170px,1.1fr) minmax(130px,0.5fr) minmax(130px,0.6fr) minmax(130px,0.6fr) minmax(190px,0.9fr) 44px;
   align-items: center;
   gap: 10px;
   padding: 11px 20px;
-  min-width: 866px;
+  min-width: 890px;
   padding-right: 0;
 }
 .s-actions {
@@ -996,7 +999,10 @@ input:checked + .slider:before { transform: translateX(14px); }
 /* ✨ Mahar Table ✨ */
 .m-head, .m-row {
   display: grid;
-  grid-template-columns: 36px minmax(180px,1.5fr) 110px 150px 40px;
+  /* Item, Status, Harga sama-sama dapat porsi tumbuh (fr) — dulu cuma
+     Item yang 1.5fr, jadi nyerap semua sisa lebar sendirian dan bikin
+     Status/Harga kelihatan kejepit ngumpul di kanan. */
+  grid-template-columns: 36px minmax(170px,1.3fr) minmax(160px,0.9fr) minmax(150px,0.8fr) 44px;
   align-items: center;
   gap: 10px;
   padding: 11px 20px;
@@ -1109,10 +1115,13 @@ input:checked + .slider:before { transform: translateX(14px); }
 
 .adm-head, .adm-row {
   display: grid;
-  grid-template-columns: 44px 1fr 130px 44px;
+  /* Syarat & Status sama-sama dapat porsi tumbuh — dulu Syarat 1fr
+     nyerap semua sisa lebar, Status kejepit di 130px fixed. */
+  grid-template-columns: 44px minmax(220px,1.4fr) minmax(170px,0.9fr) 44px;
   align-items: center;
   gap: 10px;
   padding: 11px 18px;
+  min-width: 480px;
 }
 .adm-head {
   background: var(--plum);

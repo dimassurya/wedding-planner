@@ -69,14 +69,99 @@ export const BUDGET_SEED = [
 ].map((item, i) => ({ id: i + 1, item, estimasi: 0, aktual: 0, uangMuka: 0, dibayar: 0, jatuhTempo: '', remarks: '', template: true }))
 
 // Status hubungan vendor (bukan status pembayaran — itu di Budget).
-// "dipakai" = masuk anggaran otomatis (perilaku lama jadi=true).
+// Cuma 2 state — "dipakai" = masuk anggaran otomatis (perilaku lama
+// jadi=true). Key 'batal' dipertahankan (bukan diganti 'tidak_dipakai')
+// biar nggak perlu migrasi data lama yang udah kepasang, cuma labelnya
+// yang diubah.
 export const VENDOR_STATUS = {
-  incar:     { label: 'Incar',     color: '#9C7575', bg: '#EDE5E2', text: '#6b4848' },
-  dihubungi: { label: 'Dihubungi', color: '#0A1D4B', bg: '#E3E8F2', text: '#0A1D4B' },
-  dipakai:   { label: 'Dipakai',   color: '#3B6D11', bg: '#EAF3DE', text: '#2b5010' },
-  batal:     { label: 'Batal',     color: '#B32E33', bg: '#F8E8E8', text: '#7a1a1a' },
+  dipakai: { label: 'Dipakai',        color: '#3B6D11', bg: '#EAF3DE', text: '#2b5010' },
+  batal:   { label: 'Tidak Dipakai',  color: '#9C7575', bg: '#EDE5E2', text: '#6b4848' },
 }
-export const VENDOR_STATUS_ORDER = ['incar', 'dihubungi', 'dipakai', 'batal']
+export const VENDOR_STATUS_ORDER = ['dipakai', 'batal']
+
+// Jenis paket, sistem harga, buffet, include, & kebijakan — cuma relevan
+// buat kategori Catering.
+export const JENIS_PAKET_CATERING_OPTIONS = ['Prasmanan / Buffet', 'Box', 'Nasi Kotak', 'Bento', 'Table Set', 'Food Stall', 'Coffee Break', 'Snack Box', 'Dessert Corner', 'Live Cooking', 'Custom']
+export const BUFFET_APPETIZER_SUGGEST = ['Salad', 'Soup', 'Lumpia']
+export const BUFFET_MAIN_COURSE_SUGGEST = ['Nasi Putih', 'Nasi Goreng', 'Ayam Bakar', 'Ayam Goreng', 'Daging Rendang', 'Ikan', 'Sapi Lada Hitam', 'Seafood', 'Sayur', 'Sambal']
+export const BUFFET_DESSERT_SUGGEST = ['Puding', 'Buah', 'Cake', 'Es Krim']
+export const BUFFET_BEVERAGE_SUGGEST = ['Es Teh', 'Air Mineral', 'Jus', 'Soft Drink']
+export const LIVE_COOKING_SUGGEST = ['Kebab', 'Sate', 'Steak', 'Pasta', 'Teppanyaki']
+export const INCLUDE_CATERING_OPTIONS = ['Waiter', 'Chef', 'Peralatan Makan', 'Meja Buffet', 'Dekorasi Buffet', 'Chafing Dish', 'Minuman', 'Ice Cube', 'Coffee Tea', 'Welcome Drink', 'Air Mineral', 'Tissue', 'Cleaning Service', 'Peralatan Stall']
+export const DURASI_PELAYANAN_CATERING_OPTIONS = ['4 Jam', '6 Jam', '8 Jam']
+export const SISTEM_REFILL_OPTIONS = ['Ya', 'Tidak', 'Selama Persediaan Masih Ada']
+export const KEBIJAKAN_CATERING_OPTIONS = ['Halal', 'Bisa Request Menu', 'Bisa Request Tema Buffet', 'Bisa Request Stall', 'Bisa Request Menu Anak', 'Bisa Request Vegetarian', 'Bisa Request Vegan', 'Bisa Request Gluten Free', 'Bisa Tambah Pax', 'Bisa Tambah Box', 'Bisa Tambah Stall']
+
+// Genre musik — cuma relevan buat kategori musik/band, multi-pilih.
+export const GENRE_MUSIK = ['Pop', 'Jazz', 'Akustik', 'Rock', 'Dangdut', 'Lainnya']
+
+// Durasi liputan hari-H, acara yang diliput, & hasil yang didapat — cuma
+// relevan buat kategori Fotografer & Wedding Content Creator.
+export const DURASI_LIPUTAN_OPTIONS = ['4 Jam', '6 Jam', '8 Jam', 'Full Day']
+export const LIPUTAN_ACARA_OPTIONS = ['Getting Ready', 'Engagement', 'Siraman', 'Sangjit', 'Akad', 'Resepsi', 'After Party']
+export const HASIL_FOTOVIDEO_OPTIONS = ['Semua File', 'Foto Edit', 'Album Cetak', 'Video Highlight', 'Full Video', 'Same Day Edit', 'Instagram Reels', 'TikTok Video']
+
+// Checklist busana & layanan makeup tambahan — cuma relevan buat kategori
+// Makeup Artist (MUA), masing-masing item punya jumlah (repeatable list).
+export const BUSANA_OPTIONS = ['Busana Pengantin Wanita', 'Busana Pengantin Pria', 'Busana Ibu Pengantin', 'Busana Ayah Pengantin', 'Busana Bridesmaid', 'Busana Groomsmen', 'Busana Flower Girl', 'Busana MC', 'Lainnya']
+export const LAYANAN_TAMBAHAN_OPTIONS = ['Makeup Ibu Pengantin', 'Makeup Ayah Pengantin', 'Makeup Bridesmaid', 'Hijab Bridesmaid', 'Makeup Flower Girl', 'Makeup MC', 'Makeup Keluarga', 'Lainnya']
+
+// Acara yang dibawakan, durasi, bahasa, adat, & gaya membawakan — cuma
+// relevan buat kategori MC.
+export const ACARA_MC_OPTIONS = ['Engagement', 'Siraman', 'Sangjit', 'Akad', 'Resepsi', 'After Party', 'Lainnya']
+export const DURASI_MC_OPTIONS = ['2 Jam', '4 Jam', '6 Jam', 'Full Day']
+export const BAHASA_MC_OPTIONS = ['Indonesia', 'Inggris', 'Mandarin', 'Jawa', 'Sunda', 'Lainnya']
+export const ADAT_MC_OPTIONS = ['Jawa', 'Sunda', 'Batak', 'Minang', 'Tionghoa', 'Bali', 'Lainnya']
+export const GAYA_MC_OPTIONS = ['Formal', 'Semi Formal', 'Santai', 'Humoris']
+
+// Jenis souvenir, packaging, customisasi, & estimasi produksi — cuma
+// relevan buat kategori Souvenir.
+export const NAMA_SOUVENIR_OPTIONS = ['Mug', 'Gelas', 'Tumbler', 'Tote Bag', 'Sendok Garpu', 'Pouch', 'Lilin Aromaterapi', 'Kipas', 'Lainnya']
+export const PACKAGING_OPTIONS = ['Box', 'Paper Bag', 'Organza', 'Pouch', 'Plastik', 'Custom Box', 'Lainnya']
+export const CUSTOMISASI_OPTIONS = ['Custom Nama Pengantin', 'Custom Inisial', 'Custom Logo', 'Custom Tanggal Pernikahan', 'Custom Ucapan', 'Lainnya']
+export const ESTIMASI_PRODUKSI_OPTIONS = ['7 Hari', '14 Hari', '21 Hari', '30 Hari']
+
+// Jenis layanan, jumlah meeting/crew, koordinasi vendor, & dokumen — cuma
+// relevan buat kategori Wedding Organizer (WO).
+export const JENIS_LAYANAN_WO_OPTIONS = ['Full Wedding Organizer', 'On The Day Wedding Organizer', 'Wedding Planner', 'Wedding Consultant', 'Custom']
+export const JUMLAH_MEETING_OPTIONS = ['1 Kali', '2 Kali', '3 Kali', 'Unlimited']
+export const JUMLAH_CREW_OPTIONS = ['2 Orang', '4 Orang', '6 Orang', '8 Orang']
+export const KOORDINASI_VENDOR_OPTIONS = ['Menghubungi seluruh vendor', 'Membuat grup koordinasi vendor', 'Memastikan kesiapan vendor', 'Mengatur timeline vendor', 'Mengatur loading vendor']
+export const DOKUMEN_WO_OPTIONS = ['Rundown Acara', 'Timeline Acara', 'Family Line Up', 'Vendor Contact List', 'Layout Venue', 'Checklist Persiapan', 'Emergency Contact List']
+
+// Jenis/konsep venue, fasilitas (sebagian punya jumlah), & kebijakan —
+// cuma relevan buat kategori Venue.
+export const JENIS_VENUE_OPTIONS = ['Ballroom', 'Hotel', 'Gedung', 'Convention Hall', 'Garden', 'Outdoor', 'Restaurant', 'Villa', 'Rumah', 'Lainnya']
+export const KONSEP_VENUE_OPTIONS = ['Indoor', 'Outdoor', 'Semi Outdoor']
+export const FASILITAS_VENUE_OPTIONS = [
+  { nama: 'Ruang Makeup Pengantin', qtyLabel: 'Jumlah Ruangan' },
+  { nama: 'Ruang Tunggu Keluarga', qtyLabel: 'Jumlah' },
+  { nama: 'Ruang VIP', qtyLabel: 'Jumlah' },
+  { nama: 'Mushola' },
+  { nama: 'Toilet', qtyLabel: 'Jumlah' },
+  { nama: 'Area Parkir Mobil', qtyLabel: 'Kapasitas Mobil' },
+  { nama: 'Area Parkir Motor', qtyLabel: 'Kapasitas Motor' },
+  { nama: 'AC' },
+  { nama: 'Genset' },
+  { nama: 'Lift' },
+  { nama: 'Loading Dock' },
+  { nama: 'Panggung' },
+  { nama: 'Pelaminan Area' },
+  { nama: 'Meja & Kursi' },
+  { nama: 'Sound System' },
+  { nama: 'LCD / LED Screen' },
+  { nama: 'WiFi' },
+  { nama: 'Security' },
+  { nama: 'Cleaning Service' },
+  { nama: 'Valet Parking' },
+  { nama: 'Bridal Room' },
+  { nama: 'Gudang Vendor' },
+  { nama: 'Area Catering' },
+  { nama: 'Area Foto' },
+  { nama: 'Smoking Area' },
+  { nama: 'Nursery / Ruang Menyusui' },
+]
+export const KEBIJAKAN_VENUE_OPTIONS = ['Bebas memilih Catering', 'Bebas memilih Dekorasi', 'Bebas memilih WO', 'Bebas memilih MUA', 'Bebas memilih MC', 'Bebas memilih Vendor Lain']
 
 export const VENDOR_CATEGORIES = [
   { id: 'wo',        label: 'Wedding Organizer' },
@@ -84,8 +169,7 @@ export const VENDOR_CATEGORIES = [
   { id: 'catering',  label: 'Catering' },
   { id: 'dekorasi',  label: 'Dekorasi' },
   { id: 'musik',     label: 'Musik/Band' },
-  { id: 'fotografer',label: 'Fotografer' },
-  { id: 'video',     label: 'Videografer' },
+  { id: 'fotografer',label: 'Fotografer & Wedding Content Creator' },
   { id: 'mua',       label: 'Makeup Artist' },
   { id: 'mc',        label: 'MC' },
   { id: 'souvenir',  label: 'Souvenir' },

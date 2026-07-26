@@ -118,11 +118,13 @@ export const useWeddingStore = defineStore('wedding', () => {
   // DIPAKAI. Kapasitas nempel di record vendor (rumah datanya di situ) —
   // sini cuma baca. Kalau ada >1 venue dipakai (mis. akad + resepsi),
   // ambil yang paling besar (asумsi itu acara utama/resepsi).
+  // Pakai kapasitasMaks (field baru kategori Venue: Kapasitas Min-Maks),
+  // bukan kapasitas lama (single value) yang udah nggak dipakai form-nya.
   const totalGuestPax = computed(() => confirmedGuests.value.reduce((s, g) => s + (g.jumlah || 0), 0))
   const venueCapacity = computed(() => {
     const caps = vendors.value
-      .filter(v => v.category === 'venue' && v.jadi && v.kapasitas > 0)
-      .map(v => v.kapasitas)
+      .filter(v => v.category === 'venue' && v.jadi && v.kapasitasMaks > 0)
+      .map(v => v.kapasitasMaks)
     return caps.length ? Math.max(...caps) : 0
   })
   // >0 = kelebihan sekian orang, <=0 = masih muat (sisa kursi = -nilai),
@@ -292,6 +294,11 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   function scheduleDiffSync(col, table, rowsRef) {
     if (!user.value) return
+    // Sinyal dini buat developer: kalau ini kepanggil pas `loading` true,
+    // shadow entity ini kemungkinan lagi di-reseed bersamaan (lihat
+    // loadData/_load*) — race-nya bisa bikin data lama ke-insert ulang jadi
+    // dobel. Cuma warning, nggak ngeblok, biar nggak nyembunyiin bug lain.
+    if (loading.value) console.warn(`[sync] scheduleDiffSync('${col}') dipanggil pas loading=true — cek race dengan reload data`)
     clearTimeout(_timers[col])
     _timers[col] = setTimeout(() => _diffAndSync(col, table, rowsRef.value), 600)
   }
@@ -721,6 +728,10 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (isJadi) {
       const cat = VENDOR_CATEGORIES.find(c => c.id === vendor.category)
       const catLabel = cat ? cat.label : vendor.category
+      // namaPaket cuma keisi buat vendor Dekorasi (1 record = 1 vendor +
+      // 1 paket) — disertakan biar baris Budget nggak ambigu kalau vendor
+      // yang sama diinput ulang buat paket lain.
+      const itemName = vendor.namaPaket ? `${catLabel} - ${vendor.nama} (${vendor.namaPaket})` : `${catLabel} - ${vendor.nama}`
       if (existingIdx > -1) {
         // Estimasi sengaja TIDAK ditimpa di sini — itu patokan rencana
         // yang berdiri sendiri. Cuma aktual yang ngikutin harga vendor
@@ -728,11 +739,11 @@ export const useWeddingStore = defineStore('wedding', () => {
         // item (nama baris) & remarks sengaja SELALU disinkron ulang biar
         // rename/ganti kategori vendor langsung kelihatan di Budget —
         // konsisten sama Seserahan/Mahar yang juga selalu nimpa nama.
-        budget.value[existingIdx].item     = `${catLabel} - ${vendor.nama}`
+        budget.value[existingIdx].item     = itemName
         budget.value[existingIdx].aktual   = vendor.harga
         budget.value[existingIdx].remarks  = vendor.deskripsi
       } else {
-        budget.value.push({ vendorId: vendor.id, originType: 'vendor', item: `${catLabel} - ${vendor.nama}`, estimasi: vendor.harga, aktual: vendor.harga, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: vendor.deskripsi })
+        budget.value.push({ vendorId: vendor.id, originType: 'vendor', item: itemName, estimasi: vendor.harga, aktual: vendor.harga, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: vendor.deskripsi })
       }
     } else {
       if (existingIdx > -1) {
@@ -783,10 +794,10 @@ export const useWeddingStore = defineStore('wedding', () => {
       })
       if (!ok) return false
       const v = vendors.value.find(x => x.id === b.vendorId)
-      // status di-reset ke 'incar' (bukan cuma jadi=false) — statusOf()
+      // status di-reset ke 'batal' (bukan cuma jadi=false) — statusOf()
       // baca v.status duluan kalau ada isinya, jadi kalau cuma jadi yang
-      // ditimpa, dropdown status di tab Vendor bakal nyangkut di "Dipakai".
-      if (v) { v.jadi = false; v.status = 'incar'; saveV() }
+      // ditimpa, toggle status di tab Vendor bakal nyangkut di "Dipakai".
+      if (v) { v.jadi = false; v.status = 'batal'; saveV() }
       budget.value = budget.value.filter(x => x.id !== id)
       _forgetPaymentsLocal(id)
       saveB(); toast('Item dihapus & vendor dinonaktifkan')
@@ -1244,7 +1255,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       if (!ok) return
 
       if (Array.isArray(d.guests))    guests.value    = d.guests
-      if (Array.isArray(d.vendors))   vendors.value   = d.vendors
+      if (Array.isArray(d.vendors)) vendors.value = d.vendors
       if (Array.isArray(d.seserahan)) seserahan.value = d.seserahan
       if (Array.isArray(d.mahar))     mahar.value     = d.mahar
       if (Array.isArray(d.admin))     admin.value     = d.admin
@@ -1663,14 +1674,24 @@ export const useWeddingStore = defineStore('wedding', () => {
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'wedding_data',
         filter: `user_id=eq.${listenId}`,
-      }, ({ new: d }) => {
+      }, async ({ new: d }) => {
         if (isPartner.value && d.partner_user_id === null) {
           isPartner.value    = false
           ownerUserId.value  = user.value.id
           partnerEmail.value = ''
           ownerEmail.value   = ''
           toast('Kamu dikeluarkan dari dashboard bersama')
-          loadData(user.value.id)
+          // loading dikunci selama reload — event realtime ini bisa nyala
+          // kapan aja pas user lagi aktif pakai app. Tanpa ini, UI tetap
+          // kebuka & aksi save() yang nyempil di tengah reload bisa nge-diff
+          // ke shadow yang belum lengkap → data lama ke-insert ulang jadi
+          // dobel (lihat juga revalidateMembership & leavePartnership).
+          loading.value = true
+          try {
+            await loadData(user.value.id)
+          } finally {
+            loading.value = false
+          }
           return
         }
         // Semua 8 entity (guests/timeline/budget/vendors/seserahan/mahar/
@@ -1797,8 +1818,17 @@ export const useWeddingStore = defineStore('wedding', () => {
     ownerUserId.value  = user.value.id
     partnerEmail.value = ''
     ownerEmail.value   = ''
-    await loadData(user.value.id)
-    subscribeRealtime(user.value.id)   // pindah channel ke dashboard sendiri
+    // loading dikunci selama reload — ini aksi user (klik tombol), app udah
+    // full interaktif. Tanpa ini, save() yang nyempil di tengah reload bisa
+    // nge-diff ke shadow yang belum lengkap → data lama ke-insert ulang
+    // jadi dobel (bug yang sama kayak revalidateMembership & realtime kick).
+    loading.value = true
+    try {
+      await loadData(user.value.id)
+      subscribeRealtime(user.value.id)   // pindah channel ke dashboard sendiri
+    } finally {
+      loading.value = false
+    }
     toast('Kamu keluar dari dashboard bersama')
   }
 
@@ -1816,8 +1846,18 @@ export const useWeddingStore = defineStore('wedding', () => {
         partnerEmail.value = ''
         ownerEmail.value   = ''
         toast('Kamu dikeluarkan dari dashboard bersama')
-        await loadData(user.value.id)
-        subscribeRealtime(user.value.id)
+        // loading dikunci selama reload — jalur ini reload SEMUA entity
+        // (vendors/budget/dst) dan re-seed shadow diff-sync dari nol; kalau
+        // UI tetap kebuka & user sempat trigger save() di tengah jendela
+        // ini, diff bisa lihat shadow yang belum lengkap dan nge-insert
+        // ulang data yang sebenarnya udah ada (baris dobel).
+        loading.value = true
+        try {
+          await loadData(user.value.id)
+          subscribeRealtime(user.value.id)
+        } finally {
+          loading.value = false
+        }
       }
     } else {
       // Owner: refresh status pasangan terkini
