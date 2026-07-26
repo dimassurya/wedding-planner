@@ -680,6 +680,15 @@ onBeforeUnmount(() => {
   position: sticky; z-index: 5;
   padding: 11px 16px;
 }
+/* Mobile Device — header Data Grid TIDAK sticky, ikut scroll biasa.
+   Data Grid PC di GuestsTab.vue sendiri sudah cuma render di atas
+   breakpoint ini (MOBILE_BREAKPOINT, lihat useIsMobile.js); media query
+   ini jaga-jaga di lebar yang sama biar konsisten kalau ada kondisi
+   dimana .gh-thead ini kepakai di layar sempit. Desktop (>680px) tidak
+   disentuh sama sekali. */
+@media (max-width: 680px) {
+  .gh-thead { position: static; }
+}
 .gh-trow { min-height: 44px; }
 .gh-trow + .gh-trow { border-top: 1px solid var(--line); }
 .gh-trow.sel { background: rgba(129,1,0,.04); }
