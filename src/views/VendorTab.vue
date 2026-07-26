@@ -12,7 +12,9 @@
         :total-biaya="totalBiaya"
         :dipakai-count="dipakaiList.length"
         :next-categories="nextCategories"
+        :active-status="heroStatusFilter"
         @jump-category="id => (store.vFilter = id)"
+        @select-status="heroStatusFilter = $event"
       />
 
       <div class="vhm-toolbar">
@@ -49,7 +51,7 @@
         </button>
       </div>
 
-      <div v-if="categoryFulfillment" class="vhm-fulfilled">
+      <div v-if="categoryFulfillment && heroStatusFilter === 'semua'" class="vhm-fulfilled">
         <span class="vhm-fulfilled-ico">{{ catIcon(categoryFulfillment.category) }}</span>
         <div class="vhm-fulfilled-main">
           <div class="vhm-fulfilled-lbl">Sudah dipenuhi oleh {{ catLabel(categoryFulfillment.category) }}</div>
@@ -58,7 +60,17 @@
         <button type="button" class="vhm-fulfilled-btn" @click="jumpToVendor(categoryFulfillment)">Lihat</button>
       </div>
 
+      <div v-if="heroStatusFilter !== 'semua' && !filteredRows.length" class="vhm-fulfilled vhm-status-empty">
+        <span class="vhm-fulfilled-ico">{{ VENDOR_STATUS[heroStatusFilter].icon }}</span>
+        <div class="vhm-fulfilled-main">
+          <div class="vhm-fulfilled-lbl">Belum ada vendor dengan status {{ heroStatusLabel }}</div>
+          <div class="vhm-fulfilled-name">Coba pilih status lain</div>
+        </div>
+        <button type="button" class="vhm-fulfilled-btn" @click="heroStatusFilter = 'semua'">Semua</button>
+      </div>
+
       <MobileVendorList
+        v-if="heroStatusFilter === 'semua' || filteredRows.length"
         :rows="filteredRows"
         :has-candidates="!!catRows.length"
         :empty-icon="catIcon(store.vFilter)"
@@ -86,57 +98,19 @@
         </div>
         <div class="vh-progressbar"><span :style="{ width: progressPct + '%' }"></span></div>
         <div class="vh-progress-sub">{{ decidedCount }} dari {{ totalCategories }} kategori vendor sudah dipilih</div>
-        <div class="vh-buckets" ref="bucketsWrapRef">
-          <button type="button" class="vh-bucket" :class="{ active: openBucket === 'dipilih' }" @click="toggleBucket('dipilih')">
+        <!-- Status Summary — sekaligus shortcut filter buat daftar vendor di
+             bawah (lintas kategori kalau salah satu status dipilih). -->
+        <div class="vh-buckets">
+          <button type="button" class="vh-bucket" :class="{ active: heroStatusFilter === 'semua' }" @click="setHeroStatusFilter('semua')">Semua</button>
+          <button type="button" class="vh-bucket" :class="{ active: heroStatusFilter === 'dipakai' }" @click="setHeroStatusFilter('dipakai')">
             <span class="vh-bucket-ico">✓</span><b>{{ statusBuckets.dipilih }}</b> Dipilih
           </button>
-          <button type="button" class="vh-bucket vh-bucket-inc" :class="{ active: openBucket === 'included' }" @click="toggleBucket('included')">
+          <button type="button" class="vh-bucket vh-bucket-inc" :class="{ active: heroStatusFilter === 'included' }" @click="setHeroStatusFilter('included')">
             <span class="vh-bucket-ico">🔗</span><b>{{ statusBuckets.included }}</b> Included
           </button>
-          <button type="button" class="vh-bucket vh-bucket-muted" :class="{ active: openBucket === 'belum' }" @click="toggleBucket('belum')">
+          <button type="button" class="vh-bucket vh-bucket-muted" :class="{ active: heroStatusFilter === 'batal' }" @click="setHeroStatusFilter('batal')">
             <span class="vh-bucket-ico">○</span><b>{{ statusBuckets.belum }}</b> Belum Dipilih
           </button>
-
-          <div v-if="openBucket" class="vh-bucket-panel">
-          <div class="vh-bucket-panel-head">
-            <span>{{ openBucket === 'dipilih' ? 'Vendor Dipilih' : openBucket === 'included' ? 'Kategori Included' : 'Kategori Belum Dipilih' }}</span>
-            <button type="button" class="vh-bucket-close" @click="openBucket = null" aria-label="Tutup">✕</button>
-          </div>
-
-          <div v-if="openBucket === 'dipilih'" class="vh-bucket-list">
-            <div v-if="!bucketDipilihList.length" class="vh-bucket-empty">Belum ada vendor yang dipakai.</div>
-            <div v-for="item in bucketDipilihList" :key="item.id" class="vh-bucket-row">
-              <span class="vh-bucket-row-ico">{{ item.icon }}</span>
-              <div class="vh-bucket-row-main">
-                <div class="vh-bucket-row-cat">{{ item.catLabel }}</div>
-                <div class="vh-bucket-row-name">{{ item.nama }}<template v-if="item.namaPaket"> · {{ item.namaPaket }}</template></div>
-              </div>
-              <span class="vh-bucket-row-price">Rp {{ grp(item.harga) }}</span>
-            </div>
-          </div>
-
-          <div v-else-if="openBucket === 'included'" class="vh-bucket-list">
-            <div v-if="!bucketIncludedList.length" class="vh-bucket-empty">Belum ada kategori yang ke-cover paket vendor lain.</div>
-            <div v-for="item in bucketIncludedList" :key="item.catId" class="vh-bucket-row">
-              <span class="vh-bucket-row-ico">{{ item.icon }}</span>
-              <div class="vh-bucket-row-main">
-                <div class="vh-bucket-row-cat">{{ item.catLabel }}<template v-if="item.vendorName"> · {{ item.vendorName }}</template></div>
-                <div class="vh-bucket-row-src">🔗 Included dari {{ item.sourceCatLabel }} - {{ item.sourceName }}</div>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="vh-bucket-list">
-            <div v-if="!bucketBelumList.length" class="vh-bucket-empty">Semua kategori sudah punya vendor 🎉</div>
-            <div v-for="item in bucketBelumList" :key="item.catId" class="vh-bucket-row">
-              <span class="vh-bucket-row-ico">{{ item.icon }}</span>
-              <div class="vh-bucket-row-main">
-                <div class="vh-bucket-row-cat">{{ item.catLabel }}</div>
-              </div>
-              <button type="button" class="vh-bucket-add" @click="quickAddCategory(item.catId)">+ Tambah Vendor</button>
-            </div>
-          </div>
-          </div>
         </div>
 
         <div v-if="nextCategories.length" class="vh-progress-next">
@@ -232,40 +206,55 @@
 
     <!-- Chip list (PC) -->
     <div v-if="!isMobile">
-      <!-- Kategori sudah dipenuhi lewat Included Vendor punya vendor lain -->
-      <div v-if="categoryFulfillment" class="vh-fulfilled">
-        <div class="vh-fulfilled-lbl">Kategori {{ catLabel(store.vFilter) }} sudah dipenuhi oleh:</div>
-        <div class="vh-fulfilled-vendor">
-          <span class="vh-fulfilled-ico">{{ catIcon(categoryFulfillment.category) }}</span>
-          <div class="vh-fulfilled-main">
-            <div class="vh-fulfilled-cat">{{ catLabel(categoryFulfillment.category) }}</div>
-            <div class="vh-fulfilled-name">{{ categoryFulfillment.nama }}<template v-if="categoryFulfillment.namaPaket"> · {{ categoryFulfillment.namaPaket }}</template></div>
+      <!-- Hero Status Summary lagi aktif: tampilan lintas kategori, banner
+           & empty-state kategori-spesifik di bawah ini disembunyikan. -->
+      <template v-if="heroStatusFilter !== 'semua'">
+        <div v-if="!filteredRows.length" class="vh-empty">
+          <div class="vh-empty-ico">{{ VENDOR_STATUS[heroStatusFilter].icon }}</div>
+          <div class="vh-empty-title">Belum ada vendor dengan status {{ heroStatusLabel }}</div>
+          <div class="vh-empty-sub">Coba pilih status lain, atau kembali ke "Semua".</div>
+          <button class="icon-btn" @click="heroStatusFilter = 'semua'">Tampilkan Semua</button>
+        </div>
+      </template>
+
+      <template v-else>
+        <!-- Kategori sudah dipenuhi lewat Included Vendor punya vendor lain -->
+        <div v-if="categoryFulfillment" class="vh-fulfilled">
+          <div class="vh-fulfilled-lbl">Kategori {{ catLabel(store.vFilter) }} sudah dipenuhi oleh:</div>
+          <div class="vh-fulfilled-vendor">
+            <span class="vh-fulfilled-ico">{{ catIcon(categoryFulfillment.category) }}</span>
+            <div class="vh-fulfilled-main">
+              <div class="vh-fulfilled-cat">{{ catLabel(categoryFulfillment.category) }}</div>
+              <div class="vh-fulfilled-name">{{ categoryFulfillment.nama }}<template v-if="categoryFulfillment.namaPaket"> · {{ categoryFulfillment.namaPaket }}</template></div>
+            </div>
+            <span class="vh-fulfilled-status">🔗 Included</span>
           </div>
-          <span class="vh-fulfilled-status">🔗 Included</span>
+          <div class="vh-fulfilled-actions">
+            <button type="button" class="icon-btn" @click="jumpToVendor(categoryFulfillment)">Lihat Vendor</button>
+            <button type="button" class="icon-btn solid" @click="openAdd">Gunakan Vendor Lain</button>
+          </div>
         </div>
-        <div class="vh-fulfilled-actions">
-          <button type="button" class="icon-btn" @click="jumpToVendor(categoryFulfillment)">Lihat Vendor</button>
-          <button type="button" class="icon-btn solid" @click="openAdd">Gunakan Vendor Lain</button>
+
+        <div v-if="!catRows.length && !categoryFulfillment" class="vh-empty">
+          <div class="vh-empty-ico">{{ catIcon(store.vFilter) }}</div>
+          <div class="vh-empty-title">Belum ada Vendor {{ catLabel(store.vFilter) }}</div>
+          <div class="vh-empty-sub">Tambahkan vendor pertama agar persiapanmu semakin lengkap.</div>
+          <button class="icon-btn solid" @click="openAdd">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Tambah Vendor
+          </button>
         </div>
-      </div>
 
-      <div v-if="!catRows.length && !categoryFulfillment" class="vh-empty">
-        <div class="vh-empty-ico">{{ catIcon(store.vFilter) }}</div>
-        <div class="vh-empty-title">Belum ada Vendor {{ catLabel(store.vFilter) }}</div>
-        <div class="vh-empty-sub">Tambahkan vendor pertama agar persiapanmu semakin lengkap.</div>
-        <button class="icon-btn solid" @click="openAdd">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Tambah Vendor
-        </button>
-      </div>
+        <div v-if="catRows.length && !filteredRows.length" class="vh-empty">
+          <div class="vh-empty-ico">🔍</div>
+          <div class="vh-empty-title">Tidak ada vendor yang cocok</div>
+          <div class="vh-empty-sub">Coba ubah kata pencarian atau filter yang dipakai.</div>
+          <button class="icon-btn" @click="resetFilters">Reset Filter</button>
+        </div>
+      </template>
 
-      <div v-if="catRows.length && !filteredRows.length" class="vh-empty">
-        <div class="vh-empty-ico">🔍</div>
-        <div class="vh-empty-title">Tidak ada vendor yang cocok</div>
-        <div class="vh-empty-sub">Coba ubah kata pencarian atau filter yang dipakai.</div>
-        <button class="icon-btn" @click="resetFilters">Reset Filter</button>
-      </div>
-
-      <div v-if="filteredRows.length" class="vh-chiplist">
+      <TransitionGroup
+        v-if="filteredRows.length" tag="div" name="vh-fade" class="vh-chiplist"
+      >
         <div
           v-for="v in filteredRows"
           :key="v.id"
@@ -541,7 +530,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
     </div>
 
     <VendorModal :show="modalShow" :edit-id="editId" :default-category="store.vFilter" @close="modalShow = false" />
@@ -719,13 +708,14 @@ const statusBuckets = computed(() => {
   return { dipilih, included, belum }
 })
 
-// Popover ringkasan bucket (Dipilih/Included/Belum Dipilih) di Hero —
-// murni tampilan, gak nambah state baru ke store, cuma nge-list ulang
-// data yang sama dari sudut pandang tiap bucket.
-const openBucket     = ref(null)
-const bucketsWrapRef = ref(null)
-function toggleBucket(key) { openBucket.value = openBucket.value === key ? null : key }
-function quickAddCategory(catId) { store.vFilter = catId; openBucket.value = null; openAdd() }
+// Status Summary Hero — shortcut filter lintas kategori. 'semua' = kondisi
+// default (balik ke daftar per-kategori biasa). Milih kategori manual di
+// bawah otomatis reset balik ke 'semua' (lihat watcher store.vFilter).
+const heroStatusFilter = ref('semua')
+function setHeroStatusFilter(key) { heroStatusFilter.value = heroStatusFilter.value === key ? 'semua' : key }
+const HERO_STATUS_LABEL = { dipakai: 'Dipilih', included: 'Included', batal: 'Belum Dipilih' }
+const heroStatusLabel = computed(() => HERO_STATUS_LABEL[heroStatusFilter.value] || '')
+watch(() => store.vFilter, () => { heroStatusFilter.value = 'semua' })
 
 // Mobile only: overflow menu (Export/Import/Panduan) & bottom sheet filter.
 const overflowOpen    = ref(false)
@@ -733,16 +723,12 @@ const overflowWrapRef = ref(null)
 const filterSheetOpen = ref(false)
 function applyMobileFilter({ status, sort }) { statusFilter.value = status; sortBy.value = sort }
 
-// Klik di luar panel / tombol bucket → tutup. Esc juga nutup. Dicek lewat
-// containment (bukan @click.stop di tiap tombol) biar satu listener aja
-// yang ngurus ketiga bucket + panel-nya sekaligus.
+// Klik di luar menu overflow → tutup. Esc nutup overflow & filter sheet.
 function onBucketDocClick(e) {
-  if (openBucket.value && !bucketsWrapRef.value?.contains(e.target)) openBucket.value = null
   if (overflowOpen.value && !overflowWrapRef.value?.contains(e.target)) overflowOpen.value = false
 }
 function onBucketKeydown(e) {
   if (e.key !== 'Escape') return
-  if (openBucket.value) openBucket.value = null
   if (overflowOpen.value) overflowOpen.value = false
   if (filterSheetOpen.value) filterSheetOpen.value = false
 }
@@ -754,30 +740,6 @@ onBeforeUnmount(() => {
   document.removeEventListener('click', onBucketDocClick)
   document.removeEventListener('keydown', onBucketKeydown)
 })
-
-const bucketDipilihList = computed(() => dipakaiList.value.map(v => ({
-  id: v.id, icon: catIcon(v.category), catLabel: catLabel(v.category),
-  nama: v.nama, namaPaket: v.namaPaket, harga: v.harga,
-})))
-
-const bucketIncludedList = computed(() => {
-  const out = []
-  for (const c of VENDOR_CATEGORIES) {
-    if (store.vendors.some(v => v.category === c.id && v.jadi)) continue
-    const src = store.categoryIncludedBy(c.id)
-    if (!src) continue
-    const incEntry = (src.includedVendors || []).find(x => x.category === c.id)
-    const vendorRef = incEntry && incEntry.vendorId ? store.vendors.find(x => x.id === incEntry.vendorId) : null
-    out.push({
-      catId: c.id, icon: catIcon(c.id), catLabel: c.label,
-      vendorName: vendorRef ? vendorRef.nama : null,
-      sourceCatLabel: catLabel(src.category), sourceName: src.nama,
-    })
-  }
-  return out
-})
-
-const bucketBelumList = computed(() => VENDOR_CATEGORIES.filter(c => !isCategoryDone(c.id)).map(c => ({ catId: c.id, icon: catIcon(c.id), catLabel: c.label })))
 
 // Status per-baris vendor buat chip/filter — 'included' itu turunan
 // (bukan disimpan di row), menang duluan sebelum 'dipertimbangkan' kalau
@@ -833,10 +795,15 @@ const topCategory = computed(() => {
 
 // ── Search / filter / sort (tampilan saja, di atas catRows) ──
 const filteredRows = computed(() => {
-  let rows = catRows.value
+  // Hero Status Summary aktif ('semua' dilepas) → daftar lintas SEMUA
+  // kategori, difilter status turunan (resolvedStatus). Kondisi default
+  // ('semua') tetap daftar per-kategori biasa kayak sebelumnya.
+  const heroActive = heroStatusFilter.value !== 'semua'
+  let rows = heroActive ? store.vendors : catRows.value
   const q = searchQ.value.trim().toLowerCase()
   if (q) rows = rows.filter(v => (v.nama || '').toLowerCase().includes(q) || (v.namaPaket || '').toLowerCase().includes(q))
-  if (statusFilter.value !== 'semua') rows = rows.filter(v => resolvedStatus(v) === statusFilter.value)
+  if (heroActive) rows = rows.filter(v => resolvedStatus(v) === heroStatusFilter.value)
+  else if (statusFilter.value !== 'semua') rows = rows.filter(v => resolvedStatus(v) === statusFilter.value)
   rows = [...rows]
   if (sortBy.value === 'harga-rendah') rows.sort((a, b) => (a.harga || 0) - (b.harga || 0))
   else if (sortBy.value === 'harga-tinggi') rows.sort((a, b) => (b.harga || 0) - (a.harga || 0))
@@ -980,6 +947,9 @@ function onImport(e) {
   border: 1px solid var(--teal); border-radius: 100px; background: var(--paper); color: var(--teal);
   font-family: 'Jost', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
+.vhm-status-empty { background: var(--gold-soft); border-color: var(--gold); }
+.vhm-status-empty .vhm-fulfilled-lbl { color: #7a5c28; }
+.vhm-status-empty .vhm-fulfilled-btn { border-color: var(--gold); color: var(--plum); }
 
 /* ═══════════════════════════════════════════════════════════════════
    DESKTOP — tidak diubah dari sebelumnya.
@@ -1044,46 +1014,6 @@ function onImport(e) {
   box-shadow: 0 3px 10px rgba(36,8,8,.08);
 }
 .vh-bucket:active { transform: translateY(0) scale(.97); }
-
-/* Floating popover — position:absolute biar keluar dari normal flow, jadi
-   tinggi .vh-progress-card TIDAK ikut membesar pas panel ini kebuka
-   (beda dari versi sebelumnya yang nge-push konten di bawahnya). */
-.vh-bucket-panel {
-  position: absolute; top: calc(100% + 12px); left: 0; z-index: 30;
-  width: 340px; max-width: min(90vw, 340px);
-  background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
-  box-shadow: 0 16px 40px rgba(36,8,8,.16), 0 2px 10px rgba(36,8,8,.08);
-  padding: 16px 18px;
-  animation: vh-pop .15s ease;
-}
-.vh-bucket-panel::before {
-  content: ""; position: absolute; top: -6px; left: 22px;
-  width: 12px; height: 12px; background: var(--paper);
-  border-left: 1px solid var(--line); border-top: 1px solid var(--line);
-  transform: rotate(45deg);
-}
-@keyframes vh-pop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-.vh-bucket-panel-head {
-  display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
-  font-size: 11px; font-weight: 700; color: var(--plum); text-transform: uppercase; letter-spacing: .03em;
-}
-.vh-bucket-close { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 6px; line-height: 1; }
-.vh-bucket-close:hover { color: var(--rose); }
-.vh-bucket-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
-.vh-bucket-empty { font-size: 13px; color: var(--muted); padding: 8px 0; }
-.vh-bucket-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--ivory); border-radius: 10px; }
-.vh-bucket-row-ico { flex: none; width: 30px; height: 30px; display: grid; place-items: center; font-size: 15px; background: var(--paper); border-radius: 8px; }
-.vh-bucket-row-main { flex: 1; min-width: 0; }
-.vh-bucket-row-cat { font-size: 13px; font-weight: 600; color: var(--cacao); }
-.vh-bucket-row-name { font-size: 12px; color: var(--muted); margin-top: 1px; }
-.vh-bucket-row-src { font-size: 11.5px; color: var(--teal); margin-top: 1px; }
-.vh-bucket-row-price { flex: none; font-family: 'Cormorant Garamond', serif; font-size: 15px; font-weight: 700; color: var(--plum); }
-.vh-bucket-add {
-  flex: none; font-family: 'Jost', sans-serif; font-size: 11.5px; font-weight: 600;
-  padding: 5px 10px; border-radius: 100px; border: 1px solid var(--line);
-  background: var(--paper); color: var(--plum); cursor: pointer; transition: .15s;
-}
-.vh-bucket-add:hover { background: var(--gold-soft); border-color: var(--gold); }
 
 .vh-side { display: flex; flex-direction: column; gap: 16px; }
 .vh-mini-card {
@@ -1169,7 +1099,11 @@ function onImport(e) {
 .vh-empty-sub { font-size: 13.5px; color: var(--muted); margin-bottom: 20px; max-width: 360px; margin-left: auto; margin-right: auto; }
 
 /* ── Vendor chip list ── */
-.vh-chiplist { display: flex; flex-direction: column; gap: 10px; }
+.vh-chiplist { position: relative; display: flex; flex-direction: column; gap: 10px; }
+.vh-fade-enter-active, .vh-fade-leave-active { transition: opacity .22s ease, transform .22s ease; }
+.vh-fade-enter-from, .vh-fade-leave-to { opacity: 0; transform: translateY(6px); }
+.vh-fade-leave-active { position: absolute; }
+.vh-fade-move { transition: transform .22s ease; }
 .vh-chip-wrap {
   background: var(--paper); border: 1px solid var(--line); border-radius: 16px;
   box-shadow: 0 1px 2px rgba(36,8,8,.04);

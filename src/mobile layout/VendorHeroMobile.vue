@@ -8,9 +8,10 @@
     <div class="vhm-sub">{{ decidedCount }} dari {{ totalCategories }} kategori selesai</div>
 
     <div class="vhm-buckets">
-      <span class="vhm-bucket"><b>{{ statusBuckets.dipilih }}</b> Dipilih</span>
-      <span class="vhm-bucket vhm-bucket-inc"><b>{{ statusBuckets.included }}</b> Included</span>
-      <span class="vhm-bucket vhm-bucket-muted"><b>{{ statusBuckets.belum }}</b> Belum Dipilih</span>
+      <button type="button" class="vhm-bucket" :class="{ on: activeStatus === 'semua' }" @click="select('semua')">Semua</button>
+      <button type="button" class="vhm-bucket" :class="{ on: activeStatus === 'dipakai' }" @click="select('dipakai')"><b>{{ statusBuckets.dipilih }}</b> Dipilih</button>
+      <button type="button" class="vhm-bucket vhm-bucket-inc" :class="{ on: activeStatus === 'included' }" @click="select('included')"><b>{{ statusBuckets.included }}</b> Included</button>
+      <button type="button" class="vhm-bucket vhm-bucket-muted" :class="{ on: activeStatus === 'batal' }" @click="select('batal')"><b>{{ statusBuckets.belum }}</b> Belum Dipilih</button>
     </div>
 
     <div class="vhm-divider"></div>
@@ -53,7 +54,7 @@
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { grp } from '../utils/index'
 
-defineProps({
+const props = defineProps({
   progressPct: { type: Number, required: true },
   decidedCount: { type: Number, required: true },
   totalCategories: { type: Number, required: true },
@@ -61,8 +62,10 @@ defineProps({
   totalBiaya: { type: Number, required: true },
   dipakaiCount: { type: Number, required: true },
   nextCategories: { type: Array, required: true },
+  activeStatus: { type: String, default: 'semua' },
 })
-defineEmits(['jump-category'])
+const emit = defineEmits(['jump-category', 'select-status'])
+function select(key) { emit('select-status', props.activeStatus === key ? 'semua' : key) }
 
 const CAT_ICONS = { wo: '📋', venue: '🏛', catering: '🍽', dekorasi: '🌸', musik: '🎶', fotografer: '📸', mua: '💄', mc: '🎤', souvenir: '🎁' }
 const catIcon = id => CAT_ICONS[id] || '💍'
@@ -93,13 +96,18 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
 .vhm-buckets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 .vhm-bucket {
   display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11.5px; color: var(--cacao);
-  background: var(--ivory); border: 1px solid var(--line); border-radius: 100px;
-  padding: 5px 10px;
+  min-height: 36px;
+  font-family: 'Jost', sans-serif; font-size: 12px; font-weight: 500; color: var(--cacao);
+  background: var(--ivory); border: 1.5px solid var(--line); border-radius: 100px;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
 }
 .vhm-bucket b { font-family: 'Cormorant Garamond', serif; font-size: 14px; font-weight: 700; color: var(--plum); }
 .vhm-bucket-inc b { color: var(--teal); }
 .vhm-bucket-muted b { color: var(--muted); }
+.vhm-bucket.on { background: var(--gold-soft); border-color: var(--gold); font-weight: 700; color: var(--plum); }
+.vhm-bucket-inc.on { background: var(--teal-soft); border-color: var(--teal); }
 
 .vhm-divider { height: 1px; background: var(--line); margin: 14px 0; border: none; border-top: 1px dashed var(--line); }
 

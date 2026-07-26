@@ -14,6 +14,7 @@
       <button type="button" class="mv-empty-btn mv-empty-btn-ghost" @click="$emit('reset-filter')">Reset Filter</button>
     </div>
 
+    <TransitionGroup v-else tag="div" name="mv-fade" class="mv-list">
     <div v-for="v in rows" :key="v.id" class="mv-card" :class="['mvs-' + cardStatusKey(v), { expanded: expandedId === v.id }]">
       <div class="mv-row" @click="toggleExpand(v.id)">
         <span class="mv-cat-ico">{{ catIcon(v.category) }}</span>
@@ -333,6 +334,7 @@
         </div>
       </div>
     </div>
+    </TransitionGroup>
   </div>
 </template>
 
@@ -437,6 +439,16 @@ function payInfo(v) {
   flex-direction: column;
   gap: 10px;
 }
+.mv-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mv-fade-enter-active, .mv-fade-leave-active { transition: opacity .22s ease, transform .22s ease; }
+.mv-fade-enter-from, .mv-fade-leave-to { opacity: 0; transform: translateY(6px); }
+.mv-fade-leave-active { position: absolute; width: 100%; }
+.mv-fade-move { transition: transform .22s ease; }
 .mv-empty {
   background: var(--paper);
   border: 1px dashed var(--line);
