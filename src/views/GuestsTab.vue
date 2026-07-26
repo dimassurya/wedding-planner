@@ -642,6 +642,13 @@ onBeforeUnmount(() => {
   padding-left: 30px;
   padding-right: 30px;
 }
+/* Mobile Device — Toolbar (Search/Filter/Tambah Tamu/Overflow) ikut normal
+   flow halaman, TIDAK sticky. Pakai breakpoint mobile yang sudah ada di
+   project (MOBILE_BREAKPOINT, lihat useIsMobile.js). Desktop & Tablet
+   (>680px) tidak berubah sama sekali. */
+@media (max-width: 680px) {
+  .g-toolbar.sticky { position: static; }
+}
 .gh-overflow-wrap { position: relative; flex: none; }
 .gh-overflow-btn { font-size: 18px; line-height: 1; }
 .gh-overflow-menu {
