@@ -5,7 +5,7 @@ export const META = {
   cpw:             { label: 'Keluarga Pengantin Wanita', short: 'Kel. Wanita',  side: 'wanita', group: 'Keluarga', color: '#F0A8A8', bg: '#B32E33', text: '#fff' },
   teman_pria:      { label: 'Teman Pengantin Pria',      short: 'Tmn. Pria',    side: 'pria',   group: 'Teman',    color: '#7090C8', bg: '#0A1D4B', text: '#fff' },
   teman_wanita:    { label: 'Teman Pengantin Wanita',    short: 'Tmn. Wanita',  side: 'wanita', group: 'Teman',    color: '#D08080', bg: '#810100', text: '#fff' },
-  tetangga_pria:   { label: 'Tetangga Pengantin Pria',   short: 'Ttg. Pria',    side: 'pria',   group: 'Tetangga', color: '#E5C99A', bg: '#CD9F65', text: '#3a2a10' },
+  tetangga_pria:   { label: 'Tetangga Pengantin Pria',   short: 'Ttg. Pria',    side: 'pria',   group: 'Tetangga', color: '#7090C8', bg: '#0A1D4B', text: '#fff' },
   tetangga_wanita: { label: 'Tetangga Pengantin Wanita', short: 'Ttg. Wanita',  side: 'wanita', group: 'Tetangga', color: '#C07080', bg: '#6E151A', text: '#fff' },
   lainnya:         { label: 'Lainnya',                   short: 'Lainnya',      side: null,     group: 'Lainnya',  color: '#C4A8A8', bg: '#3A2A2A', text: '#E8D0D0' },
 }
