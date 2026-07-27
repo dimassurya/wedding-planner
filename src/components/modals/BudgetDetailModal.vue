@@ -41,7 +41,7 @@
       </div>
 
       <div v-for="p in pays" :key="p.id" class="pay-row" :class="{ done: p.paid }">
-        <button class="pay-check" :class="{ on: p.paid }" @click="store.togglePaymentPaid(p.id, !p.paid)"
+        <button class="pay-check" :class="{ on: p.paid }" @click="onTogglePaid(p)"
           :title="p.paid ? 'Tandai belum dibayar' : 'Tandai sudah dibayar'">
           <svg v-if="p.paid" viewBox="0 0 20 20" fill="none"><path d="M4 10l4.5 4.5L16 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
@@ -59,6 +59,7 @@
               <input type="date" :value="p.paid ? p.paidDate : p.dueDate" @change="onDate($event, p)">
             </label>
             <input class="pay-by" type="text" list="pay-by-opts" :value="p.paidBy" placeholder="Dibayar oleh..." @input="onBy($event, p)">
+            <span v-if="store.fundTxForPayment(p.id)" class="pay-fund-badge" title="Tercatat sebagai pengeluaran di Wedding Fund">💰 Wedding Fund</span>
             <button class="pay-del" @click="store.delPayment(p.id)" title="Hapus termin">
               <svg viewBox="0 0 24 24" fill="none" stroke="#B32E33" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
             </button>
@@ -174,6 +175,37 @@ function onDate(e, p) {
   store.recalcDibayar(p.budgetItemId)
 }
 
+// Centang termin jadi lunas → tawarkan catat sebagai pengeluaran Wedding
+// Fund (opt-in, cuma sekali per termin — fundTxForPayment cegah re-prompt).
+async function onTogglePaid(p) {
+  const goingPaid = !p.paid
+  store.togglePaymentPaid(p.id, goingPaid)
+  if (goingPaid) await maybeLinkFund(p)
+}
+
+async function maybeLinkFund(p) {
+  if (store.fundTxForPayment(p.id)) return
+  const ok = await store.askConfirm({
+    title: 'Ambil dari Wedding Fund?',
+    message: `Catat pembayaran ${fmt(p.amount)} ini sebagai pengeluaran dari Wedding Fund?`,
+    confirmLabel: 'Ya, dari Wedding Fund',
+    cancelLabel: 'Tidak',
+    danger: false,
+  })
+  if (!ok) return
+  store.addFundTx({
+    tanggal: p.paidDate || new Date().toISOString().slice(0, 10),
+    jenis: 'keluar',
+    kategori: 'Vendor',
+    nominal: p.amount,
+    catatan: `Pembayaran: ${item.value.item || 'Item Budget'}`,
+    budgetItemId: item.value.id,
+    // p.id bisa masih kosong kalau baru saja dibuat (addSisaLunas) & belum
+    // sempat ke-sync ke server — kalau begitu link cukup lewat budgetItemId.
+    budgetPaymentId: p.id ?? null,
+  })
+}
+
 function addTermin() {
   // Default = bagian harga yang BELUM dialokasikan ke termin manapun
   // (aktual dikurangi SEMUA termin yang udah ada, lunas ataupun belum) —
@@ -187,9 +219,10 @@ function addTermin() {
   store.addPayment(b.id, { amount: remainder })
 }
 
-function addSisaLunas() {
+async function addSisaLunas() {
   const today = new Date().toISOString().slice(0, 10)
-  store.addPayment(item.value.id, { amount: sisa.value, paid: true, paidDate: today, note: 'Pelunasan' })
+  const p = store.addPayment(item.value.id, { amount: sisa.value, paid: true, paidDate: today, note: 'Pelunasan' })
+  await maybeLinkFund(p)
 }
 </script>
 
@@ -237,6 +270,8 @@ function addSisaLunas() {
 
 .pay-by { flex: 1; min-width: 110px; font-size: 13px; border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 9px; color: var(--ink); font-family: 'Jost', sans-serif; background: #fff; }
 .pay-by:focus { outline: none; border-color: var(--gold); }
+
+.pay-fund-badge { flex: none; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 100px; background: var(--gold-soft); color: #7a5c28; white-space: nowrap; }
 
 .pay-del { flex: none; width: 30px; height: 30px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--paper); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: .15s; }
 .pay-del:hover { background: var(--rose-soft); border-color: var(--rose); }

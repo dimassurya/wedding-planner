@@ -13,6 +13,8 @@
         <div class="ob-step" :class="{ active: step === 1, done: step > 1 }">1</div>
         <div class="ob-step-line"></div>
         <div class="ob-step" :class="{ active: step === 2, done: step > 2 }">2</div>
+        <div class="ob-step-line"></div>
+        <div class="ob-step" :class="{ active: step === 3, done: step > 3 }">3</div>
       </div>
 
       <!-- Step 1: Data pasangan -->
@@ -50,7 +52,7 @@
       </template>
 
       <!-- Step 2: Pilih template -->
-      <template v-else>
+      <template v-else-if="step === 2">
         <h2 class="ob-title">Pakai template bawaan?</h2>
         <p class="ob-desc">Template membantu kamu mulai lebih cepat. Bisa dihapus atau diubah sesukamu.</p>
 
@@ -69,8 +71,33 @@
           </label>
         </div>
 
-        <button class="ob-btn" @click="done">Mulai Rencanakan</button>
+        <button class="ob-btn" @click="step = 3">Lanjut →</button>
         <button class="ob-back" @click="step = 1">← Kembali</button>
+      </template>
+
+      <!-- Step 3: Dana & anggaran -->
+      <template v-else>
+        <h2 class="ob-title">Dana &amp; Anggaran Pernikahan</h2>
+        <p class="ob-desc">Jadi dasar tab Keuangan buat ngitung apakah dana kamu cukup sampai Hari H. Bisa diubah kapan saja nanti.</p>
+
+        <div class="ob-form">
+          <div class="ob-field">
+            <label>Target Budget Pernikahan</label>
+            <div class="cur-wrap"><span class="cur-rp">Rp</span>
+              <input class="cur" type="text" inputmode="numeric" :value="grp(form.targetBudget)" placeholder="0" @input="onCurInput($event, 'targetBudget')">
+            </div>
+          </div>
+          <div class="ob-field">
+            <label>Dana Nikah Saat Ini</label>
+            <div class="cur-wrap"><span class="cur-rp">Rp</span>
+              <input class="cur" type="text" inputmode="numeric" :value="grp(form.danaAwal)" placeholder="0" @input="onCurInput($event, 'danaAwal')">
+            </div>
+          </div>
+        </div>
+
+        <button class="ob-btn" @click="done">Mulai Rencanakan</button>
+        <button class="ob-skip" @click="done">Lewati, isi nanti</button>
+        <button class="ob-back" @click="step = 2">← Kembali</button>
       </template>
     </div>
   </div>
@@ -79,6 +106,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
+import { grp, num } from '../utils/index'
 
 const store = useWeddingStore()
 const step  = ref(1)
@@ -89,7 +117,17 @@ const form = reactive({
   tanggal:    store.couple?.tanggal    || '',
   jamMulai:   store.couple?.jamMulai   || '',
   jamSelesai: store.couple?.jamSelesai || '',
+  targetBudget: store.targetBudget || 0,
+  danaAwal:     0,
 })
+
+function onCurInput(e, field) {
+  const len = e.target.value.length, start = e.target.selectionStart
+  e.target.value = grp(e.target.value)
+  form[field] = num(e.target.value)
+  const d = e.target.value.length - len
+  try { e.target.setSelectionRange(start + d, start + d) } catch (_) {}
+}
 
 const TEMPLATES = [
   { key: 'budget',    label: 'Anggaran & Vendor',  hint: 'Daftar item budget pernikahan umum' },
@@ -111,6 +149,8 @@ function done() {
     jamMulai:   form.jamMulai,
     jamSelesai: form.jamSelesai,
     templates:  { ...templates },
+    targetBudget: form.targetBudget,
+    danaAwal:     form.danaAwal,
   })
 }
 </script>

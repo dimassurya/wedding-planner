@@ -102,6 +102,7 @@
         <HomeTab      v-show="store.activeTab === 'home'" />
         <GuestsTab    v-show="store.activeTab === 'tamu'" />
         <BudgetTab    v-show="store.activeTab === 'budget'" />
+        <FinanceTab   v-show="store.activeTab === 'keuangan'" />
         <VendorTab    v-show="store.activeTab === 'vendor'" />
         <SeserahanTab v-show="store.activeTab === 'seserahan'" />
         <MaharTab     v-show="store.activeTab === 'mahar'" />
@@ -155,6 +156,7 @@ import WelcomeGuide   from './views/WelcomeGuide.vue'
 import HomeTab      from './views/HomeTab.vue'
 import GuestsTab    from './views/GuestsTab.vue'
 import BudgetTab    from './views/BudgetTab.vue'
+import FinanceTab   from './views/FinanceTab.vue'
 import VendorTab    from './views/VendorTab.vue'
 import SeserahanTab from './views/SeserahanTab.vue'
 import MaharTab     from './views/MaharTab.vue'

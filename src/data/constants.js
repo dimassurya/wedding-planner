@@ -340,8 +340,14 @@ export const WP_TABS = [
   { tab: 'admin',     label: 'Dokumen Nikah' },
   { tab: 'checklist', label: 'Checklist' },
   { tab: 'budget',    label: 'Budget' },
+  { tab: 'keuangan',  label: 'Keuangan' },
   { tab: 'timeline',  label: 'Agenda' },
 ]
+
+// Kategori transaksi Wedding Fund (tab Keuangan) — daftar opsi <select>,
+// beda set tergantung Jenis (Masuk/Keluar).
+export const FUND_KATEGORI_MASUK  = ['Gaji', 'Bonus', 'THR', 'Orang Tua', 'Tabungan', 'Hadiah', 'Lainnya']
+export const FUND_KATEGORI_KELUAR = ['Vendor', 'Souvenir', 'Undangan', 'Dekorasi', 'Transport', 'Lainnya']
 
 export const STORAGE_KEYS = {
   GKEY:  'weddingGuests_v3',

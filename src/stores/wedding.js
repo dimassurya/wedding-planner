@@ -52,6 +52,7 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   // ── Onboarding / profil pasangan ────────────────────────────────
   const couple = ref({ pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '' })
+  const targetBudget = ref(0)   // target anggaran nikah — patokan tab Keuangan, diisi saat onboarding atau inline-edit
   const onboarded          = ref(false)   // sudah lewat welcome screen (persist di settings)
   const beginOnboarding    = ref(false)   // sementara: user klik "Bayar Sekarang"
   const isNewUser          = ref(false)   // true kalau belum pernah punya data (baru dibuat)
@@ -73,6 +74,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   const guests    = ref([])
   const budget    = ref([])
   const payments  = ref([])   // buku pembayaran per item budget (budget_payments)
+  const fund      = ref([])   // transaksi Wedding Fund — uang masuk/keluar tabungan nikah (wedding_fund_transactions)
   const vendors   = ref([])
   const seserahan = ref([])
   const mahar     = ref([])
@@ -238,7 +240,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   // "mutasi array lalu panggil saveX() tanpa argumen" seperti sebelumnya).
   const _shadow = {
     guests: new Map(), timeline: new Map(),
-    budget: new Map(), payments: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
+    budget: new Map(), payments: new Map(), fund: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
     adminGroups: new Map(), adminItems: new Map(),
     checklistGroups: new Map(), checklistItems: new Map(),
   }
@@ -362,6 +364,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   const saveG  = () => scheduleDiffSync('guests',   'guests',        guests)
   const saveB  = () => scheduleDiffSync('budget',   'budget_items',  budget)
   const saveP  = () => scheduleDiffSync('payments', 'budget_payments', payments)
+  const saveF  = () => scheduleDiffSync('fund',     'wedding_fund_transactions', fund)
   const saveV  = () => scheduleDiffSync('vendors',  'vendors',       vendors)
   const saveA  = () => scheduleDiffSyncNested('admin',     'adminGroups',     'admin_groups',     'adminItems',     'admin_items',     admin)
   const saveCK = () => scheduleDiffSyncNested('checklist', 'checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist)
@@ -385,6 +388,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       bFilter: bFilter.value,
       vFilter: vFilter.value,
       couple: couple.value,
+      targetBudget: targetBudget.value,
       onboarded: onboarded.value,
       showWelcomeGuide: showWelcomeGuide.value,
       ownerEmail: user.value?.email || ownerEmail.value || '',
@@ -400,6 +404,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (settings.couple && typeof settings.couple === 'object') {
       couple.value = { ...couple.value, ...settings.couple }
     }
+    if (typeof settings.targetBudget === 'number') targetBudget.value = settings.targetBudget
     if (typeof settings.onboarded === 'boolean') onboarded.value = settings.onboarded
     if (typeof settings.showWelcomeGuide === 'boolean') showWelcomeGuide.value = settings.showWelcomeGuide
     if (settings.ownerEmail) ownerEmail.value = settings.ownerEmail
@@ -464,6 +469,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       jamMulai: data.jamMulai || '',
       jamSelesai: data.jamSelesai || '',
     }
+    targetBudget.value = data.targetBudget || 0
     // Kumpulkan semua perubahan ke satu payload biar tersimpan dalam
     // sekali tulis (bukan debounce yang bisa hilang kalau user refresh cepat).
     const payload = {}
@@ -497,6 +503,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       clearedSeserahan ? _diffAndSync('seserahan', 'seserahan_items', seserahan.value)  : Promise.resolve(),
       clearedAdmin     ? _diffAndSyncNested('adminGroups', 'admin_groups', 'adminItems', 'admin_items', admin.value) : Promise.resolve(),
       clearedChecklist ? _diffAndSyncNested('checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist.value) : Promise.resolve(),
+      (isNewUser.value && (data.danaAwal || 0) > 0) ? _seedInitialFundTx(data.danaAwal) : Promise.resolve(),
       _startTrialIfNeeded(),
     ])
     isNewUser.value = false
@@ -624,9 +631,11 @@ export const useWeddingStore = defineStore('wedding', () => {
   // bayar pun mempengaruhi cache jatuhTempo, jadi harus selalu disinkron.
   function addPayment(itemId, { amount = 0, dueDate = null, paid = false, paidDate = null, paidBy = '', note = '' } = {}) {
     const uid = ownerUserId.value || user.value?.id
-    payments.value.push({ owner_user_id: uid, budgetItemId: itemId, amount, dueDate, paid, paidDate, paidBy, note })
+    const row = { owner_user_id: uid, budgetItemId: itemId, amount, dueDate, paid, paidDate, paidBy, note }
+    payments.value.push(row)
     saveP()
     recalcDibayar(itemId)
+    return row
   }
 
   function updatePayment(payId, patch) {
@@ -644,6 +653,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     payments.value = payments.value.filter(x => x.id !== payId)
     saveP()
     recalcDibayar(itemId)
+    _forgetFundTxForPayment(payId)
   }
 
   // Quick-pay dari shortcut (agenda/tombol "Tandai Bayar" tanpa pilih termin):
@@ -669,6 +679,84 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (isPaid && !p.paidDate) p.paidDate = new Date().toISOString().slice(0, 10)
     saveP()
     recalcDibayar(p.budgetItemId)
+    // Batal-lunasin termin yang tadinya dicatat lewat Wedding Fund — saldo
+    // harus balik, bukan nyangkut nganggep uangnya udah keluar padahal
+    // pembayarannya sendiri baru saja dibatalkan.
+    if (!isPaid) _forgetFundTxForPayment(payId)
+  }
+
+  // ── Wedding Fund (wedding_fund_transactions) ────────────────────────
+  // Buku kas tabungan nikah — TERPISAH dari Budget (yang cuma daftar
+  // pengeluaran). Saldo = total masuk - total keluar, dihitung live dari
+  // baris transaksi, bukan disimpan sebagai angka kolom sendiri.
+  const fundMasuk = computed(() => fund.value.reduce((s, t) => s + (t.jenis === 'masuk' ? (t.nominal || 0) : 0), 0))
+  const fundKeluar = computed(() => fund.value.reduce((s, t) => s + (t.jenis === 'keluar' ? (t.nominal || 0) : 0), 0))
+  const fundSaldo = computed(() => fundMasuk.value - fundKeluar.value)
+
+  // Transaksi yang ke-link ke satu termin Budget tertentu (kalau ada) —
+  // dipakai buat badge "sudah dicatat di Wedding Fund" & cegah re-prompt.
+  const fundTxForPayment = payId => fund.value.find(t => t.budgetPaymentId === payId) || null
+
+  async function addFundTx(data) {
+    const uid = ownerUserId.value || user.value.id
+    const { data: row, error } = await supabase.from('wedding_fund_transactions')
+      .insert({
+        owner_user_id: uid,
+        tanggal: data.tanggal || new Date().toISOString().slice(0, 10),
+        jenis: data.jenis || 'masuk',
+        kategori: data.kategori || '',
+        nominal: data.nominal || 0,
+        catatan: data.catatan || '',
+        budgetItemId: data.budgetItemId ?? null,
+        budgetPaymentId: data.budgetPaymentId ?? null,
+      })
+      .select().single()
+    if (error || !row) { toast('Gagal menambah transaksi, coba lagi'); return null }
+    fund.value.push(row)
+    _shadow.fund.set(row.id, JSON.parse(JSON.stringify(row)))
+    return row
+  }
+
+  function updateFundTx(id, patch) {
+    const t = fund.value.find(x => x.id === id)
+    if (!t) return
+    Object.assign(t, patch)
+    saveF()
+  }
+
+  async function delFundTx(id) {
+    const t = fund.value.find(x => x.id === id)
+    if (!t) return
+    const ok = await askConfirm({
+      title: 'Hapus transaksi?',
+      message: `Transaksi "${t.catatan || t.kategori || (t.jenis === 'masuk' ? 'Uang Masuk' : 'Uang Keluar')}" akan dihapus.`,
+      confirmLabel: 'Hapus',
+    })
+    if (!ok) return
+    fund.value = fund.value.filter(x => x.id !== id)
+    saveF()
+    toast('Transaksi dihapus')
+  }
+
+  // Dipanggil waktu termin Budget yang tadinya "diambil dari Wedding Fund"
+  // dibatalkan (uncheck lunas) atau dihapus — transaksi terkait ikut hilang
+  // supaya saldo Wedding Fund tidak nyangkut salah.
+  function _forgetFundTxForPayment(payId) {
+    const idx = fund.value.findIndex(t => t.budgetPaymentId === payId)
+    if (idx === -1) return
+    fund.value.splice(idx, 1)
+    saveF()
+  }
+
+  // Baris "Saldo awal" saat onboarding, kalau user isi Dana Nikah Saat Ini.
+  async function _seedInitialFundTx(nominal) {
+    const uid = ownerUserId.value || user.value.id
+    const { data: row, error } = await supabase.from('wedding_fund_transactions')
+      .insert({ owner_user_id: uid, tanggal: new Date().toISOString().slice(0, 10), jenis: 'masuk', kategori: 'Tabungan', nominal, catatan: 'Saldo awal' })
+      .select().single()
+    if (error || !row) return
+    fund.value.push(row)
+    _shadow.fund.set(row.id, JSON.parse(JSON.stringify(row)))
   }
 
   // "originType" gantiin skema lama yang overload kolom id jadi sentinel
@@ -1278,6 +1366,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         guests: guests.value,
         budget: budget.value,
         payments: payments.value,
+        fund: fund.value,
         vendors: vendors.value,
         seserahan: seserahan.value,
         mahar: mahar.value,
@@ -1297,7 +1386,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       try { payload = JSON.parse(e.target.result) } catch { toast('File tidak bisa dibaca'); return }
       if (!payload || payload.app !== 'wedding-planner' || !payload.data) { toast('Bukan file backup Wedding Planner'); return }
       const d = payload.data
-      const counts = [['guests','tamu'],['budget','budget'],['vendors','vendor'],['seserahan','seserahan'],['mahar','mahar'],['admin','administrasi'],['checklist','checklist'],['timeline','timeline']].map(([k,l]) => Array.isArray(d[k]) ? `${d[k].length} ${l}` : null).filter(Boolean)
+      const counts = [['guests','tamu'],['budget','budget'],['fund','transaksi keuangan'],['vendors','vendor'],['seserahan','seserahan'],['mahar','mahar'],['admin','administrasi'],['checklist','checklist'],['timeline','timeline']].map(([k,l]) => Array.isArray(d[k]) ? `${d[k].length} ${l}` : null).filter(Boolean)
       const when = payload.exportedAt ? new Date(payload.exportedAt).toLocaleDateString('id-ID') : 'tidak diketahui'
       const hasSettings = payload.settings && Object.keys(payload.settings).length > 0
       const settingsNote = hasSettings ? ' Settings aplikasi juga akan dipulihkan (profil pasangan, onboarding, filter, reminder, dan urutan tab).' : ''
@@ -1309,6 +1398,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       if (!ok) return
 
       if (Array.isArray(d.guests))    guests.value    = d.guests
+      if (Array.isArray(d.fund))      fund.value      = d.fund
       if (Array.isArray(d.vendors)) vendors.value = d.vendors
       if (Array.isArray(d.seserahan)) seserahan.value = d.seserahan
       if (Array.isArray(d.mahar))     mahar.value     = d.mahar
@@ -1335,6 +1425,10 @@ export const useWeddingStore = defineStore('wedding', () => {
         // pada restore. File backup tetap menyimpan payments buat recovery
         // manual kalau perlu.
         payments.value = []
+        // Transaksi Wedding Fund TETAP dipertahankan (uang yang beneran
+        // keluar/masuk bukan data turunan Budget) — cuma link ke budget
+        // item/termin lama yang dilepas karena sudah pasti yatim.
+        fund.value = fund.value.map(t => ({ ...t, budgetItemId: null, budgetPaymentId: null }))
       }
       _applySettingsPayload(payload.settings)
 
@@ -1346,6 +1440,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         _diffAndSync('timeline', 'timeline_tasks', timeline.value),
         _diffAndSync('budget', 'budget_items', budget.value),
         _diffAndSync('payments', 'budget_payments', payments.value),
+        _diffAndSync('fund', 'wedding_fund_transactions', fund.value),
         _diffAndSync('vendors', 'vendors', vendors.value),
         _diffAndSync('seserahan', 'seserahan_items', seserahan.value),
         _diffAndSync('mahar', 'mahar_items', mahar.value),
@@ -1368,6 +1463,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     admin:     { label: 'administrasi', get: () => admin.value,     apply: v => { admin.value = v; saveA() } },
     checklist: { label: 'checklist',    get: () => checklist.value, apply: v => { checklist.value = v; saveCK() } },
     budget:    { label: 'budget',       get: () => budget.value,    apply: v => { budget.value = v; payments.value = []; saveB(); saveP() } },
+    keuangan:  { label: 'transaksi keuangan', get: () => fund.value, apply: v => { fund.value = v; saveF() } },
     timeline:  { label: 'timeline',     get: () => timeline.value,  apply: v => { timeline.value = v; saveTL() } },
   }
 
@@ -1418,20 +1514,23 @@ export const useWeddingStore = defineStore('wedding', () => {
   // _loadGuestsAndTimeline) biar resikonya kecil, sama seperti keputusan
   // Wave 1 dulu.
   async function _loadBudgetVendorsSeserahanMahar(ownerId) {
-    const [{ data: b }, { data: p }, { data: v }, { data: s }, { data: m }] = await Promise.all([
+    const [{ data: b }, { data: p }, { data: f }, { data: v }, { data: s }, { data: m }] = await Promise.all([
       supabase.from('budget_items').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('budget_payments').select('*').eq('owner_user_id', ownerId).order('id'),
+      supabase.from('wedding_fund_transactions').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('vendors').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('seserahan_items').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('mahar_items').select('*').eq('owner_user_id', ownerId).order('id'),
     ])
     budget.value    = b || []
     payments.value  = p || []
+    fund.value      = f || []
     vendors.value   = v || []
     seserahan.value = s || []
     mahar.value     = m || []
     _seedShadow('budget', budget.value)
     _seedShadow('payments', payments.value)
+    _seedShadow('fund', fund.value)
     _seedShadow('vendors', vendors.value)
     _seedShadow('seserahan', seserahan.value)
     _seedShadow('mahar', mahar.value)
@@ -1526,8 +1625,10 @@ export const useWeddingStore = defineStore('wedding', () => {
     // guests & vendors & mahar: array kosong, tidak ada seed
     guests.value  = []; vendors.value = []; mahar.value = []
     payments.value = []
+    fund.value = []
     _seedShadow('guests', []); _seedShadow('vendors', []); _seedShadow('mahar', [])
     _seedShadow('payments', [])
+    _seedShadow('fund', [])
 
     // timeline: seed di-insert ke timeline_tasks, id lokal dibuang biar
     // server generate PK asli
@@ -1627,7 +1728,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   // masih dipakai kolom wedding_data lain yang belum dinormalisasi).
   const _lastRowWriteAt = {
     guests: new Map(), timeline: new Map(),
-    budget: new Map(), payments: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
+    budget: new Map(), payments: new Map(), fund: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
     adminGroups: new Map(), adminItems: new Map(),
     checklistGroups: new Map(), checklistItems: new Map(),
   }
@@ -1769,6 +1870,10 @@ export const useWeddingStore = defineStore('wedding', () => {
         event: '*', schema: 'public', table: 'budget_payments',
         filter: `owner_user_id=eq.${listenId}`,
       }, p => _applyPaymentChange(p))
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'wedding_fund_transactions',
+        filter: `owner_user_id=eq.${listenId}`,
+      }, p => _applyRowChange('fund', fund, p))
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'vendors',
         filter: `owner_user_id=eq.${listenId}`,
@@ -2021,10 +2126,11 @@ export const useWeddingStore = defineStore('wedding', () => {
         isPartner.value = false
         partnerEmail.value = ''
         _channel?.unsubscribe()
-        guests.value = []; budget.value = []; payments.value = []; vendors.value = []
+        guests.value = []; budget.value = []; payments.value = []; fund.value = []; vendors.value = []
         seserahan.value = []; mahar.value = []; admin.value = []
         checklist.value = []; timeline.value = []
         couple.value = { pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '' }
+        targetBudget.value = 0
         onboarded.value = false; beginOnboarding.value = false
         // Bersihin shadow/echo-tracking biar nggak nyangkut kalau akun lain
         // login di tab yang sama setelahnya (shadow basi bisa bikin diff
@@ -2074,13 +2180,13 @@ export const useWeddingStore = defineStore('wedding', () => {
     ownerUserId, isPartner, partnerEmail, ownerEmail,
     sendPartnerInvite, cancelPartnerInvite, acceptPartnerInvite, removePartner, leavePartnership, revalidateMembership,
     // onboarding
-    couple, onboarded, beginOnboarding, startOnboarding, completeOnboarding,
+    couple, targetBudget, onboarded, beginOnboarding, startOnboarding, completeOnboarding,
     showWelcomeGuide, dismissWelcomeGuide, tourSidebarOpen, tourSteps, startTour,
     // quick add / reminders
     quickAddTarget, quickAddNonce, requestQuickAdd,
     reminders, saveReminderSettings, markReminderNotified,
     // state
-    guests, budget, payments, vendors, seserahan, mahar, admin, checklist, timeline,
+    guests, budget, payments, fund, vendors, seserahan, mahar, admin, checklist, timeline,
     activeTab, tabOrder, bFilter, vFilter, selectedMap,
     toastMsg, toastVisible,
     confirmShow, confirmTitle, confirmMessage, confirmOk, confirmCancel, confirmDanger,
@@ -2094,12 +2200,14 @@ export const useWeddingStore = defineStore('wedding', () => {
     isSelected, toggleSelected, clearSelected,
     // core
     init, toast,
-    saveG, saveB, saveP, saveV, saveS, saveM, saveA, saveCK, saveTL, saveTabOrder,
+    saveG, saveB, saveP, saveF, saveV, saveS, saveM, saveA, saveCK, saveTL, saveTabOrder,
     // budget
     bStatus, bSisa, bSelisih, bDisplayPrice, budgetSelisihTotal, budgetEstimasiSetCount, budgetOrigin,
     addBudgetItem, delBudget, removeBudgetEmptyItem,
     // pembayaran (buku bayar)
     itemPayments, paidTotal, nextDue, addPayment, updatePayment, delPayment, togglePaymentPaid, payNextDue, recalcDibayar,
+    // wedding fund
+    fundMasuk, fundKeluar, fundSaldo, fundTxForPayment, addFundTx, updateFundTx, delFundTx,
     // sync
     syncSeserahanToBudget, syncMaharToBudget, handleVendorDecision,
     // guest
