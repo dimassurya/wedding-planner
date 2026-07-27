@@ -34,9 +34,17 @@
   </div>
 
   <!-- Ringkasan sticky — muncul pas hero penuh sudah ke-scroll lewat,
-       biar progress & budget tetap kelihatan selama user kelola vendor. -->
+       biar progress & budget tetap kelihatan selama user kelola vendor.
+       Di-Teleport ke <body> (biar nggak kepotong sama .panel/scroll
+       container manapun), TAPI karena itu artinya dia lolos dari
+       display:none-nya #panel-vendor pas tab lain yang aktif (semua tab
+       tetap mounted, cuma di-v-show) — makanya visibility-nya WAJIB juga
+       dicek lewat prop `showSticky` (dikirim dari VendorTab.vue = tab
+       Vendor yang lagi aktif), bukan cuma dari scroll position `scrolled`
+       doang. Tanpa ini, ringkasan sticky Vendor bakal nempel ketimpa di
+       tab LAIN (mis. Tamu) tiap kali window discroll lewat 220px. -->
   <Teleport to="body">
-    <div class="vhm-sticky" :class="{ show: scrolled }">
+    <div class="vhm-sticky" :class="{ show: scrolled && showSticky }">
       <div class="vhm-sticky-inner">
         <span class="vhm-sticky-pct">{{ progressPct }}%</span>
         <div class="vhm-sticky-bar"><span :style="{ width: progressPct + '%' }"></span></div>
@@ -63,6 +71,10 @@ const props = defineProps({
   dipakaiCount: { type: Number, required: true },
   nextCategories: { type: Array, required: true },
   activeStatus: { type: String, default: 'semua' },
+  // Tab Vendor lagi aktif atau nggak (dikirim dari VendorTab.vue) — dipakai
+  // buat gating ringkasan sticky yang di-Teleport ke <body>, lihat komentar
+  // di template di atas kenapa ini perlu.
+  showSticky: { type: Boolean, default: true },
 })
 const emit = defineEmits(['jump-category', 'select-status'])
 function select(key) { emit('select-status', props.activeStatus === key ? 'semua' : key) }

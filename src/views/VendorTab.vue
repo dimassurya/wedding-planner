@@ -13,6 +13,7 @@
         :dipakai-count="dipakaiList.length"
         :next-categories="nextCategories"
         :active-status="heroStatusFilter"
+        :show-sticky="store.activeTab === 'vendor'"
         @jump-category="id => (store.vFilter = id)"
         @select-status="heroStatusFilter = $event"
       />
