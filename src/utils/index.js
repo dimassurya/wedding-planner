@@ -49,6 +49,18 @@ export function toCSV(headers, rows) {
   return '﻿' + lines.join('\n')
 }
 
+// Label "@ Rp ... × N org/undgn/hampers" buat kartu vendor tipe harga Per
+// Pax. Angkanya SELALU dibaca live dari store (Single Source of Truth Tab
+// Tamu — hadirOrangCount/rsvpUndanganCount/hampersCount), bukan dihitung
+// ulang di sini, biar VendorTab.vue & MobileVendorList.vue nggak
+// duplikasi logic yang sama.
+export function vendorPaxMultText(v, store) {
+  if (v.paxPengali === 'orang') return `${store.hadirOrangCount} org`
+  if (v.paxPengali === 'undangan') return `${store.rsvpUndanganCount} undgn`
+  if (v.paxPengali === 'hampers') return `${store.hampersCount} hampers`
+  return v.paxManualVal
+}
+
 // Format currency input while preserving cursor position
 export function formatCurrencyInput(e, item, field) {
   const len = e.target.value.length

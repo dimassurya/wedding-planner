@@ -400,12 +400,13 @@ const belumKonfirmasiOrang = computed(() => belumKonfirmasiList.value.reduce((s,
 const rsvpDoneOrang = computed(() => totalOrangSemua.value - belumKonfirmasiOrang.value)
 const rsvpPct = computed(() => totalOrangSemua.value ? Math.round(rsvpDoneOrang.value / totalOrangSemua.value * 100) : 0)
 
-// ── Compact Summary chips (Hero) — dari store.guests langsung, sama pola
-// kayak hitungan lama. Klik chip yang lagi aktif balik ke "Semua". ──
-const hadirOrang   = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'hadir').reduce((s, g) => s + g.jumlah, 0))
-const tidakOrang   = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'tidak').reduce((s, g) => s + g.jumlah, 0))
-const hampersOrang = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'hampers').reduce((s, g) => s + g.jumlah, 0))
-const kehOrangCounts = computed(() => ({ hadir: hadirOrang.value, tidak: tidakOrang.value, hampers: hampersOrang.value, belum: belumKonfirmasiOrang.value }))
+// ── Compact Summary chips (Hero) — "hadir" & "hampers" baca LANGSUNG dari
+// computed store (store.hadirOrangCount/store.hampersCount) biar satu
+// sumber angka yang sama juga dipakai modul Vendor (dropdown "Dikali"),
+// bukan dihitung ulang terpisah di sini. "tidak" belum ada computed store
+// yang butuh (cuma dipakai buat chip ini), jadi tetap lokal. ──
+const tidakOrang = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'tidak').reduce((s, g) => s + g.jumlah, 0))
+const kehOrangCounts = computed(() => ({ hadir: store.hadirOrangCount, tidak: tidakOrang.value, hampers: store.hampersCount, belum: belumKonfirmasiOrang.value }))
 function setFilterKehadiran(key) {
   filterKehadiran.value = filterKehadiran.value === key ? 'all' : key
 }

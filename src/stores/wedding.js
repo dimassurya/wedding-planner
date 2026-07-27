@@ -107,11 +107,43 @@ export const useWeddingStore = defineStore('wedding', () => {
     const k = g.kehadiran || 'belum'
     return k !== 'tidak' && k !== 'hampers'
   }))
-  // Jumlah tamu yang dikirimi hampers (bukan hadir fisik) — dipakai buat
-  // vendor yang jasanya "kirim hampers", dikalikan otomatis di tipe harga Per Pax.
-  const hampersCount    = computed(() => guests.value.filter(g => g.kehadiran === 'hampers').length)
+  // Jumlah ORANG (bukan baris undangan) yang dikirimi hampers — dipakai
+  // buat vendor yang jasanya "kirim hampers", dikalikan otomatis di tipe
+  // harga Per Pax. Single source of truth Tab Tamu buat opsi "Kirim
+  // Hampers" di dropdown "Dikali" Vendor.
+  const hampersCount = computed(() => guests.value.filter(g => g.kehadiran === 'hampers').reduce((s, g) => s + (g.jumlah || 0), 0))
+  // Jumlah ORANG dengan status Kehadiran "Hadir" (bukan "belum"+"hadir"
+  // kayak confirmedGuests/totalGuestPax — ini murni yang statusnya udah
+  // eksplisit "Hadir"). Single source of truth buat opsi "Tamu
+  // dikonfirmasi" di dropdown "Dikali" Vendor.
+  const hadirOrangCount = computed(() => guests.value.filter(g => g.kehadiran === 'hadir').reduce((s, g) => s + (g.jumlah || 0), 0))
+  // Jumlah UNDANGAN (baris tamu, bukan orang) yang statusnya SUDAH di-RSVP
+  // — kehadiran-nya bukan lagi "belum" (jadi "hadir"/"tidak"/"hampers"
+  // semua terhitung "sudah merespons"). Single source of truth buat opsi
+  // "Undangan dikonfirmasi" di dropdown "Dikali" Vendor.
+  const rsvpUndanganCount = computed(() => guests.value.filter(g => (g.kehadiran || 'belum') !== 'belum').length)
   const selectedCount   = computed(() => Object.keys(selectedMap).length)
   const selectedIds     = computed(() => Object.keys(selectedMap).map(k => isNaN(k) ? k : Number(k)))
+
+  // ── Vendor Per Pax — resolusi live dari Tab Tamu (Single Source of
+  // Truth). Vendor TIDAK menyimpan/menghitung ulang total tamu sendiri:
+  // `vendorPaxMultiplier` cuma baca computed guest-count di atas (atau
+  // paxManualVal buat opsi "Jumlah Custom", yang memang sengaja lepas
+  // dari Tab Tamu). `vendorEffectiveHarga` itu yang dipakai tiap kali
+  // butuh "harga vendor ini sekarang berapa" — buat tipe "pax" hasilnya
+  // SELALU dihitung ulang live (hargaPax × multiplier terbaru), BUKAN
+  // baca field v.harga yang bisa basi; tipe harga lain (all-in/paket/dst)
+  // tetap pakai v.harga apa adanya karena itu memang bukan turunan tamu. ──
+  function vendorPaxMultiplier(v) {
+    if (v.paxPengali === 'orang') return hadirOrangCount.value
+    if (v.paxPengali === 'undangan') return rsvpUndanganCount.value
+    if (v.paxPengali === 'hampers') return hampersCount.value
+    return v.paxManualVal || 1
+  }
+  function vendorEffectiveHarga(v) {
+    if (v.tipeHarga !== 'pax') return v.harga || 0
+    return (v.hargaPax || 0) * vendorPaxMultiplier(v)
+  }
 
   // ── Kapasitas venue ──────────────────────────────────────────────
   // Total tamu terkonfirmasi (satuan orang) vs kapasitas venue yang
@@ -749,6 +781,11 @@ export const useWeddingStore = defineStore('wedding', () => {
       // 1 paket) — disertakan biar baris Budget nggak ambigu kalau vendor
       // yang sama diinput ulang buat paket lain.
       const itemName = vendor.namaPaket ? `${catLabel} - ${vendor.nama} (${vendor.namaPaket})` : `${catLabel} - ${vendor.nama}`
+      // Tipe harga "pax" dihitung live dari Tab Tamu (Single Source of
+      // Truth) lewat vendorEffectiveHarga — bukan baca vendor.harga apa
+      // adanya, yang bisa basi kalau jumlah tamu berubah sejak vendor ini
+      // terakhir disimpan.
+      const hargaTerkini = vendorEffectiveHarga(vendor)
       if (existingIdx > -1) {
         // Estimasi sengaja TIDAK ditimpa di sini — itu patokan rencana
         // yang berdiri sendiri. Cuma aktual yang ngikutin harga vendor
@@ -757,10 +794,10 @@ export const useWeddingStore = defineStore('wedding', () => {
         // rename/ganti kategori vendor langsung kelihatan di Budget —
         // konsisten sama Seserahan/Mahar yang juga selalu nimpa nama.
         budget.value[existingIdx].item     = itemName
-        budget.value[existingIdx].aktual   = vendor.harga
+        budget.value[existingIdx].aktual   = hargaTerkini
         budget.value[existingIdx].remarks  = vendor.deskripsi
       } else {
-        budget.value.push({ vendorId: vendor.id, originType: 'vendor', item: itemName, estimasi: vendor.harga, aktual: vendor.harga, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: vendor.deskripsi })
+        budget.value.push({ vendorId: vendor.id, originType: 'vendor', item: itemName, estimasi: hargaTerkini, aktual: hargaTerkini, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: vendor.deskripsi })
       }
     } else {
       if (existingIdx > -1) {
@@ -2050,6 +2087,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     // computed
     confirmedGuests, selectedCount, selectedIds,
     totalGuestPax, venueCapacity, capacityOver, hampersCount,
+    hadirOrangCount, rsvpUndanganCount, vendorPaxMultiplier, vendorEffectiveHarga,
     // confirm dialog
     askConfirm, resolveConfirm,
     // selection

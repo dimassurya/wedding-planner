@@ -146,7 +146,7 @@
         <div>
           <div class="vh-ins-lbl">Vendor Termahal</div>
           <div class="vh-ins-name">{{ priciest.nama }}</div>
-          <div class="vh-ins-val">Rp {{ grp(priciest.harga) }}</div>
+          <div class="vh-ins-val">Rp {{ grp(store.vendorEffectiveHarga(priciest)) }}</div>
         </div>
       </div>
       <div v-if="cheapest" class="vh-insight">
@@ -154,7 +154,7 @@
         <div>
           <div class="vh-ins-lbl">Vendor Termurah</div>
           <div class="vh-ins-name">{{ cheapest.nama }}</div>
-          <div class="vh-ins-val">Rp {{ grp(cheapest.harga) }}</div>
+          <div class="vh-ins-val">Rp {{ grp(store.vendorEffectiveHarga(cheapest)) }}</div>
         </div>
       </div>
       <div v-if="topCategory" class="vh-insight">
@@ -279,7 +279,7 @@
             </div>
 
             <div class="vh-chip-price">
-              <span class="vh-chip-rp">Rp {{ grp(v.harga) }}</span>
+              <span class="vh-chip-rp">Rp {{ grp(store.vendorEffectiveHarga(v)) }}</span>
               <span class="vh-chip-tag">{{ tipeHargaTag(v) }}</span>
             </div>
 
@@ -295,7 +295,7 @@
 
           <!-- Detail info (expand ke bawah) -->
           <div v-if="expandedId === v.id" class="vt-body">
-            <div v-if="v.tipeHarga === 'pax'" class="vt-paxinfo">@ Rp {{ grp(v.hargaPax) }} × {{ paxMultText(v) }}</div>
+            <div v-if="v.tipeHarga === 'pax'" class="vt-paxinfo">@ Rp {{ grp(v.hargaPax) }} × {{ vendorPaxMultText(v, store) }}</div>
             <div v-if="v.tipeHarga === 'item'" class="vt-paxinfo">@ Rp {{ grp(v.hargaItem) }} × {{ v.jumlahItem }} item</div>
             <div v-if="v.tipeHarga === 'jam'" class="vt-paxinfo">@ Rp {{ grp(v.hargaJam) }} × {{ v.totalJam }} jam</div>
             <div v-if="v.tipeHarga === 'sesi'" class="vt-paxinfo">@ Rp {{ grp(v.hargaSesi) }} × {{ v.totalSesi }} sesi</div>
@@ -543,7 +543,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { VENDOR_CATEGORIES, VENDOR_STATUS } from '../data/constants'
-import { grp, fmtDate } from '../utils/index'
+import { grp, fmtDate, vendorPaxMultText } from '../utils/index'
 import { openWa } from '../mobile layout/waLink'
 import VendorModal from '../components/modals/VendorModal.vue'
 import BudgetDetailModal from '../components/modals/BudgetDetailModal.vue'
@@ -674,7 +674,10 @@ const TIPE_HARGA_TAGS = { pax: 'Per pax', item: 'Per item', jam: 'Per jam', sesi
 const tipeHargaTag = v => TIPE_HARGA_TAGS[v.tipeHarga] || 'All in'
 
 const dipakaiList = computed(() => store.vendors.filter(v => v.jadi))
-const totalBiaya  = computed(() => dipakaiList.value.reduce((s, v) => s + (v.harga || 0), 0))
+// Vendor tipe "pax" dihitung LIVE dari Tab Tamu lewat vendorEffectiveHarga
+// (Single Source of Truth) — bukan v.harga apa adanya, yang buat tipe pax
+// bisa basi begitu jumlah tamu berubah tanpa vendornya disimpan ulang.
+const totalBiaya  = computed(() => dipakaiList.value.reduce((s, v) => s + store.vendorEffectiveHarga(v), 0))
 const catRows     = computed(() => store.vendors.filter(v => v.category === store.vFilter))
 
 // ── Hero: progress per-kategori (bukan per-baris vendor) ──
@@ -775,11 +778,11 @@ function includedVendorRef(inc) {
 
 // ── Insight kecil ──
 const priciest = computed(() => dipakaiList.value.length
-  ? [...dipakaiList.value].sort((a, b) => (b.harga || 0) - (a.harga || 0))[0]
+  ? [...dipakaiList.value].sort((a, b) => store.vendorEffectiveHarga(b) - store.vendorEffectiveHarga(a))[0]
   : null)
 const cheapest = computed(() => {
   if (dipakaiList.value.length < 2) return null
-  const sorted = [...dipakaiList.value].sort((a, b) => (a.harga || 0) - (b.harga || 0))
+  const sorted = [...dipakaiList.value].sort((a, b) => store.vendorEffectiveHarga(a) - store.vendorEffectiveHarga(b))
   return sorted[0].id === priciest.value?.id ? null : sorted[0]
 })
 const topCategory = computed(() => {
@@ -806,23 +809,13 @@ const filteredRows = computed(() => {
   if (heroActive) rows = rows.filter(v => resolvedStatus(v) === heroStatusFilter.value)
   else if (statusFilter.value !== 'semua') rows = rows.filter(v => resolvedStatus(v) === statusFilter.value)
   rows = [...rows]
-  if (sortBy.value === 'harga-rendah') rows.sort((a, b) => (a.harga || 0) - (b.harga || 0))
-  else if (sortBy.value === 'harga-tinggi') rows.sort((a, b) => (b.harga || 0) - (a.harga || 0))
+  if (sortBy.value === 'harga-rendah') rows.sort((a, b) => store.vendorEffectiveHarga(a) - store.vendorEffectiveHarga(b))
+  else if (sortBy.value === 'harga-tinggi') rows.sort((a, b) => store.vendorEffectiveHarga(b) - store.vendorEffectiveHarga(a))
   else if (sortBy.value === 'nama') rows.sort((a, b) => (a.nama || '').localeCompare(b.nama || ''))
   else rows.sort((a, b) => (b.id || 0) - (a.id || 0))
   return rows
 })
 function resetFilters() { searchQ.value = ''; statusFilter.value = 'semua' }
-
-const tOrang    = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
-const tUndangan = computed(() => store.confirmedGuests.length)
-
-function paxMultText(v) {
-  if (v.paxPengali === 'orang') return `${tOrang.value} org`
-  if (v.paxPengali === 'undangan') return `${tUndangan.value} undgn`
-  if (v.paxPengali === 'hampers') return `${store.hampersCount} hampers`
-  return v.paxManualVal
-}
 
 function timText(v) {
   const parts = []

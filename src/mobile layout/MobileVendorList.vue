@@ -36,7 +36,7 @@
           </div>
           <div class="mv-catlbl">{{ catLabel(v.category) }}</div>
           <div class="mv-sub">
-            <span class="mv-price">Rp {{ grp(v.harga) }} <small>· {{ tipeHargaTag(v) }}</small></span>
+            <span class="mv-price">Rp {{ grp(store.vendorEffectiveHarga(v)) }} <small>· {{ tipeHargaTag(v) }}</small></span>
             <span v-if="v.namaPaket" class="mv-cap">{{ v.namaPaket }}</span>
           </div>
           <div v-if="cardStatusKey(v) === 'included'" class="mv-inc-src">
@@ -58,7 +58,7 @@
         </div>
 
         <!-- Pax breakdown -->
-        <div v-if="v.tipeHarga === 'pax'" class="mv-paxinfo">@ Rp {{ grp(v.hargaPax) }} × {{ paxMultText(v) }}</div>
+        <div v-if="v.tipeHarga === 'pax'" class="mv-paxinfo">@ Rp {{ grp(v.hargaPax) }} × {{ vendorPaxMultText(v, store) }}</div>
         <div v-if="v.tipeHarga === 'item'" class="mv-paxinfo">@ Rp {{ grp(v.hargaItem) }} × {{ v.jumlahItem }} item</div>
         <div v-if="v.tipeHarga === 'jam'" class="mv-paxinfo">@ Rp {{ grp(v.hargaJam) }} × {{ v.totalJam }} jam</div>
         <div v-if="v.tipeHarga === 'sesi'" class="mv-paxinfo">@ Rp {{ grp(v.hargaSesi) }} × {{ v.totalSesi }} sesi</div>
@@ -342,7 +342,7 @@
 import { ref, computed } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { VENDOR_CATEGORIES, VENDOR_STATUS, VENDOR_STATUS_ORDER } from '../data/constants'
-import { grp, fmtDate } from '../utils/index'
+import { grp, fmtDate, vendorPaxMultText } from '../utils/index'
 import { openWa } from './waLink'
 
 defineProps({
@@ -359,9 +359,6 @@ const expandedId = ref(null)
 const CAT_ICONS = { wo: '📋', venue: '🏛', catering: '🍽', dekorasi: '🌸', musik: '🎶', fotografer: '📸', mua: '💄', mc: '🎤', souvenir: '🎁' }
 const catIcon = id => CAT_ICONS[id] || '💍'
 const catLabel = id => { const c = VENDOR_CATEGORIES.find(x => x.id === id); return c ? c.label : id }
-
-const tOrang    = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
-const tUndangan = computed(() => store.confirmedGuests.length)
 
 // 'included' murni status turunan (vendor ini ditunjuk sbg Included Vendor
 // oleh vendor lain yang jadi=true) — dipakai buat WARNA KARTU aja, bukan
@@ -421,12 +418,6 @@ function woTotalPersonel(v) {
   return m ? parseInt(m[0], 10) : 0
 }
 
-function paxMultText(v) {
-  if (v.paxPengali === 'orang') return `${tOrang.value} org`
-  if (v.paxPengali === 'undangan') return `${tUndangan.value} undgn`
-  if (v.paxPengali === 'hampers') return `${store.hampersCount} hampers`
-  return v.paxManualVal
-}
 
 function payInfo(v) {
   return store.vendorPayInfo(v)

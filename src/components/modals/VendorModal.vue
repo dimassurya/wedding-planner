@@ -216,8 +216,8 @@
               <label>Jumlah Pax</label>
               <div class="select-wrap">
                 <select v-model="form.paxPengali" @change="calcPaxTotal(true)">
-                  <option value="orang">Tamu dikonfirmasi — {{ tOrang }} orang</option>
-                  <option value="undangan">Undangan dikonfirmasi — {{ tUndangan }}</option>
+                  <option value="orang">Tamu dikonfirmasi — {{ store.hadirOrangCount }} orang</option>
+                  <option value="undangan">Undangan dikonfirmasi — {{ store.rsvpUndanganCount }}</option>
                   <option value="hampers">Kirim hampers — {{ store.hampersCount }}</option>
                   <option value="manual">Jumlah kustom</option>
                 </select>
@@ -988,10 +988,10 @@
               <div class="field"><label>Kapasitas Minimum</label><input v-model.number="form.kapasitasMin" type="number" min="0" placeholder="cth: 300"></div>
               <div class="field"><label>Kapasitas Maksimum</label><input v-model.number="form.kapasitasMaks" type="number" min="0" placeholder="cth: 500"></div>
             </div>
-            <div v-if="form.kapasitasMaks > 0" class="vm-cap-hint" :class="{ over: tOrang > form.kapasitasMaks }">
-              Tamu terkonfirmasi sekarang: {{ tOrang }} orang ·
-              <template v-if="tOrang > form.kapasitasMaks">lebih {{ tOrang - form.kapasitasMaks }} dari kapasitas maksimum</template>
-              <template v-else>sisa {{ form.kapasitasMaks - tOrang }} kursi</template>
+            <div v-if="form.kapasitasMaks > 0" class="vm-cap-hint" :class="{ over: store.totalGuestPax > form.kapasitasMaks }">
+              Tamu terkonfirmasi sekarang: {{ store.totalGuestPax }} orang ·
+              <template v-if="store.totalGuestPax > form.kapasitasMaks">lebih {{ store.totalGuestPax - form.kapasitasMaks }} dari kapasitas maksimum</template>
+              <template v-else>sisa {{ form.kapasitasMaks - store.totalGuestPax }} kursi</template>
             </div>
 
             <div class="row2">
@@ -1088,8 +1088,8 @@
               <label>Dikali</label>
               <div class="select-wrap">
                 <select v-model="form.paxPengali" @change="calcPaxTotal(true)">
-                  <option value="orang">Tamu dikonfirmasi — {{ tOrang }} orang</option>
-                  <option value="undangan">Undangan dikonfirmasi — {{ tUndangan }}</option>
+                  <option value="orang">Tamu dikonfirmasi — {{ store.hadirOrangCount }} orang</option>
+                  <option value="undangan">Undangan dikonfirmasi — {{ store.rsvpUndanganCount }}</option>
                   <option value="hampers">Kirim hampers — {{ store.hampersCount }}</option>
                   <option value="manual">Jumlah kustom</option>
                 </select>
@@ -1382,9 +1382,6 @@ function autoGrowDesk() {
   el.style.height = el.scrollHeight + 'px'
 }
 
-const tOrang    = computed(() => store.confirmedGuests.reduce((s, g) => s + g.jumlah, 0))
-const tUndangan = computed(() => store.confirmedGuests.length)
-
 // WO: harga cuma All In (nggak ada Tipe Harga lain), tapi punya paket
 // info paling detail — Layanan yang Didapat & Struktur Tim keduanya
 // repeatable list, plus Total Personel/Jumlah Konsumsi yang auto-hitung
@@ -1436,6 +1433,10 @@ watch(() => props.show, open => {
       if (v.category === 'wo') showMoreWO.value = !!(v.pic || v.hp || v.email || v.website || v.instagram || v.alamat || v.jenisLayananWO || (v.layananDidapat && v.layananDidapat.length) || v.jumlahMeeting || v.includeSurveyVenue || v.includeGladiBersih || (v.koordinasiVendor && v.koordinasiVendor.length) || v.jumlahCrewHariH || (v.strukturTim && v.strukturTim.length) || v.jumlahKonsumsiTim || (v.dokumenDidapat && v.dokumenDidapat.length) || v.deskripsi || v.catatan)
       if (v.category === 'venue') showMoreVenue.value = !!(v.pic || v.hp || v.email || v.website || v.instagram || v.alamat || v.jenisVenue || (v.konsepVenue && v.konsepVenue.length) || v.kapasitasMin || v.kapasitasMaks || v.jamMulai || v.jamSelesai || (v.areaAcara && v.areaAcara.length) || (v.fasilitasVenue && v.fasilitasVenue.length) || (v.kebijakanVenue && v.kebijakanVenue.length) || (v.vendorRekanan && v.vendorRekanan.length) || v.deskripsi || v.catatan)
       if (v.category === 'catering') showMoreCatering.value = !!(v.pic || v.hp || v.email || v.website || v.instagram || v.alamat || (v.jenisPaketCatering && v.jenisPaketCatering.length) || (v.buffetAppetizer && v.buffetAppetizer.length) || (v.buffetMainCourse && v.buffetMainCourse.length) || (v.buffetDessert && v.buffetDessert.length) || (v.buffetBeverage && v.buffetBeverage.length) || (v.foodStall && v.foodStall.length) || v.includeLiveCooking || (v.includeCatering && v.includeCatering.length) || v.durasiPelayanan || v.jumlahWaiter || v.jumlahChef || v.sistemRefill || v.includeFoodTasting || (v.kebijakanCatering && v.kebijakanCatering.length) || (v.biayaTambahan && v.biayaTambahan.length) || v.deskripsi || v.catatan)
+      // Buka modal edit vendor Per Pax (bukan "Jumlah Custom") → recalc
+      // Total Harga terhadap data Tab Tamu SEKARANG, bukan pasrah nampilin
+      // v.harga yang mungkin udah basi sejak vendor ini terakhir disimpan.
+      if (v.tipeHarga === 'pax' && v.paxPengali !== 'manual') calcPaxTotal(true)
     }
   } else {
     form.value = blankForm()
@@ -1482,14 +1483,22 @@ function onDekorasiTipeHargaChange() {
 
 function calcPaxTotal(force = true) {
   if (form.value.tipeHarga !== 'pax') return
-  const hpax = form.value.hargaPax
-  let mult = 1
-  if (form.value.paxPengali === 'orang') mult = tOrang.value
-  else if (form.value.paxPengali === 'undangan') mult = tUndangan.value
-  else if (form.value.paxPengali === 'hampers') mult = store.hampersCount
-  else mult = form.value.paxManualVal || 1
-  if (force || form.value.harga === 0) form.value.harga = hpax * mult
+  // Multiplier-nya SELALU baca live dari store (Single Source of Truth
+  // Tab Tamu, lihat vendorPaxMultiplier di wedding.js) — nggak ada
+  // perhitungan/cache jumlah tamu terpisah di sini.
+  const mult = store.vendorPaxMultiplier(form.value)
+  if (force || form.value.harga === 0) form.value.harga = (form.value.hargaPax || 0) * mult
 }
+
+// Live sync — kalau data tamu di Tab Tamu berubah SELAGI modal ini
+// kebuka (mis. user habis edit/hapus/tambah tamu atau ubah status
+// RSVP/kehadiran/hampers di tab lain, terus balik ke modal Vendor ini
+// tanpa nutupnya), Total Harga ikut ke-update otomatis tanpa perlu
+// refresh halaman atau trigger manual. "Jumlah Custom" sengaja dilewati
+// karena itu memang lepas dari Tab Tamu.
+watch([() => store.hadirOrangCount, () => store.rsvpUndanganCount, () => store.hampersCount], () => {
+  if (form.value.tipeHarga === 'pax' && form.value.paxPengali !== 'manual') calcPaxTotal(true)
+})
 
 function calcItemTotal(force = true) {
   if (form.value.tipeHarga !== 'item') return
