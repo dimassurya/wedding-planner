@@ -176,16 +176,51 @@
       </div>
     </div>
 
-    <!-- ═══ 4. Toolbar ═══ -->
-    <div class="controls g-toolbar sticky" ref="toolbarRef">
+    <!-- ═══ Mobile Device only: Search + Filter Relasi, sticky, tepat di
+         bawah header (.m-header, MobileHeader.vue). SENGAJA ditaruh sebagai
+         anak langsung #panel-tamu (BUKAN di dalam .controls) — supaya
+         containing block-nya mencakup seluruh daftar tamu di bawahnya.
+         Kalau dibungkus di dalam .controls yang tingginya cuma sebatas
+         toolbar, sticky-nya cuma nempel sebentar terus ke-scroll lepas
+         (containing block-nya kependekan). Tambah Tamu & menu ⋮ TETAP di
+         dalam .controls seperti biasa (baris terpisah, normal flow, TIDAK
+         ikut sticky) — lihat v-if="!isMobile" di bawah yang nyembunyiin
+         search+filter dari .controls di mobile biar nggak dobel. ═══ -->
+    <div v-if="isMobile" class="gh-mobile-filters" :style="{ top: mobileFilterTop + 'px' }">
       <div class="search">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9C7575" stroke-width="2"/><path d="M21 21l-4-4" stroke="#9C7575" stroke-width="2" stroke-linecap="round"/></svg>
         <input v-model="search" type="text" placeholder="Cari nama tamu...">
       </div>
       <select class="filter" v-model="filterRelasi">
         <option value="all">Semua Relasi</option>
-        <option v-for="k in ORDER" :key="k" :value="k">{{ META[k].label }}</option>
+        <optgroup label="Pihak">
+          <option value="pria">👨 Pihak Pria</option>
+          <option value="wanita">👩 Pihak Wanita</option>
+        </optgroup>
+        <optgroup label="Relasi">
+          <option v-for="k in ORDER" :key="k" :value="k">{{ META[k].label }}</option>
+        </optgroup>
       </select>
+    </div>
+
+    <!-- ═══ 4. Toolbar ═══ -->
+    <div class="controls g-toolbar sticky" ref="toolbarRef">
+      <template v-if="!isMobile">
+        <div class="search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#9C7575" stroke-width="2"/><path d="M21 21l-4-4" stroke="#9C7575" stroke-width="2" stroke-linecap="round"/></svg>
+          <input v-model="search" type="text" placeholder="Cari nama tamu...">
+        </div>
+        <select class="filter" v-model="filterRelasi">
+          <option value="all">Semua Relasi</option>
+          <optgroup label="Pihak">
+            <option value="pria">👨 Pihak Pria</option>
+            <option value="wanita">👩 Pihak Wanita</option>
+          </optgroup>
+          <optgroup label="Relasi">
+            <option v-for="k in ORDER" :key="k" :value="k">{{ META[k].label }}</option>
+          </optgroup>
+        </select>
+      </template>
       <button class="icon-btn solid" @click="openAdd">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Tambah Tamu
       </button>
@@ -273,6 +308,35 @@ const isMobile = useIsMobile()
 // (sama seperti Vendor/Seserahan/Mahar, lewat composable bersama).
 const { toolbarRef, headTop } = useStickyThead()
 
+// Mobile Device — offset `top` buat .gh-mobile-filters (sticky) dihitung
+// DINAMIS dari tinggi asli header mobile (.m-header, MobileHeader.vue —
+// komponen sibling di App.vue, bukan turunan GuestsTab, makanya diukur
+// lewat DOM query, bukan prop/composable), BUKAN nilai hardcode. Kalau
+// nanti ada elemen sticky lain yang nempel di atas .gh-mobile-filters
+// (mis. progress bar), tinggal tambahin selector-nya ke array ini —
+// tingginya otomatis ikut kejumlah, dan ResizeObserver bikin nilainya
+// tetap akurat walau tinggi header berubah (teks wrap, dst).
+const MOBILE_STICKY_TOP_SELECTORS = ['.m-header']
+const mobileFilterTop = ref(0)
+let _mobileTopRO = null
+function measureMobileFilterTop() {
+  let offset = 0
+  MOBILE_STICKY_TOP_SELECTORS.forEach(sel => {
+    const el = document.querySelector(sel)
+    if (el) offset += el.getBoundingClientRect().height
+  })
+  mobileFilterTop.value = offset
+}
+onMounted(() => {
+  measureMobileFilterTop()
+  _mobileTopRO = new ResizeObserver(measureMobileFilterTop)
+  MOBILE_STICKY_TOP_SELECTORS.forEach(sel => {
+    const el = document.querySelector(sel)
+    if (el) _mobileTopRO.observe(el)
+  })
+})
+onBeforeUnmount(() => { _mobileTopRO?.disconnect() })
+
 // Quick Add FAB (mobile) memicu ini lewat nonce, tanpa mengubah tombol "Tambah" lama
 watch(() => store.quickAddNonce, () => {
   if (store.quickAddTarget === 'tamu') openAdd()
@@ -303,7 +367,7 @@ const TAMU_STEPS = computed(() => [
     selector: '#panel-tamu .controls',
     icon: '🔍',
     title: 'Cari, Filter & Tambah',
-    desc: 'Ketik nama untuk mencari, atau filter berdasarkan relasi. Ketuk "Tambah Tamu" untuk mengisi data undangan baru. Menu ⋮ berisi Ekspor CSV, Export/Import data, dan Panduan.',
+    desc: 'Ketik nama untuk mencari, atau filter berdasarkan pihak/relasi. Ketuk "Tambah Tamu" untuk mengisi data undangan baru. Menu ⋮ berisi Ekspor CSV, Export/Import data, dan Panduan.',
   },
   {
     selector: isMobile.value ? '.mg-card' : '.gh-trow',
@@ -429,17 +493,30 @@ function buildPihakInsight(sideKeys) {
 }
 const priaInsight   = computed(() => buildPihakInsight(['cpp', 'teman_pria', 'tetangga_pria']))
 const wanitaInsight = computed(() => buildPihakInsight(['cpw', 'teman_wanita', 'tetangga_wanita']))
+// Klik "Lihat Tamu" di panel Ringkasan Pihak Tamu → set filterRelasi ke
+// 'pria'/'wanita' (dikenali visRows lewat META[k].side, lihat di bawah),
+// reset filter lain biar hasilnya benar-benar cuma pihak itu, terus scroll
+// ke Toolbar/Data Grid (di layar mobile posisinya sama, tinggal geser ke
+// MobileGuestList) biar user langsung lihat hasilnya tanpa cari-cari.
 function onPihakFilter(side) {
-  store.toast('Filter tamu berdasarkan pihak segera hadir')
+  filterRelasi.value = side
+  filterKehadiran.value = 'all'
+  search.value = ''
+  nextTick(() => toolbarRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
 }
 
 const visRows = computed(() => {
   const q = search.value.trim().toLowerCase()
-  return store.guests.filter(g =>
-    (filterRelasi.value === 'all' || g.relasi === filterRelasi.value) &&
-    (filterKehadiran.value === 'all' || (g.kehadiran || 'belum') === filterKehadiran.value) &&
-    g.nama.toLowerCase().includes(q)
-  )
+  return store.guests.filter(g => {
+    const relasiMatch = filterRelasi.value === 'all'
+      ? true
+      : (filterRelasi.value === 'pria' || filterRelasi.value === 'wanita')
+        ? META[g.relasi]?.side === filterRelasi.value
+        : g.relasi === filterRelasi.value
+    return relasiMatch &&
+      (filterKehadiran.value === 'all' || (g.kehadiran || 'belum') === filterKehadiran.value) &&
+      g.nama.toLowerCase().includes(q)
+  })
 })
 
 const allVisSelected  = computed(() => visRows.value.length > 0 && visRows.value.every(g => store.isSelected(g.id)))
@@ -642,13 +719,52 @@ onBeforeUnmount(() => {
   padding-left: 30px;
   padding-right: 30px;
 }
-/* Mobile Device — Toolbar (Search/Filter/Tambah Tamu/Overflow) ikut normal
-   flow halaman, TIDAK sticky. Pakai breakpoint mobile yang sudah ada di
+/* Mobile Device — Toolbar (isinya sekarang cuma Tambah Tamu/Overflow, lihat
+   v-if="!isMobile" di template buat Search/Filter) ikut normal flow
+   halaman, TIDAK sticky. Reset JUGA margin/padding bleed (-30px/30px) yang
+   didesain khusus buat lebar Desktop — kalau dibiarin aktif di Mobile,
+   .controls jadi overflow ~10px di tiap sisi (bleed 30px lebih besar dari
+   padding .panels yg cuma 20px di lebar ini), bikin horizontal scroll yang
+   ganggu Bottom Navigation. Pakai breakpoint mobile yang sudah ada di
    project (MOBILE_BREAKPOINT, lihat useIsMobile.js). Desktop & Tablet
    (>680px) tidak berubah sama sekali. */
 @media (max-width: 680px) {
-  .g-toolbar.sticky { position: static; }
+  .g-toolbar.sticky {
+    position: static;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
 }
+
+/* Mobile Device — Search + Filter Relasi (`.gh-mobile-filters` di template,
+   v-if="isMobile") jadi SATU sticky container, DITARUH DI LUAR .controls
+   sebagai anak langsung #panel-tamu — bukan cuma soal desain, tapi supaya
+   containing block sticky-nya cukup tinggi (mencakup seluruh daftar tamu),
+   sesuai penjelasan di komentar template. `top` SENGAJA tidak di-hardcode
+   di sini — nilainya dari `mobileFilterTop` (diukur dinamis dari tinggi
+   asli .m-header, lihat script setup), dipasang lewat inline :style biar
+   selalu akurat walau tinggi header berubah. Desktop TIDAK RENDER elemen
+   ini sama sekali (v-if="isMobile"), jadi CSS di bawah efeknya nol di
+   Desktop — media query dipasang tetap sebagai jaga-jaga sesuai
+   breakpoint project. */
+@media (max-width: 680px) {
+  .gh-mobile-filters {
+    display: flex;
+    flex-wrap: wrap; /* sama kayak .controls (dipakai tab lain, mis. Budget)
+                        — kalau .search + .filter nggak muat sebaris, .filter
+                        turun ke baris berikutnya, BUKAN overflow ke luar layar */
+    gap: 10px;
+    align-items: center;
+    position: sticky;
+    /* top: lihat inline :style di template (mobileFilterTop) */
+    z-index: 20; /* di atas card daftar tamu, di bawah .m-header (100) & dropdown menu ⋮ (40) */
+    background: var(--ivory); /* solid, sama dengan warna background halaman — card di baliknya nggak keliatan tembus */
+    padding: 14px 0 10px;
+  }
+}
+
 .gh-overflow-wrap { position: relative; flex: none; }
 .gh-overflow-btn { font-size: 18px; line-height: 1; }
 .gh-overflow-menu {
