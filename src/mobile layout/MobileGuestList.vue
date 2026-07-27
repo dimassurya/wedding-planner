@@ -33,9 +33,6 @@
         <span class="mg-badge" :style="{ background: META[g.relasi]?.bg, color: META[g.relasi]?.text }">
           {{ META[g.relasi]?.label }}{{ g.undangan && g.undangan !== 'keduanya' ? ` · ${g.undangan}` : '' }}
         </span>
-        <span class="mg-keh-badge" :class="'ks-' + (g.kehadiran || 'belum')">
-          {{ KEHADIRAN_STATUS[g.kehadiran || 'belum'].label }}
-        </span>
       </div>
 
       <!-- Aksi normal (hanya tampil saat bukan selection mode) -->
@@ -197,19 +194,6 @@ function setKehadiran(g, val) {
   border-radius: 100px;
   line-height: 1.3;
 }
-
-.mg-keh-badge {
-  align-self: flex-start;
-  font-size: var(--m-chip);
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 100px;
-  line-height: 1.3;
-}
-.mg-keh-badge.ks-belum   { color: #6b4848; background: #EDE5E2; }
-.mg-keh-badge.ks-hadir   { color: #2b5010; background: #EAF3DE; }
-.mg-keh-badge.ks-tidak   { color: #7a1a1a; background: #F8E8E8; }
-.mg-keh-badge.ks-hampers { color: #0A1D4B; background: #E3E8F2; }
 
 .mg-keh-sel {
   font-family: 'Jost', sans-serif;
