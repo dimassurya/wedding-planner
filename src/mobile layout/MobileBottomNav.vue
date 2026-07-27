@@ -14,18 +14,18 @@
       <span class="mbn-lbl">Tamu</span>
     </button>
 
+    <button class="mbn-item" data-tour="vendor" :class="{ active: store.activeTab === 'vendor' }" @click="go('vendor')">
+      <span class="mbn-ic">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M3 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/><path d="M5 9v10h14V9"/><path d="M9 21v-6h6v6"/></svg>
+      </span>
+      <span class="mbn-lbl">Vendor</span>
+    </button>
+
     <button class="mbn-item" data-tour="budget" :class="{ active: store.activeTab === 'budget' }" @click="go('budget')">
       <span class="mbn-ic">
         <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10.5h18M7 15h4"/></svg>
       </span>
       <span class="mbn-lbl">Budget</span>
-    </button>
-
-    <button class="mbn-item" data-tour="checklist" :class="{ active: store.activeTab === 'checklist' }" @click="go('checklist')">
-      <span class="mbn-ic">
-        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>
-      </span>
-      <span class="mbn-lbl">Checklist</span>
     </button>
 
     <button class="mbn-item" data-tour="timeline" :class="{ active: store.activeTab === 'timeline' }" @click="go('timeline')">
