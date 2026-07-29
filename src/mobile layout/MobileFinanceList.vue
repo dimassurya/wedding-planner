@@ -2,7 +2,7 @@
   <div class="mf-wrap">
     <div v-if="!rows.length" class="mf-empty">
       <div class="mf-empty-big">Belum ada transaksi</div>
-      <div>Ketuk "+ Tambah Transaksi" untuk mulai mencatat.</div>
+      <div>Ketuk "+ Tambah Dana" untuk mulai mencatat.</div>
     </div>
 
     <button v-for="t in rows" :key="t.id" class="mf-item" @click="$emit('open', t.id)">
@@ -12,7 +12,7 @@
         <div class="mf-sub">
           <span v-if="itemBadge(t)" class="mf-badge" :class="t.jenis">{{ itemBadge(t) }}</span>
           <span>{{ relDate(t.tanggal) }}</span>
-          <span v-if="t.budgetPaymentId" class="mf-linked" title="Otomatis dari pembayaran Budget">💰</span>
+          <span v-if="t.budgetPaymentId" class="mf-linked" title="Transaksi ini dibuat otomatis dari pembayaran di tab Budget">🔗 Dari Budget</span>
         </div>
       </div>
       <div class="mf-amt" :class="t.jenis">{{ t.jenis === 'masuk' ? '+' : '−' }} {{ fmt(t.nominal) }}</div>
@@ -83,7 +83,10 @@ function relDate(dateStr) {
 .mf-badge { flex: none; display: inline-block; font-family: 'Jost', sans-serif; font-size: var(--m-chip); font-weight: 600; padding: 2px 9px; border-radius: 100px; }
 .mf-badge.masuk  { background: #EAF3DE; color: #2b5010; }
 .mf-badge.keluar { background: var(--rose-soft); color: #7a1a1a; }
-.mf-linked { flex: none; }
+.mf-linked {
+  flex: none; display: inline-block; font-family: 'Jost', sans-serif; font-size: var(--m-chip); font-weight: 600;
+  padding: 2px 9px; border-radius: 100px; background: var(--gold-soft); color: #7a5c28; white-space: nowrap;
+}
 
 .mf-amt { flex: none; font-size: var(--m-value); font-weight: 700; font-variant-numeric: tabular-nums; }
 .mf-amt.masuk  { color: #2b5010; }

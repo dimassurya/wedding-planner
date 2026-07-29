@@ -39,7 +39,7 @@
 
       <button class="fh-fund-btn" @click="openAdd">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        Tambah Transaksi
+        Tambah Dana
       </button>
     </div>
 
@@ -110,7 +110,7 @@
         <div class="fh-list">
           <div v-if="!visRows.length" class="empty">
             <div class="big">Belum ada transaksi</div>
-            <div>{{ store.fund.length ? 'Tidak ada transaksi pada filter ini.' : 'Klik Tambah Transaksi untuk mulai.' }}</div>
+            <div>{{ store.fund.length ? 'Tidak ada transaksi pada filter ini.' : 'Klik Tambah Dana untuk mulai.' }}</div>
           </div>
           <button v-for="t in visRows" :key="t.id" class="fh-item" @click="openEdit(t.id)">
             <span class="fh-item-ico" :class="t.jenis">{{ t.jenis === 'masuk' ? '⬇' : '⬆' }}</span>
@@ -119,7 +119,7 @@
               <div class="fh-item-sub">
                 <span v-if="itemBadge(t)" class="fh-item-badge" :class="t.jenis">{{ itemBadge(t) }}</span>
                 <span>{{ relDate(t.tanggal) }}</span>
-                <span v-if="t.budgetPaymentId" class="fh-linked" title="Otomatis dari pembayaran Budget">💰</span>
+                <span v-if="t.budgetPaymentId" class="fh-linked" title="Transaksi ini dibuat otomatis dari pembayaran di tab Budget">🔗 Dari Budget</span>
               </div>
             </div>
             <div class="fh-item-amt" :class="t.jenis">{{ t.jenis === 'masuk' ? '+' : '−' }} {{ fmt(t.nominal) }}</div>
@@ -149,7 +149,7 @@ const FINANCE_STEPS = computed(() => [
     selector: '#panel-keuangan .fh-hero',
     icon: '💰',
     title: 'Wedding Fund',
-    desc: 'Saldo tabungan nikahmu saat ini, progress menuju Target Dana Pernikahan, dan status otomatis (Aman / Perlu Menabung / Melebihi Anggaran). Ketuk "🎯 Target Dana Pernikahan" buat mengubahnya, atau "Tambah Transaksi" buat catat dana masuk/keluar.',
+    desc: 'Saldo tabungan nikahmu saat ini, progress menuju Target Dana Pernikahan, dan status otomatis (Aman / Perlu Menabung / Melebihi Anggaran). Ketuk "🎯 Target Dana Pernikahan" buat mengubahnya, atau "Tambah Dana" buat catat dana masuk/keluar manual.',
   },
   {
     selector: '#panel-keuangan .fh-metrics',
@@ -161,7 +161,7 @@ const FINANCE_STEPS = computed(() => [
     selector: '#panel-keuangan .fh-filters',
     icon: '📜',
     title: 'Riwayat Transaksi',
-    desc: 'Semua transaksi Wedding Fund, bisa difilter per jenis, kategori, atau bulan. Transaksi berlabel 💰 dibuat otomatis dari pembayaran di tab Budget.',
+    desc: 'Semua transaksi Wedding Fund, bisa difilter per jenis, kategori, atau bulan. Transaksi berlabel 🔗 Dari Budget dibuat otomatis waktu kamu bayar termin di tab Budget menggunakan Wedding Fund — nggak bisa diedit dari sini, ubah lewat Budget.',
   },
 ])
 
@@ -436,7 +436,10 @@ const visRows = computed(() =>
 .fh-item-badge { display: inline-block; flex: none; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 100px; }
 .fh-item-badge.masuk  { background: #EAF3DE; color: #2b5010; }
 .fh-item-badge.keluar { background: var(--rose-soft); color: #7a1a1a; }
-.fh-linked { flex: none; }
+.fh-linked {
+  flex: none; display: inline-block; font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 100px; background: var(--gold-soft); color: #7a5c28; white-space: nowrap;
+}
 
 .fh-item-amt { flex: none; font-size: 15.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .fh-item-amt.masuk  { color: #2b5010; }

@@ -40,31 +40,12 @@
         Belum ada termin. Tambah rencana pembayaran (mis. DP &amp; pelunasan) di bawah.
       </div>
 
-      <div v-for="p in pays" :key="p.id" class="pay-row" :class="{ done: p.paid }">
-        <button class="pay-check" :class="{ on: p.paid }" @click="onTogglePaid(p)"
-          :title="p.paid ? 'Tandai belum dibayar' : 'Tandai sudah dibayar'">
-          <svg v-if="p.paid" viewBox="0 0 20 20" fill="none"><path d="M4 10l4.5 4.5L16 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-
-        <div class="pay-body">
-          <div class="pay-line1">
-            <input class="pay-note" type="text" :value="p.note" :placeholder="p.paid ? 'Keterangan (mis. DP)' : 'Nama termin (mis. Pelunasan)'" @input="onNote($event, p)">
-            <div class="pay-amt-wrap"><span class="pay-rp">Rp</span>
-              <input class="pay-amt" type="text" inputmode="numeric" :value="grp(p.amount)" @input="onAmt($event, p)">
-            </div>
-          </div>
-          <div class="pay-line2">
-            <label class="pay-date">
-              <span>{{ p.paid ? 'Dibayar' : 'Jatuh tempo' }}</span>
-              <input type="date" :value="p.paid ? p.paidDate : p.dueDate" @change="onDate($event, p)">
-            </label>
-            <input class="pay-by" type="text" list="pay-by-opts" :value="p.paidBy" placeholder="Dibayar oleh..." @input="onBy($event, p)">
-            <span v-if="store.fundTxForPayment(p.id)" class="pay-fund-badge" title="Tercatat sebagai pengeluaran di Wedding Fund">💰 Wedding Fund</span>
-            <button class="pay-del" @click="store.delPayment(p.id)" title="Hapus termin">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#B32E33" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-            </button>
-          </div>
-        </div>
+      <div class="pay-timeline">
+        <BudgetPaymentTimelineItem
+          v-for="p in pays" :key="p.id"
+          :payment="p"
+          @toggle-paid="onTogglePaid(p)"
+        />
       </div>
 
       <datalist id="pay-by-opts">
@@ -99,6 +80,7 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { useWeddingStore } from '../../stores/wedding'
 import { grp, num, fmt } from '../../utils/index'
+import BudgetPaymentTimelineItem from '../BudgetPaymentTimelineItem.vue'
 
 const props = defineProps({ show: Boolean, itemId: { default: null } })
 defineEmits(['close'])
@@ -153,28 +135,6 @@ function onItemCur(e, field) {
   store.saveB()
 }
 
-// ── Entri pembayaran ──
-function onAmt(e, p) {
-  const len = e.target.value.length, start = e.target.selectionStart
-  e.target.value = grp(e.target.value)
-  p.amount = num(e.target.value)
-  const d = e.target.value.length - len
-  try { e.target.setSelectionRange(start + d, start + d) } catch (_) {}
-  store.saveP()
-  store.recalcDibayar(p.budgetItemId)
-}
-
-function onNote(e, p) { p.note = e.target.value; store.saveP() }
-function onBy(e, p)   { p.paidBy = e.target.value; store.saveP() }
-
-function onDate(e, p) {
-  const v = e.target.value || null
-  if (p.paid) p.paidDate = v
-  else p.dueDate = v
-  store.saveP()
-  store.recalcDibayar(p.budgetItemId)
-}
-
 // Centang termin jadi lunas → tawarkan catat sebagai pengeluaran Wedding
 // Fund (opt-in, cuma sekali per termin — fundTxForPayment cegah re-prompt).
 async function onTogglePaid(p) {
@@ -185,11 +145,15 @@ async function onTogglePaid(p) {
 
 async function maybeLinkFund(p) {
   if (store.fundTxForPayment(p.id)) return
+  // Budget selalu jadi satu-satunya tempat bayar (Single Source of Truth).
+  // Wedding Fund cuma ikut kepotong KALAU sumber dananya memang dari sana —
+  // pilih "Dana di luar Wedding Fund" tetap bikin termin ini lunas, cuma
+  // saldo Wedding Fund nggak disentuh.
   const ok = await store.askConfirm({
-    title: 'Ambil dari Wedding Fund?',
-    message: `Catat pembayaran ${fmt(p.amount)} ini sebagai pengeluaran dari Wedding Fund?`,
-    confirmLabel: 'Ya, dari Wedding Fund',
-    cancelLabel: 'Tidak',
+    title: 'Sumber Pembayaran',
+    message: `Pembayaran ${fmt(p.amount)} sudah ditandai lunas. Dari mana sumber dananya?`,
+    confirmLabel: 'Wedding Fund',
+    cancelLabel: 'Dana di luar Wedding Fund',
     danger: false,
   })
   if (!ok) return
@@ -241,44 +205,7 @@ async function addSisaLunas() {
 
 .pay-empty { font-size: 13px; color: var(--muted); background: var(--ivory); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; line-height: 1.5; }
 
-.pay-row { display: flex; gap: 10px; align-items: flex-start; padding: 11px 0; border-top: 1px solid var(--line); }
-.pay-row:first-of-type { border-top: none; }
-
-.pay-check {
-  flex: none; width: 22px; height: 22px; margin-top: 3px;
-  border-radius: 50%; border: 2px solid var(--line); background: var(--paper);
-  display: flex; align-items: center; justify-content: center; cursor: pointer; transition: .15s;
-}
-.pay-check.on { background: var(--green); border-color: var(--green); }
-.pay-check svg { width: 13px; height: 13px; }
-
-.pay-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
-.pay-line1 { display: flex; gap: 8px; align-items: center; }
-.pay-line2 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-
-.pay-note { flex: 1; min-width: 0; font-family: 'Jost', sans-serif; font-size: 14px; font-weight: 500; color: var(--ink); border: 1.5px solid transparent; background: var(--ivory); border-radius: 8px; padding: 7px 9px; }
-.pay-note:focus { outline: none; border-color: var(--gold); background: #fff; }
-
-.pay-amt-wrap { position: relative; flex: none; width: 140px; }
-.pay-rp { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--muted); pointer-events: none; }
-.pay-amt { width: 100%; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--ink); border: 1.5px solid var(--line); background: #fff; border-radius: 8px; padding: 7px 9px 7px 30px; }
-.pay-amt:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
-
-.pay-date { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
-.pay-date input { font-size: 13px; border: 1.5px solid var(--line); border-radius: 8px; padding: 5px 8px; color: var(--ink); font-family: inherit; background: #fff; }
-.pay-date input:focus { outline: none; border-color: var(--gold); }
-
-.pay-by { flex: 1; min-width: 110px; font-size: 13px; border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 9px; color: var(--ink); font-family: 'Jost', sans-serif; background: #fff; }
-.pay-by:focus { outline: none; border-color: var(--gold); }
-
-.pay-fund-badge { flex: none; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 100px; background: var(--gold-soft); color: #7a5c28; white-space: nowrap; }
-
-.pay-del { flex: none; width: 30px; height: 30px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--paper); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: .15s; }
-.pay-del:hover { background: var(--rose-soft); border-color: var(--rose); }
-.pay-del svg { width: 15px; height: 15px; }
-
-.pay-row.done .pay-note { color: var(--muted); }
-.pay-row.done .pay-amt { color: var(--green); }
+.pay-timeline { margin-bottom: 4px; }
 
 .pay-add-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .pay-add {

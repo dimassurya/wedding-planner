@@ -345,9 +345,15 @@ export const WP_TABS = [
 ]
 
 // Kategori transaksi Wedding Fund (tab Keuangan) — daftar opsi <select>,
-// beda set tergantung Jenis (Masuk/Keluar).
+// beda set tergantung Jenis (Masuk/Keluar). Dana Keluar SENGAJA tidak
+// punya opsi kategori vendor (Vendor/Souvenir/Undangan/dst) — pembayaran
+// ke vendor cuma boleh lewat tab Budget (Single Source of Truth), biar
+// nggak ada 2 jalur buat catat hal yang sama. Wedding Fund cuma nyimpen
+// penarikan dana manual di luar itu; kategori 'Vendor' tetap dipakai
+// sistem buat transaksi OTOMATIS dari Budget (lihat BudgetDetailModal.vue)
+// tapi sengaja tidak ditawarkan sebagai pilihan manual di sini.
 export const FUND_KATEGORI_MASUK  = ['Gaji', 'Bonus', 'THR', 'Orang Tua', 'Tabungan', 'Hadiah', 'Lainnya']
-export const FUND_KATEGORI_KELUAR = ['Vendor', 'Souvenir', 'Undangan', 'Dekorasi', 'Transport', 'Lainnya']
+export const FUND_KATEGORI_KELUAR = ['Penarikan Dana', 'Biaya Administrasi', 'Lainnya']
 
 export const STORAGE_KEYS = {
   GKEY:  'weddingGuests_v3',

@@ -117,12 +117,10 @@
       </div>
       <div v-if="expandedIds.has(b.id)" class="b-termin-panel">
         <div v-if="!store.itemPayments(b.id).length" class="b-termin-empty">Belum ada termin pembayaran.</div>
-        <div v-for="p in store.itemPayments(b.id)" :key="p.id" class="b-termin-row">
-          <span class="b-termin-dot" :class="{ on: p.paid }"></span>
-          <span class="b-termin-note">{{ p.note || 'Termin' }}</span>
-          <span class="b-termin-date">{{ p.paid ? 'Lunas ' + fmtDate(p.paidDate) : (p.dueDate ? 'Jatuh tempo ' + fmtDate(p.dueDate) : 'Belum ada tanggal') }}</span>
-          <span class="b-termin-amt">{{ fmt(p.amount) }}</span>
-        </div>
+        <BudgetPaymentTimelineItem
+          v-for="p in store.itemPayments(b.id)" :key="p.id"
+          :payment="p" :editable="false"
+        />
         <button class="b-termin-manage" @click="openDetail(b.id)">Kelola pembayaran →</button>
       </div>
       </template>
@@ -148,6 +146,7 @@ import { useWeddingStore } from '../stores/wedding'
 import { fmt, fmtDate, daysLeft } from '../utils/index'
 import BudgetDetailModal from '../components/modals/BudgetDetailModal.vue'
 import BudgetSchedule from '../components/BudgetSchedule.vue'
+import BudgetPaymentTimelineItem from '../components/BudgetPaymentTimelineItem.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileBudgetList from '../mobile layout/MobileBudgetList.vue'
 import TourBtn from '../components/TourBtn.vue'
@@ -397,15 +396,9 @@ function onImport(e) {
 .b-expand-btn svg { transition: transform .15s; }
 .b-expand-btn.open svg { transform: rotate(180deg); }
 
-.b-termin-panel { padding: 10px 20px 14px 58px; background: var(--ivory); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 7px; }
-.b-termin-empty { font-size: 12.5px; color: var(--muted); font-style: italic; }
-.b-termin-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-.b-termin-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line); flex: none; }
-.b-termin-dot.on { background: var(--green); }
-.b-termin-note { flex: 1; min-width: 0; color: var(--ink); }
-.b-termin-date { color: var(--muted); font-size: 12px; white-space: nowrap; }
-.b-termin-amt { font-weight: 600; font-variant-numeric: tabular-nums; flex: none; }
-.b-termin-manage { align-self: flex-start; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--plum); background: none; border: none; cursor: pointer; padding: 2px 0; }
+.b-termin-panel { padding: 6px 20px 14px 58px; background: var(--ivory); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; }
+.b-termin-empty { font-size: 12.5px; color: var(--muted); font-style: italic; padding: 4px 0; }
+.b-termin-manage { align-self: flex-start; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--plum); background: none; border: none; cursor: pointer; padding: 2px 0; }
 .b-termin-manage:hover { text-decoration: underline; }
 
 .b-foot-progress { font-size: 13px; font-weight: 600; color: var(--plum); }
