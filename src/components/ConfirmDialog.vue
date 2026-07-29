@@ -47,6 +47,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   background: rgba(36, 8, 8, .42);
 }
 .cd-card {
+  box-sizing: border-box;
   width: 100%;
   max-width: 340px;
   background: var(--paper);
@@ -89,11 +90,15 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 }
 .cd-btn {
   flex: 1;
-  padding: 12px 14px;
+  display: grid;
+  place-items: center;
+  min-height: 58px;
+  padding: 8px 10px;
   border-radius: 12px;
   font-family: 'Jost', sans-serif;
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.3;
   cursor: pointer;
   transition: background .15s, border-color .15s, opacity .15s;
 }
