@@ -14,6 +14,15 @@ export const useWeddingStore = defineStore('wedding', () => {
   const loading = ref(true)
   const isPaid  = computed(() => !!profile.value?.paid_at)
 
+  // Nama akun yang lagi login (owner ATAU partner, siapapun yang aktif saat
+  // ini) — dipakai buat auto-atribusi "siapa yang input" di Budget (dibayar
+  // oleh) & Wedding Fund (dicatat oleh), berkat fitur edit bersama yang
+  // udah tau identitas tiap sesi lewat Supabase auth.
+  const currentUserName = computed(() => {
+    const meta = user.value?.user_metadata || {}
+    return meta.full_name || meta.name || user.value?.email?.split('@')[0] || ''
+  })
+
   // Saklar penguncian trial/pembayaran. Mati (default) = semua orang punya
   // akses penuh terlepas dari trial_ends_at/paid_at — dipakai buat launch
   // dulu sebelum payment gateway (iPaymu/Midtrans/dll) beres didaftarkan.
@@ -276,10 +285,20 @@ export const useWeddingStore = defineStore('wedding', () => {
       return rest
     }
 
+    // PENTING: cuma baris tanpa id (`id == null`) yang boleh dianggap baru.
+    // id selalu di-generate server (identity column) — kalau row.id UDAH
+    // ADA, baris itu pasti udah eksis di DB, titik, apapun kondisi shadow-
+    // nya. Dulu di sini "id ada tapi belum ada di shadow" ikut dianggap
+    // toInsert — itu tepat bug-nya: shadow bisa "lupa" (mis. ke-reset pas
+    // HMR dev server reload reactive state tapi nggak reload closure lokal
+    // ini), dan begitu shadow kosong, SEMUA baris lama keinsert ulang jadi
+    // dobel sekaligus (kejadian nyata: 13 budget_items dobel 2026-07-29).
+    // Row ber-id yang belum ada di shadow sekarang dikirim sebagai UPDATE
+    // (idempotent, aman) — bukan INSERT.
     for (const row of rows) {
-      if (row.id == null || !shadow.has(row.id)) { toInsert.push(row); continue }
+      if (row.id == null) { toInsert.push(row); continue }
       seen.add(row.id)
-      if (JSON.stringify(shadow.get(row.id)) !== JSON.stringify(_stripKeys(row))) toUpdate.push(row)
+      if (!shadow.has(row.id) || JSON.stringify(shadow.get(row.id)) !== JSON.stringify(_stripKeys(row))) toUpdate.push(row)
     }
     const toDeleteIds = [...shadow.keys()].filter(id => !seen.has(id) && !rows.some(r => r.id === id))
 
@@ -629,9 +648,9 @@ export const useWeddingStore = defineStore('wedding', () => {
   // Tambah entri pembayaran. Default: rencana termin belum dibayar.
   // recalcDibayar dipanggil tanpa syarat — perubahan tanggal termin belum-
   // bayar pun mempengaruhi cache jatuhTempo, jadi harus selalu disinkron.
-  function addPayment(itemId, { amount = 0, dueDate = null, paid = false, paidDate = null, paidBy = '', note = '' } = {}) {
+  function addPayment(itemId, { amount = 0, dueDate = null, paid = false, paidDate = null, paidBy = '', note = '', remarks = '' } = {}) {
     const uid = ownerUserId.value || user.value?.id
-    const row = { owner_user_id: uid, budgetItemId: itemId, amount, dueDate, paid, paidDate, paidBy, note }
+    const row = { owner_user_id: uid, budgetItemId: itemId, amount, dueDate, paid, paidDate, paidBy, note, remarks }
     payments.value.push(row)
     saveP()
     recalcDibayar(itemId)
@@ -707,6 +726,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         kategori: data.kategori || '',
         nominal: data.nominal || 0,
         catatan: data.catatan || '',
+        dicatatOleh: data.dicatatOleh ?? currentUserName.value,
         budgetItemId: data.budgetItemId ?? null,
         budgetPaymentId: data.budgetPaymentId ?? null,
       })
@@ -752,7 +772,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   async function _seedInitialFundTx(nominal) {
     const uid = ownerUserId.value || user.value.id
     const { data: row, error } = await supabase.from('wedding_fund_transactions')
-      .insert({ owner_user_id: uid, tanggal: new Date().toISOString().slice(0, 10), jenis: 'masuk', kategori: 'Tabungan', nominal, catatan: 'Saldo awal' })
+      .insert({ owner_user_id: uid, tanggal: new Date().toISOString().slice(0, 10), jenis: 'masuk', kategori: 'Tabungan', nominal, catatan: 'Saldo awal', dicatatOleh: currentUserName.value })
       .select().single()
     if (error || !row) return
     fund.value.push(row)
@@ -878,14 +898,12 @@ export const useWeddingStore = defineStore('wedding', () => {
         // Estimasi sengaja TIDAK ditimpa di sini — itu patokan rencana
         // yang berdiri sendiri. Cuma aktual yang ngikutin harga vendor
         // terbaru, biar badge selisih (estimasi vs aktual) tetap berarti.
-        // item (nama baris) & remarks sengaja SELALU disinkron ulang biar
-        // rename/ganti kategori vendor langsung kelihatan di Budget —
-        // konsisten sama Seserahan/Mahar yang juga selalu nimpa nama.
+        // Nama item terus disinkronkan, tapi catatan tidak: catatan vendor
+        // hidup di Vendor, sedangkan catatan Budget milik item anggaran.
         budget.value[existingIdx].item     = itemName
         budget.value[existingIdx].aktual   = hargaTerkini
-        budget.value[existingIdx].remarks  = vendor.deskripsi
       } else {
-        budget.value.push({ vendorId: vendor.id, originType: 'vendor', item: itemName, estimasi: hargaTerkini, aktual: hargaTerkini, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: vendor.deskripsi })
+        budget.value.push({ vendorId: vendor.id, originType: 'vendor', item: itemName, estimasi: hargaTerkini, aktual: hargaTerkini, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: '' })
       }
     } else {
       if (existingIdx > -1) {
@@ -2173,7 +2191,7 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   return {
     // auth
-    user, profile, isPaid, loading,
+    user, profile, isPaid, loading, currentUserName,
     hasAccess, trialExpired, trialDaysLeft, createPayment, pollUntilPaid,
     initAuth, signInWithGoogle, signOut,
     // partner

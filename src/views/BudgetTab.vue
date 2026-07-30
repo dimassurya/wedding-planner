@@ -55,7 +55,7 @@
     </div>
 
     <!-- Mobile: kartu kecil -->
-    <MobileBudgetList v-if="isMobile" :rows="visRows" @open="openDetail" />
+    <MobileBudgetList v-if="isMobile" :rows="visRows" :expanded-ids="expandedIds" @open="openDetail" @toggle-expand="toggleExpand" />
 
     <!-- Table (PC) -->
     <div v-else class="card b-table-card">

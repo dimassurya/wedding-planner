@@ -119,6 +119,7 @@
               <div class="fh-item-sub">
                 <span v-if="itemBadge(t)" class="fh-item-badge" :class="t.jenis">{{ itemBadge(t) }}</span>
                 <span>{{ relDate(t.tanggal) }}</span>
+                <span v-if="t.dicatatOleh">oleh {{ t.dicatatOleh }}</span>
                 <span v-if="t.budgetPaymentId" class="fh-linked" title="Transaksi ini dibuat otomatis dari pembayaran di tab Budget">🔗 Dari Budget</span>
               </div>
             </div>

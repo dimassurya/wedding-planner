@@ -12,6 +12,7 @@
         <div class="mf-sub">
           <span v-if="itemBadge(t)" class="mf-badge" :class="t.jenis">{{ itemBadge(t) }}</span>
           <span>{{ relDate(t.tanggal) }}</span>
+          <span v-if="t.dicatatOleh" class="mf-by">oleh {{ t.dicatatOleh }}</span>
           <span v-if="t.budgetPaymentId" class="mf-linked" title="Transaksi ini dibuat otomatis dari pembayaran di tab Budget">🔗 Dari Budget</span>
         </div>
       </div>
@@ -83,6 +84,7 @@ function relDate(dateStr) {
 .mf-badge { flex: none; display: inline-block; font-family: 'Jost', sans-serif; font-size: var(--m-chip); font-weight: 600; padding: 2px 9px; border-radius: 100px; }
 .mf-badge.masuk  { background: #EAF3DE; color: #2b5010; }
 .mf-badge.keluar { background: var(--rose-soft); color: #7a1a1a; }
+.mf-by { flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
 .mf-linked {
   flex: none; display: inline-block; font-family: 'Jost', sans-serif; font-size: var(--m-chip); font-weight: 600;
   padding: 2px 9px; border-radius: 100px; background: var(--gold-soft); color: #7a5c28; white-space: nowrap;

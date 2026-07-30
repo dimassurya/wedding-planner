@@ -35,6 +35,8 @@
         <textarea v-model="form.catatan" placeholder="Contoh: Gaji bulan Juli, Bonus, DP Catering, Tabungan bulan ini..."></textarea>
       </div>
 
+      <div v-if="isEdit && tx.dicatatOleh" class="fn-recorded-by">Dicatat oleh {{ tx.dicatatOleh }}</div>
+
       <div class="modal-actions">
         <button class="btn btn-ghost" @click="$emit('close')">Batal</button>
         <button class="btn" @click="onSave">Simpan</button>
@@ -139,6 +141,8 @@ async function onDelete() {
 .fn-jenis-btn:disabled { cursor: not-allowed; opacity: .75; }
 
 .fn-auto-note { font-size: 12px; color: #7a5c28; background: var(--gold-soft); border-radius: 10px; padding: 9px 12px; margin-bottom: 16px; line-height: 1.5; }
+
+.fn-recorded-by { font-size: 11.5px; color: var(--muted); margin: -8px 0 16px; }
 
 .cur.locked { background: var(--ivory); color: var(--muted); cursor: not-allowed; }
 select.locked, .field select:disabled { background: var(--ivory); color: var(--muted); cursor: not-allowed; }

@@ -1,42 +1,57 @@
 <template>
   <div class="bpt-item" :class="{ done: payment.paid }">
-    <button
-      class="bpt-check" :class="{ on: payment.paid, static: !editable }"
-      :disabled="!editable"
-      @click="onToggleClick"
-      :title="editable ? (payment.paid ? 'Tandai belum dibayar' : 'Tandai sudah dibayar') : undefined"
-    >
+    <span class="bpt-check" :class="{ on: payment.paid }" :aria-label="payment.paid ? 'Lunas' : 'Belum dibayar'">
       <svg v-if="payment.paid" viewBox="0 0 20 20" fill="none"><path d="M4 10l4.5 4.5L16 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
+    </span>
 
     <div class="bpt-body">
       <div class="bpt-line1">
         <input v-if="editable" class="bpt-title-input" type="text" :value="payment.note"
-          :placeholder="payment.paid ? 'Keterangan (mis. DP)' : 'Nama termin (mis. Pelunasan)'" @input="onNote">
+          :placeholder="payment.paid ? 'cth: DP' : 'cth: DP, Pelunasan'" @input="onNote">
         <span v-else class="bpt-title">{{ payment.note || 'Termin' }}</span>
       </div>
 
-      <div class="bpt-line2">
+      <!-- Belum dibayar: cuma field rencana (tanggal jatuh tempo). "Dibayar
+           oleh"/"Catatan pembayaran" itu properti dari PERISTIWA bayar,
+           bukan dari rencana termin — makanya ditunda sampai tombol Bayar
+           diklik, biar nggak nanya hal yang sama 2x (inline + dialog). -->
+      <div v-if="!payment.paid" class="bpt-line2">
         <span class="bpt-chip" :class="statusInfo.cls">{{ statusInfo.label }}</span>
         <span class="bpt-sep">&middot;</span>
-        <input v-if="editable" class="bpt-date-inline" type="date"
-          :value="payment.paid ? payment.paidDate : payment.dueDate" @change="onDate">
+        <input v-if="editable" class="bpt-date-inline" type="date" :value="payment.dueDate" @change="onDate">
         <span v-else class="bpt-meta-text">{{ dateText }}</span>
+      </div>
+
+      <!-- Sudah dibayar: ringkasan read-only. Klik buat buka lagi dialog
+           pembayaran kalau mau koreksi tanggal/dibayar-oleh/catatan/sumber
+           dana — dialog itu satu-satunya tempat field-field itu diedit. -->
+      <div v-else class="bpt-line2 bpt-line2-paid" :class="{ clickable: editable }"
+        :role="editable ? 'button' : undefined" :tabindex="editable ? 0 : undefined"
+        @click="onEditPayment" @keydown.enter="onEditPayment" @keydown.space.prevent="onEditPayment">
+        <span class="bpt-chip" :class="statusInfo.cls">{{ statusInfo.label }}</span>
+        <span class="bpt-sep">&middot;</span>
+        <span class="bpt-meta-text">{{ dateText }}</span>
+        <template v-if="payment.paidBy">
+          <span class="bpt-sep">&middot;</span>
+          <span class="bpt-meta-text">oleh {{ payment.paidBy }}</span>
+        </template>
         <template v-if="sourceBadge">
           <span class="bpt-sep">&middot;</span>
           <span class="bpt-chip bpt-chip-source" :class="sourceBadge.cls">{{ sourceBadge.label }}</span>
         </template>
-        <template v-if="editable">
-          <span class="bpt-sep">&middot;</span>
-          <input class="bpt-paidby-inline" type="text" list="pay-by-opts" :value="payment.paidBy" placeholder="dibayar oleh..." @input="onBy">
-        </template>
+        <svg v-if="editable" class="bpt-edit-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
       </div>
+
+      <span v-if="!editable && payment.remarks" class="bpt-remarks-text">{{ payment.remarks }}</span>
     </div>
 
     <div v-if="!editable" class="bpt-amt">{{ fmt(payment.amount) }}</div>
     <div v-else class="bpt-amt-edit"><span class="bpt-rp">Rp</span>
       <input type="text" inputmode="numeric" :value="grp(payment.amount)" @input="onAmt">
     </div>
+
+    <button v-if="editable && !payment.paid" class="bpt-pay" @click="onPaymentAction">Bayar</button>
+    <button v-else-if="editable" class="bpt-revert" @click="onPaymentAction">Batalkan</button>
 
     <button v-if="editable" class="bpt-del" @click="onDelete" title="Hapus termin">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
@@ -52,19 +67,19 @@ import { grp, num, fmt, fmtDate, daysLeft } from '../utils/index'
 // Satu baris "payment record" compact dalam daftar Termin & Pembayaran —
 // dipakai di BudgetDetailModal.vue (mode penuh, `editable=true`) dan
 // preview termin di BudgetTab.vue (mode ringkas read-only,
-// `editable=false`). 2 baris per termin: nama + nominal, lalu status/
-// tanggal/sumber dana sebagai metadata kecil di baris kedua — bukan
-// mini-card, biar tetap padat & gampang dipindai sekali lihat.
-// Field edit (catatan/nominal/tanggal/dibayar-oleh) & hapus termin
-// ditangani LANGSUNG di sini lewat store, sama persis kayak sebelumnya.
-// `toggle-paid` sengaja di-emit ke parent (bukan ditangani sendiri) karena
-// keputusan "Sumber Pembayaran" (Wedding Fund / dana luar) butuh konteks
-// nama item Budget yang cuma dipunya parent (BudgetDetailModal.vue).
+// `editable=false`).
+//
+// Field dipisah berdasarkan KAPAN relevan: sebelum dibayar cuma nama +
+// nominal + tanggal jatuh tempo (rencana) yang bisa diedit di sini.
+// "Dibayar oleh", "Catatan pembayaran", dan "Sumber dana" itu properti
+// dari PERISTIWA bayar — cuma diisi lewat dialog pembayaran di parent
+// (tombol "Bayar" utk termin baru, atau klik ringkasan pas udah lunas utk
+// koreksi) biar nggak ada 2 tempat yang nanya hal yang sama.
 const props = defineProps({
   payment:  { type: Object, required: true },
   editable: { type: Boolean, default: true },
 })
-const emit = defineEmits(['toggle-paid'])
+const emit = defineEmits(['payment-action', 'edit-payment'])
 
 const store = useWeddingStore()
 
@@ -98,13 +113,19 @@ const sourceBadge = computed(() => {
   return { label: 'Dana luar', cls: 'src-external' }
 })
 
-function onToggleClick() {
+function onPaymentAction() {
   if (!props.editable) return
-  emit('toggle-paid')
+  emit('payment-action')
+}
+
+// Klik ringkasan termin yang udah lunas → buka lagi dialog pembayaran di
+// parent buat koreksi tanggal/dibayar-oleh/catatan/sumber dana.
+function onEditPayment() {
+  if (!props.editable || !props.payment.paid) return
+  emit('edit-payment')
 }
 
 function onNote(e) { props.payment.note = e.target.value; store.saveP() }
-function onBy(e)   { props.payment.paidBy = e.target.value; store.saveP() }
 
 function onAmt(e) {
   const len = e.target.value.length, start = e.target.selectionStart
@@ -116,10 +137,12 @@ function onAmt(e) {
   store.recalcDibayar(props.payment.budgetItemId)
 }
 
+// Cuma dipakai buat termin yang belum dibayar (tanggal jatuh tempo/rencana)
+// — tanggal beneran dibayar diedit lewat dialog pembayaran, bukan di sini.
+// recalcDibayar tetap dipanggil: b.jatuhTempo itu cache "termin belum-lunas
+// terdekat", jadi ngedit dueDate di sini ikut mempengaruhi cache itu.
 function onDate(e) {
-  const v = e.target.value || null
-  if (props.payment.paid) props.payment.paidDate = v
-  else props.payment.dueDate = v
+  props.payment.dueDate = e.target.value || null
   store.saveP()
   store.recalcDibayar(props.payment.budgetItemId)
 }
@@ -140,25 +163,23 @@ function onDelete() { store.delPayment(props.payment.id) }
 .bpt-check {
   flex: none; width: 18px; height: 18px;
   border-radius: 50%; border: 1.5px solid var(--line); background: var(--paper);
-  display: flex; align-items: center; justify-content: center; cursor: pointer; transition: .15s;
-  padding: 0;
+  display: flex; align-items: center; justify-content: center;
 }
 .bpt-check.on { background: var(--green); border-color: var(--green); }
-.bpt-check.static { cursor: default; }
-.bpt-check:disabled { cursor: default; }
 .bpt-check svg { width: 10px; height: 10px; }
 
-.bpt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 1px; }
+.bpt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
 
 .bpt-line1 { display: flex; align-items: center; }
 .bpt-title-input {
-  width: 100%; font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 500; color: var(--ink);
+  width: 100%; min-width: 0; box-sizing: border-box; font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 500; color: var(--ink);
   border: none; border-bottom: 1px solid transparent; background: transparent; padding: 1px 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .bpt-title-input:focus { outline: none; border-bottom-color: var(--gold); }
 .bpt-title { font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.bpt-line2 { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; line-height: 1.3; }
+.bpt-line2 { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; line-height: 1.3; row-gap: 8px; }
 .bpt-sep { color: var(--line); font-size: 10px; }
 .bpt-meta-text { font-size: 11px; color: var(--muted); white-space: nowrap; }
 
@@ -177,12 +198,15 @@ function onDelete() { store.delPayment(props.payment.id) }
 }
 .bpt-date-inline:hover, .bpt-date-inline:focus { color: var(--ink); outline: none; }
 
-.bpt-paidby-inline {
-  flex: 1; min-width: 60px; max-width: 110px; font-family: 'Jost', sans-serif; font-size: 11px; color: var(--muted);
-  border: none; background: transparent; padding: 0;
+.bpt-line2-paid {
+  border: none; background: transparent; padding: 0; margin: 0; font: inherit; text-align: left; cursor: default;
 }
-.bpt-paidby-inline::placeholder { color: var(--muted); }
-.bpt-paidby-inline:hover, .bpt-paidby-inline:focus { color: var(--ink); outline: none; }
+.bpt-line2-paid.clickable { cursor: pointer; }
+.bpt-line2-paid.clickable:hover .bpt-meta-text:first-of-type { color: var(--ink); text-decoration: underline; }
+.bpt-edit-ico { flex: none; width: 11px; height: 11px; color: var(--muted); opacity: 0; transition: opacity .15s; }
+.bpt-line2-paid.clickable:hover .bpt-edit-ico { opacity: 1; }
+
+.bpt-remarks-text { display: block; margin-top: 8px; font-size: 10.5px; color: var(--muted); line-height: 1.4; }
 
 .bpt-amt {
   flex: none; font-family: 'Jost', sans-serif; font-weight: 600; font-size: 13px; color: var(--ink);
@@ -197,6 +221,15 @@ function onDelete() { store.delPayment(props.payment.id) }
   border-radius: 7px; padding: 4px 7px 4px 24px;
 }
 .bpt-amt-edit input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-soft); }
+
+.bpt-pay, .bpt-revert {
+  flex: none; font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 700;
+  border-radius: 100px; padding: 5px 9px; cursor: pointer; transition: .15s;
+}
+.bpt-pay { color: var(--plum); background: var(--gold-soft); border: 1px solid var(--gold); }
+.bpt-pay:hover { background: var(--gold); color: var(--ink); }
+.bpt-revert { color: var(--muted); background: transparent; border: 1px solid transparent; }
+.bpt-revert:hover { color: var(--rose); background: var(--rose-soft); }
 
 .bpt-del {
   flex: none; width: 22px; height: 22px; border: none; background: transparent;

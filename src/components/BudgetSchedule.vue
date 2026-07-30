@@ -33,7 +33,7 @@
         </div>
         <div class="bs-row-right">
           <div class="bs-row-amt">{{ fmt(e.pay.amount) }}</div>
-          <button class="bs-paid-btn" @click.stop="store.togglePaymentPaid(e.pay.id, true)">Tandai Bayar</button>
+          <button class="bs-paid-btn" @click.stop="$emit('open', e.item.id)">Bayar</button>
         </div>
       </div>
     </div>
@@ -51,7 +51,7 @@
         </div>
         <div class="bs-row-right">
           <div class="bs-row-amt">{{ fmt(e.pay.amount) }}</div>
-          <button class="bs-paid-btn" @click.stop="store.togglePaymentPaid(e.pay.id, true)">Tandai Bayar</button>
+          <button class="bs-paid-btn" @click.stop="$emit('open', e.item.id)">Bayar</button>
         </div>
       </div>
     </div>
@@ -69,7 +69,7 @@
         </div>
         <div class="bs-row-right">
           <div class="bs-row-amt">{{ fmt(e.pay.amount) }}</div>
-          <button class="bs-paid-btn" @click.stop="store.togglePaymentPaid(e.pay.id, true)">Tandai Bayar</button>
+          <button class="bs-paid-btn" @click.stop="$emit('open', e.item.id)">Bayar</button>
         </div>
       </div>
     </div>

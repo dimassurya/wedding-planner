@@ -28,11 +28,11 @@
       <span class="mbn-lbl">Budget</span>
     </button>
 
-    <button class="mbn-item" data-tour="timeline" :class="{ active: store.activeTab === 'timeline' }" @click="go('timeline')">
+    <button class="mbn-item" data-tour="keuangan" :class="{ active: store.activeTab === 'keuangan' }" @click="go('keuangan')">
       <span class="mbn-ic">
-        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M3 7V6a2 2 0 0 1 2-2h9"/><circle cx="16.5" cy="13.5" r="1.3" fill="currentColor" stroke="none"/></svg>
       </span>
-      <span class="mbn-lbl">Agenda</span>
+      <span class="mbn-lbl">Keuangan</span>
     </button>
   </nav>
 </template>

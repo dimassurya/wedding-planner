@@ -92,13 +92,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   flex: 1;
   display: grid;
   place-items: center;
-  min-height: 58px;
-  padding: 8px 10px;
+  min-height: 48px;
+  padding: 5px 8px;
   border-radius: 12px;
   font-family: 'Jost', sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   cursor: pointer;
   transition: background .15s, border-color .15s, opacity .15s;
 }
