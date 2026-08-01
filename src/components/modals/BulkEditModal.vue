@@ -78,15 +78,14 @@
         </div>
       </template>
 
-      <!-- Seserahan / Mahar -->
-      <template v-if="tab === 'seserahan' || tab === 'mahar'">
+      <!-- Mahar & Seserahan -->
+      <template v-if="tab === 'gifts'">
         <div class="field">
-          <label>Ubah Status Persiapan</label>
+          <label>Ubah Status</label>
           <div class="select-wrap">
             <select v-model="f.stat">
               <option value="">-- Biarkan (Tidak Diubah) --</option>
-              <option value="sudah">Sudah Disiapkan / Dibeli</option>
-              <option value="belum">Belum Disiapkan</option>
+              <option v-for="(opt, key) in GIFT_STATUS_OPTIONS" :key="key" :value="key">{{ opt.label }}</option>
             </select>
           </div>
         </div>
@@ -103,7 +102,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useWeddingStore } from '../../stores/wedding'
-import { META, ORDER, VENDOR_CATEGORIES, KEHADIRAN_STATUS, KEHADIRAN_ORDER } from '../../data/constants'
+import { META, ORDER, VENDOR_CATEGORIES, KEHADIRAN_STATUS, KEHADIRAN_ORDER, GIFT_STATUS_OPTIONS } from '../../data/constants'
 
 const props = defineProps({ show: Boolean, tab: String })
 const emit  = defineEmits(['close', 'applied'])

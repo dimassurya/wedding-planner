@@ -247,7 +247,7 @@ const HOME_STEPS = computed(() => [
     selector: '#panel-home .hm-bars',
     icon: '📈',
     title: 'Progres per Area',
-    desc: 'Progress bar tiap area persiapan — checklist, dokumen nikah, seserahan, mahar, timeline, dan vendor. Langsung kelihatan mana yang masih butuh perhatian.',
+    desc: 'Progress bar tiap area persiapan — checklist, dokumen nikah, mahar & seserahan, timeline, dan vendor. Langsung kelihatan mana yang masih butuh perhatian.',
   },
   {
     selector: '#panel-home .hm-deadlines',
@@ -306,22 +306,20 @@ const ckDone  = computed(() => store.checklist.reduce((s, g) => s + g.items.filt
 const ckTotal = computed(() => store.checklist.reduce((s, g) => s + g.items.length, 0))
 const aDone   = computed(() => store.admin.reduce((s, g) => s + g.items.filter(i => i.status).length, 0))
 const aTotal  = computed(() => store.admin.reduce((s, g) => s + g.items.length, 0))
-const sDone   = computed(() => store.seserahan.filter(s => s.status).length)
-const mDone   = computed(() => store.mahar.filter(m => m.status).length)
+const gDone   = computed(() => store.gifts.filter(g => g.status === 'sudah_diserahkan').length)
 const tlDone  = computed(() => store.timeline.filter(t => t.status === 'selesai').length)
 const vJadi   = computed(() => store.vendors.filter(v => v.jadi).length)
 
-const prepDone  = computed(() => ckDone.value + aDone.value + sDone.value + mDone.value + tlDone.value)
-const prepTotal = computed(() => ckTotal.value + aTotal.value + store.seserahan.length + store.mahar.length + store.timeline.length)
+const prepDone  = computed(() => ckDone.value + aDone.value + gDone.value + tlDone.value)
+const prepTotal = computed(() => ckTotal.value + aTotal.value + store.gifts.length + store.timeline.length)
 const prepPct   = computed(() => prepTotal.value ? Math.round(prepDone.value / prepTotal.value * 100) : 0)
 
 const progressBars = computed(() => [
-  { label: 'Checklist Persiapan',  done: ckDone.value,  total: ckTotal.value,          color: '#CD9F65', tab: 'checklist' },
-  { label: 'Dokumen Nikah',        done: aDone.value,   total: aTotal.value,           color: '#0A1D4B', tab: 'admin' },
-  { label: 'Seserahan',           done: sDone.value,   total: store.seserahan.length,  color: '#B32E33', tab: 'seserahan' },
-  { label: 'Mahar',               done: mDone.value,   total: store.mahar.length,      color: '#6E151A', tab: 'mahar' },
-  { label: 'Timeline (tugas)',    done: tlDone.value,  total: store.timeline.length,   color: '#CD9F65', tab: 'timeline' },
-  { label: 'Vendor dipilih',      done: vJadi.value,   total: store.vendors.length,    color: '#810100', tab: 'vendor' },
+  { label: 'Checklist Persiapan',  done: ckDone.value,  total: ckTotal.value,        color: '#CD9F65', tab: 'checklist' },
+  { label: 'Dokumen Nikah',        done: aDone.value,   total: aTotal.value,         color: '#0A1D4B', tab: 'admin' },
+  { label: 'Mahar & Seserahan',    done: gDone.value,   total: store.gifts.length,   color: '#6E151A', tab: 'gifts' },
+  { label: 'Timeline (tugas)',    done: tlDone.value,  total: store.timeline.length, color: '#CD9F65', tab: 'timeline' },
+  { label: 'Vendor dipilih',      done: vJadi.value,   total: store.vendors.length,  color: '#810100', tab: 'vendor' },
 ].map(b => ({ ...b, pct: b.total ? Math.round(b.done / b.total * 100) : 0 })))
 
 function goTab(tab) { store.activeTab = tab }
@@ -468,23 +466,13 @@ const alerts = computed(() => {
     })
   }
 
-  const maharPending = store.mahar.filter(m => !m.status)
-  if (maharPending.length) {
+  const giftsPending = store.gifts.filter(g => g.status !== 'sudah_diserahkan')
+  if (giftsPending.length) {
     list.push({
-      id: 'mahar-pending', severity: 'info', icon: '💍',
-      title: `${maharPending.length} item mahar belum disiapkan`,
-      desc: summarize(maharPending, m => m.item || 'Item'),
-      cta: 'Lihat Mahar', action: () => { store.activeTab = 'mahar' },
-    })
-  }
-
-  const seserahanPending = store.seserahan.filter(s => !s.status)
-  if (seserahanPending.length) {
-    list.push({
-      id: 'seserahan-pending', severity: 'info', icon: '🎁',
-      title: `${seserahanPending.length} item seserahan belum dibeli`,
-      desc: summarize(seserahanPending, s => s.item || 'Item'),
-      cta: 'Lihat Seserahan', action: () => { store.activeTab = 'seserahan' },
+      id: 'gifts-pending', severity: 'info', icon: '💍',
+      title: `${giftsPending.length} item mahar/seserahan belum diserahkan`,
+      desc: summarize(giftsPending, g => g.item || 'Item'),
+      cta: 'Lihat Mahar & Seserahan', action: () => { store.activeTab = 'gifts' },
     })
   }
 

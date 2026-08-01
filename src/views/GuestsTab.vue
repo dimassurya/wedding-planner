@@ -38,9 +38,12 @@
          Bagian dari Dashboard (bukan area kerja) — makanya ditaruh tepat
          di bawah Hero, sebelum Search/Filter/Toolbar/Data Grid. Tertutup
          default, dibuka lewat header-nya sendiri. Isi: Ringkasan Pihak
-         Tamu, Yang Perlu Ditindaklanjuti. RSVP Breakdown (Hadir/Tidak
-         Hadir/Hampers/Belum) SUDAH DIHAPUS — duplikat sama Progress Bar +
-         Compact Summary Chip yang udah ada di Hero Dashboard. -->
+         Tamu. RSVP Breakdown (Hadir/Tidak Hadir/Hampers/Belum) dan
+         "Yang Perlu Ditindaklanjuti" SUDAH DIHAPUS — yang pertama
+         duplikat sama Progress Bar + Compact Summary Chip di Hero
+         Dashboard, yang kedua isinya cuma chip mati (Belum Dihubungi/
+         Perlu Follow Up gak pernah kesambung ke data) dan angka Belum
+         Konfirmasi yang udah tampil di Hero & breakdown Pihak. -->
     <div ref="detailRef" class="gh-detail">
       <button type="button" class="gh-detail-head" @click="toggleDetail">
         <span>📊 Statistik Lengkap</span>
@@ -120,15 +123,6 @@
               Statistik dihitung dari {{ store.confirmedGuests.length }} undangan · {{ notCounted }} tidak dihitung (tidak hadir/kirim hampers)
             </p>
             <p v-else class="g-confirm-info">Semua {{ store.confirmedGuests.length }} undangan dihitung di statistik</p>
-          </div>
-
-          <div class="gh-detail-section">
-            <div class="gh-detail-lbl">📋 Yang Perlu Ditindaklanjuti</div>
-            <div class="gh-status-row">
-              <div class="gh-status-chip">⏳ Belum Konfirmasi <b>{{ belumKonfirmasiCount }}</b></div>
-              <div class="gh-status-chip muted">📨 Belum Dihubungi <b>—</b></div>
-              <div class="gh-status-chip muted">📞 Perlu Follow Up <b>—</b></div>
-            </div>
           </div>
         </div>
       </transition>
@@ -355,7 +349,7 @@ const TAMU_STEPS = computed(() => [
     selector: '#panel-tamu .gh-detail-head',
     icon: '📊',
     title: 'Statistik Lengkap',
-    desc: 'Ringkasan Pihak Pria/Wanita dan Yang Perlu Ditindaklanjuti tersimpan di sini — ketuk buat buka, biar halaman utama tetap ringkas.',
+    desc: 'Ringkasan Pihak Pria/Wanita tersimpan di sini — ketuk buat buka, biar halaman utama tetap ringkas.',
   },
   {
     selector: '#panel-tamu .gh-insight',
@@ -641,17 +635,6 @@ onBeforeUnmount(() => {
   background: var(--gold-soft); border-radius: 100px; padding: 3px 10px;
 }
 .gh-insight-tag.muted { background: transparent; color: var(--muted); padding-left: 0; }
-
-/* ── Statistik Lengkap: isi .gh-detail (Ringkasan Pihak Tamu & lainnya) ── */
-.gh-status-row { display: flex; flex-wrap: wrap; gap: 10px; }
-.gh-status-chip {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--paper); border: 1px solid var(--line); border-radius: 100px;
-  padding: 9px 15px; font-size: 13px; color: var(--ink);
-}
-.gh-status-chip b { color: var(--plum); font-family: 'Cormorant Garamond', serif; font-size: 15px; }
-.gh-status-chip.muted { color: var(--muted); }
-.gh-status-chip.muted b { color: var(--muted); }
 
 /* ── Ringkasan Pihak Tamu — Compact Insight Panel (isi .gh-detail).
    Bukan card statistik besar: header ringkas + baris-baris info dipisah

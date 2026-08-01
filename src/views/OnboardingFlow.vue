@@ -134,11 +134,10 @@ const TEMPLATES = [
   { key: 'checklist', label: 'Checklist Persiapan', hint: 'To-do list persiapan hari H' },
   { key: 'timeline',  label: 'Agenda',               hint: 'Contoh tugas berjadwal menuju hari-H' },
   { key: 'admin',     label: 'Administrasi',         hint: 'Daftar syarat & dokumen' },
-  { key: 'seserahan', label: 'Seserahan',            hint: 'Daftar item seserahan umum' },
 ]
 
 const templates = reactive({
-  budget: true, checklist: true, timeline: true, admin: true, seserahan: true,
+  budget: true, checklist: true, timeline: true, admin: true,
 })
 
 function done() {

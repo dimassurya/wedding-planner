@@ -2,7 +2,7 @@ import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref, computed, reactive } from 'vue'
 import { supabase } from '../lib/supabase'
 import {
-  BUDGET_SEED, SESERAHAN_SEED, ADMIN_SEED, CHECKLIST_SEED, TIMELINE_SEED,
+  BUDGET_SEED, ADMIN_SEED, CHECKLIST_SEED, TIMELINE_SEED,
   VENDOR_CATEGORIES,
 } from '../data/constants'
 import { downloadJSON, downloadCSV, dateStamp, toCSV, fmt } from '../utils/index'
@@ -85,8 +85,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   const payments  = ref([])   // buku pembayaran per item budget (budget_payments)
   const fund      = ref([])   // transaksi Wedding Fund — uang masuk/keluar tabungan nikah (wedding_fund_transactions)
   const vendors   = ref([])
-  const seserahan = ref([])
-  const mahar     = ref([])
+  const gifts     = ref([])   // Mahar & Seserahan gabungan (wedding_gifts, field "type")
   const admin     = ref([])
   const checklist = ref([])
   const timeline  = ref([])
@@ -249,7 +248,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   // "mutasi array lalu panggil saveX() tanpa argumen" seperti sebelumnya).
   const _shadow = {
     guests: new Map(), timeline: new Map(),
-    budget: new Map(), payments: new Map(), fund: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
+    budget: new Map(), payments: new Map(), fund: new Map(), vendors: new Map(), gifts: new Map(),
     adminGroups: new Map(), adminItems: new Map(),
     checklistGroups: new Map(), checklistItems: new Map(),
   }
@@ -389,15 +388,9 @@ export const useWeddingStore = defineStore('wedding', () => {
   const saveCK = () => scheduleDiffSyncNested('checklist', 'checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist)
   const saveTL = () => scheduleDiffSync('timeline', 'timeline_tasks', timeline)
 
-  function saveS() {
-    syncSeserahanToBudget()
-    scheduleDiffSync('seserahan', 'seserahan_items', seserahan)
-    scheduleDiffSync('budget',    'budget_items',     budget)
-  }
-
-  function saveM() {
-    syncMaharToBudget()
-    scheduleDiffSync('mahar',  'mahar_items',   mahar)
+  function saveGifts() {
+    syncGiftsToBudget()
+    scheduleDiffSync('gifts',  'wedding_gifts', gifts)
     scheduleDiffSync('budget', 'budget_items',  budget)
   }
 
@@ -494,10 +487,9 @@ export const useWeddingStore = defineStore('wedding', () => {
     const payload = {}
     // Pembersihan template yang tidak dipilih HANYA untuk user baru,
     // biar data user lama tidak terhapus kalau melewati onboarding.
-    // budget/timeline/seserahan sudah pindah ke tabel sendiri — dibersihkan
-    // lewat _diffAndSync langsung (di bawah), bukan lagi lewat payload
-    // wedding_data.
-    let clearedTimeline = false, clearedBudget = false, clearedSeserahan = false
+    // budget/timeline sudah pindah ke tabel sendiri — dibersihkan lewat
+    // _diffAndSync langsung (di bawah), bukan lagi lewat payload wedding_data.
+    let clearedTimeline = false, clearedBudget = false
     let clearedAdmin = false, clearedChecklist = false
     if (isNewUser.value) {
       const t = data.templates || {}
@@ -505,7 +497,6 @@ export const useWeddingStore = defineStore('wedding', () => {
       if (!t.timeline)  { timeline.value = [];  clearedTimeline = true }
       if (!t.admin)     { admin.value = [];     clearedAdmin = true }
       if (!t.checklist) { checklist.value = []; clearedChecklist = true }
-      if (!t.seserahan) { seserahan.value = []; clearedSeserahan = true }
     }
     onboarded.value = true
     beginOnboarding.value = false
@@ -519,7 +510,6 @@ export const useWeddingStore = defineStore('wedding', () => {
       _upsert(payload),
       clearedTimeline  ? _diffAndSync('timeline', 'timeline_tasks', timeline.value)     : Promise.resolve(),
       clearedBudget    ? _diffAndSync('budget', 'budget_items', budget.value)           : Promise.resolve(),
-      clearedSeserahan ? _diffAndSync('seserahan', 'seserahan_items', seserahan.value)  : Promise.resolve(),
       clearedAdmin     ? _diffAndSyncNested('adminGroups', 'admin_groups', 'adminItems', 'admin_items', admin.value) : Promise.resolve(),
       clearedChecklist ? _diffAndSyncNested('checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist.value) : Promise.resolve(),
       (isNewUser.value && (data.danaAwal || 0) > 0) ? _seedInitialFundTx(data.danaAwal) : Promise.resolve(),
@@ -780,55 +770,42 @@ export const useWeddingStore = defineStore('wedding', () => {
   }
 
   // "originType" gantiin skema lama yang overload kolom id jadi sentinel
-  // string ('seserahan_auto'/'mahar_auto') — id sekarang selalu numerik
-  // asli dari server, jadi asal baris ditandai eksplisit di kolom ini.
+  // string — id sekarang selalu numerik asli dari server, jadi asal baris
+  // ditandai eksplisit di kolom ini.
   function budgetOrigin(b) {
     if (b.vendorId) return { label: 'Vendor', cls: 'bo-vendor', managed: true, tip: 'Otomatis dari vendor yang Dipakai', tipDel: "Ditambahkan dari tab Vendor — untuk menghapus, matikan 'Dipakai' di tab Vendor" }
-    if (b.originType === 'seserahan_auto') return { label: 'Seserahan', cls: 'bo-ser', managed: true, tip: 'Otomatis dari tab Seserahan', tipDel: 'Ditambahkan dari tab Seserahan — kelola item & nilainya dari tab Seserahan' }
-    if (b.originType === 'mahar_auto') return { label: 'Mahar', cls: 'bo-mahar', managed: true, tip: 'Otomatis dari tab Mahar', tipDel: 'Ditambahkan dari tab Mahar — kelola item & nilainya dari tab Mahar' }
+    if (b.weddingGiftId) {
+      const g = gifts.value.find(x => x.id === b.weddingGiftId)
+      const label = g?.type === 'seserahan' ? 'Seserahan' : 'Mahar'
+      return { label, cls: 'bo-gift', managed: true, tip: `Otomatis dari tab ${label} & Seserahan`, tipDel: `Ditambahkan dari tab Mahar & Seserahan — matikan 'Masukkan ke Budget' di sana untuk menghapus` }
+    }
     if (b.template || b.originType === 'template') return { label: 'Template', cls: 'bo-tpl', managed: false, tip: 'Contoh bawaan — boleh diedit atau dihapus' }
     return null
   }
 
-  // ── Sync seserahan / mahar → budget (save dihandle caller) ──────────
-  function syncSeserahanToBudget() {
-    const active  = seserahan.value.filter(x => x.status)
-    const tBudget = active.reduce((s, x) => s + (parseInt(x.budget) || 0), 0)
-    const tHarga  = active.reduce((s, x) => s + (parseInt(x.harga)  || 0), 0)
-    const bIdx = budget.value.findIndex(b => b.originType === 'seserahan_auto')
-    if (active.length === 0 || (tBudget === 0 && tHarga === 0)) {
-      if (bIdx > -1) {
-        const removedId = budget.value[bIdx].id
-        budget.value.splice(bIdx, 1)
+  // ── Sync Mahar & Seserahan → budget (save dihandle caller) ──────────
+  // Per-item, mirror handleVendorDecision: tiap gift yang includeInBudget
+  // dapat/update 1 baris budget_items sendiri (weddingGiftId), bukan lagi
+  // 1 baris agregat buat semua item kayak skema lama.
+  function syncGiftsToBudget() {
+    gifts.value.forEach(g => {
+      const idx = budget.value.findIndex(b => b.weddingGiftId === g.id)
+      if (g.includeInBudget) {
+        const label = g.type === 'seserahan' ? 'Seserahan' : 'Mahar'
+        const itemName = `${label} - ${g.item || 'Tanpa nama'}`
+        if (idx > -1) {
+          budget.value[idx].item     = itemName
+          budget.value[idx].estimasi = g.hargaEstimasi
+          budget.value[idx].aktual   = g.hargaAktual
+        } else {
+          budget.value.push({ weddingGiftId: g.id, originType: 'wedding_gift', item: itemName, estimasi: g.hargaEstimasi, aktual: g.hargaAktual, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: '' })
+        }
+      } else if (idx > -1) {
+        const removedId = budget.value[idx].id
+        budget.value.splice(idx, 1)
         if (removedId != null) _forgetPaymentsLocal(removedId)
       }
-    } else if (bIdx > -1) {
-      budget.value[bIdx].estimasi = tBudget
-      budget.value[bIdx].aktual   = tHarga
-      budget.value[bIdx].item     = 'Total Seserahan'
-    } else {
-      // Tanpa `id` — dianggap baris baru oleh diff engine, server generate id asli
-      budget.value.push({ originType: 'seserahan_auto', item: 'Total Seserahan', estimasi: tBudget, aktual: tHarga, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: 'Sinkronisasi otomatis dari tab Seserahan' })
-    }
-  }
-
-  function syncMaharToBudget() {
-    const active = mahar.value.filter(x => x.status)
-    const tHarga = active.reduce((s, x) => s + (parseInt(x.harga) || 0), 0)
-    const bIdx = budget.value.findIndex(b => b.originType === 'mahar_auto')
-    if (active.length === 0 || tHarga === 0) {
-      if (bIdx > -1) {
-        const removedId = budget.value[bIdx].id
-        budget.value.splice(bIdx, 1)
-        if (removedId != null) _forgetPaymentsLocal(removedId)
-      }
-    } else if (bIdx > -1) {
-      // Sama kayak vendor: estimasi nggak ditimpa tiap sync, cuma aktual.
-      budget.value[bIdx].aktual   = tHarga
-      budget.value[bIdx].item     = 'Total Mahar'
-    } else {
-      budget.value.push({ originType: 'mahar_auto', item: 'Total Mahar', estimasi: tHarga, aktual: tHarga, uangMuka: 0, dibayar: 0, jatuhTempo: null, remarks: 'Sinkronisasi otomatis dari tab Mahar' })
-    }
+    })
   }
 
   // ── Status hubungan vendor ─────────────────────────────────────────
@@ -941,10 +918,20 @@ export const useWeddingStore = defineStore('wedding', () => {
   async function delBudget(id) {
     const b = budget.value.find(x => x.id === id)
     if (!b) return false
-    if (b.originType === 'seserahan_auto' || b.originType === 'mahar_auto') {
-      const src = b.originType === 'mahar_auto' ? 'Mahar' : 'Seserahan'
-      toast(`Item ini otomatis dari tab ${src} — kelola dari sana`)
-      return false
+    if (b.weddingGiftId) {
+      const g = gifts.value.find(x => x.id === b.weddingGiftId)
+      const label = g?.type === 'seserahan' ? 'Seserahan' : 'Mahar'
+      const ok = await askConfirm({
+        title: 'Hapus item Budget ini?',
+        message: `"${b.item}" berasal dari tab Mahar & Seserahan (${label}). Menghapus dari Budget akan mematikan "Masukkan ke Budget" pada item itu.`,
+        confirmLabel: 'Hapus',
+      })
+      if (!ok) return false
+      if (g) { g.includeInBudget = false; saveGifts() }
+      budget.value = budget.value.filter(x => x.id !== id)
+      _forgetPaymentsLocal(id)
+      saveB(); toast('Item dihapus & link Budget dimatikan')
+      return true
     }
     if (b.vendorId) {
       const ok = await askConfirm({
@@ -1103,72 +1090,38 @@ export const useWeddingStore = defineStore('wedding', () => {
     saveV(); toast('Vendor dihapus')
   }
 
-  async function addSeserahanItem() {
+  async function addGift(type) {
     const uid = ownerUserId.value || user.value.id
-    const { data: row, error } = await supabase.from('seserahan_items')
-      .insert({ owner_user_id: uid, item: '', status: false, budget: 0, harga: 0, link: '' })
+    const { data: row, error } = await supabase.from('wedding_gifts')
+      .insert({ owner_user_id: uid, type })
       .select().single()
     if (error || !row) { toast('Gagal menambah item, coba lagi'); return null }
-    seserahan.value.push(row)
-    _shadow.seserahan.set(row.id, JSON.parse(JSON.stringify(row)))
+    gifts.value.push(row)
+    _shadow.gifts.set(row.id, JSON.parse(JSON.stringify(row)))
     return row
   }
 
-  function removeEmptySeserahan(id) {
-    const s = seserahan.value.find(x => x.id === id)
-    if (!s) return
-    if (!(s.item || '').trim() && !s.budget && !s.harga && !(s.link || '').trim()) {
-      seserahan.value = seserahan.value.filter(x => x.id !== id)
-      saveS()
+  function removeEmptyGift(id) {
+    const g = gifts.value.find(x => x.id === id)
+    if (!g) return
+    if (!(g.item || '').trim() && !g.hargaEstimasi && !g.hargaAktual) {
+      gifts.value = gifts.value.filter(x => x.id !== id)
+      saveGifts()
     }
   }
 
-  async function delSeserahan(id) {
-    const s = seserahan.value.find(x => x.id === id)
-    if (!s) return
-    const ok = await askConfirm({
-      title: 'Hapus item?',
-      message: `"${s.item || 'tanpa nama'}" akan dihapus dari seserahan.`,
-      confirmLabel: 'Hapus',
-    })
+  async function delGift(id) {
+    const g = gifts.value.find(x => x.id === id)
+    if (!g) return
+    const label = g.type === 'seserahan' ? 'seserahan' : 'mahar'
+    const message = g.includeInBudget
+      ? `"${g.item || 'tanpa nama'}" akan dihapus dari ${label}. Link ke Budget-nya juga ikut terhapus.`
+      : `"${g.item || 'tanpa nama'}" akan dihapus dari ${label}.`
+    const ok = await askConfirm({ title: 'Hapus item?', message, confirmLabel: 'Hapus' })
     if (!ok) return
-    seserahan.value = seserahan.value.filter(x => x.id !== id)
+    gifts.value = gifts.value.filter(x => x.id !== id)
     delete selectedMap[String(id)]
-    saveS(); toast('Item seserahan dihapus')
-  }
-
-  async function addMaharItem() {
-    const uid = ownerUserId.value || user.value.id
-    const { data: row, error } = await supabase.from('mahar_items')
-      .insert({ owner_user_id: uid, item: '', status: false, harga: 0 })
-      .select().single()
-    if (error || !row) { toast('Gagal menambah item, coba lagi'); return null }
-    mahar.value.push(row)
-    _shadow.mahar.set(row.id, JSON.parse(JSON.stringify(row)))
-    return row
-  }
-
-  function removeEmptyMahar(id) {
-    const m = mahar.value.find(x => x.id === id)
-    if (!m) return
-    if (!(m.item || '').trim() && !m.harga) {
-      mahar.value = mahar.value.filter(x => x.id !== id)
-      saveM()
-    }
-  }
-
-  async function delMahar(id) {
-    const m = mahar.value.find(x => x.id === id)
-    if (!m) return
-    const ok = await askConfirm({
-      title: 'Hapus item?',
-      message: `"${m.item || 'tanpa nama'}" akan dihapus dari mahar.`,
-      confirmLabel: 'Hapus',
-    })
-    if (!ok) return
-    mahar.value = mahar.value.filter(x => x.id !== id)
-    delete selectedMap[String(id)]
-    saveM(); toast('Item mahar dihapus')
+    saveGifts(); toast('Item dihapus')
   }
 
   async function delAdminGroup(id) {
@@ -1319,16 +1272,11 @@ export const useWeddingStore = defineStore('wedding', () => {
         c++
       })
       if (c) { saveP(); saveB() }
-    } else if (tab === 'seserahan') {
+    } else if (tab === 'gifts') {
       const { stat } = fields
       if (!stat) { toast('Pilih minimal satu perubahan'); return }
-      seserahan.value.forEach(x => { if (isSelected(x.id)) { x.status = (stat === 'sudah'); c++ } })
-      if (c) saveS()
-    } else if (tab === 'mahar') {
-      const { stat } = fields
-      if (!stat) { toast('Pilih minimal satu perubahan'); return }
-      mahar.value.forEach(x => { if (isSelected(x.id)) { x.status = (stat === 'sudah'); c++ } })
-      if (c) saveM()
+      gifts.value.forEach(x => { if (isSelected(x.id)) { x.status = stat; c++ } })
+      if (c) saveGifts()
     }
     if (c) { clearSelected(); toast(`Berhasil mengubah ${c} item`); return true }
     return false
@@ -1337,7 +1285,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   async function bulkDelete(tab) {
     const n = selectedIds.value.length
     if (!n) return
-    const tabLabel = { tamu: 'tamu', vendor: 'vendor', budget: 'anggaran', seserahan: 'seserahan', mahar: 'mahar' }[tab] || tab
+    const tabLabel = { tamu: 'tamu', vendor: 'vendor', budget: 'anggaran', gifts: 'mahar & seserahan' }[tab] || tab
     const ok = await askConfirm({
       title: `Hapus ${n} item?`,
       message: `${n} item dari tab ${tabLabel} akan dihapus permanen.`,
@@ -1368,8 +1316,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       saveB()
       if (blocked.length) toast(`${blocked.length} item otomatis tidak dihapus`)
     }
-    else if (tab === 'seserahan') { seserahan.value = seserahan.value.filter(x => !isSelected(x.id)); saveS() }
-    else if (tab === 'mahar') { mahar.value = mahar.value.filter(x => !isSelected(x.id)); saveM() }
+    else if (tab === 'gifts') { gifts.value = gifts.value.filter(x => !isSelected(x.id)); saveGifts() }
     clearSelected()
     toast(`${n} item dihapus`)
   }
@@ -1386,8 +1333,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         payments: payments.value,
         fund: fund.value,
         vendors: vendors.value,
-        seserahan: seserahan.value,
-        mahar: mahar.value,
+        gifts: gifts.value,
         admin: admin.value,
         checklist: checklist.value,
         timeline: timeline.value,
@@ -1404,7 +1350,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       try { payload = JSON.parse(e.target.result) } catch { toast('File tidak bisa dibaca'); return }
       if (!payload || payload.app !== 'wedding-planner' || !payload.data) { toast('Bukan file backup Wedding Planner'); return }
       const d = payload.data
-      const counts = [['guests','tamu'],['budget','budget'],['fund','transaksi keuangan'],['vendors','vendor'],['seserahan','seserahan'],['mahar','mahar'],['admin','administrasi'],['checklist','checklist'],['timeline','timeline']].map(([k,l]) => Array.isArray(d[k]) ? `${d[k].length} ${l}` : null).filter(Boolean)
+      const counts = [['guests','tamu'],['budget','budget'],['fund','transaksi keuangan'],['vendors','vendor'],['gifts','mahar/seserahan'],['admin','administrasi'],['checklist','checklist'],['timeline','timeline']].map(([k,l]) => Array.isArray(d[k]) ? `${d[k].length} ${l}` : null).filter(Boolean)
       const when = payload.exportedAt ? new Date(payload.exportedAt).toLocaleDateString('id-ID') : 'tidak diketahui'
       const hasSettings = payload.settings && Object.keys(payload.settings).length > 0
       const settingsNote = hasSettings ? ' Settings aplikasi juga akan dipulihkan (profil pasangan, onboarding, filter, reminder, dan urutan tab).' : ''
@@ -1418,24 +1364,25 @@ export const useWeddingStore = defineStore('wedding', () => {
       if (Array.isArray(d.guests))    guests.value    = d.guests
       if (Array.isArray(d.fund))      fund.value      = d.fund
       if (Array.isArray(d.vendors)) vendors.value = d.vendors
-      if (Array.isArray(d.seserahan)) seserahan.value = d.seserahan
-      if (Array.isArray(d.mahar))     mahar.value     = d.mahar
+      if (Array.isArray(d.gifts))     gifts.value     = d.gifts
       if (Array.isArray(d.admin))     admin.value     = d.admin
       if (Array.isArray(d.checklist)) checklist.value = d.checklist
       if (Array.isArray(d.timeline))  timeline.value  = d.timeline
       if (Array.isArray(d.budget)) {
-        // Backup lama (sebelum originType ada) masih pakai sentinel
-        // id/item string — derive originType-nya biar budgetOrigin() tetap
-        // ngenalin baris mirror seserahan/mahar/vendor dengan benar.
+        // Backup lama (sebelum originType ada, atau dari sebelum merge
+        // Mahar/Seserahan) — derive originType dasar biar budgetOrigin()
+        // tetap ngenalin baris vendor/template. Baris "Total Mahar"/"Total
+        // Seserahan" era-agregat & link weddingGiftId TIDAK direkonstruksi
+        // (flat export gak nyimpen relasinya) — jatuh ke 'manual', item
+        // masih ada, user tinggal masukin ulang linknya via tab Mahar &
+        // Seserahan kalau perlu.
         budget.value = d.budget.map(b => ({
           ...b,
-          originType: b.originType || (
+          originType: (b.originType === 'seserahan_auto' || b.originType === 'mahar_auto') ? 'manual' : (b.originType || (
             b.vendorId ? 'vendor'
-            : (b.id === 'seserahan_auto' || b.item === 'Total Seserahan') ? 'seserahan_auto'
-            : (b.id === 'mahar_auto' || b.item === 'Total Mahar') ? 'mahar_auto'
             : b.template ? 'template'
             : 'manual'
-          ),
+          )),
         }))
         // Item budget dapat id baru saat di-insert ulang, jadi entri
         // pembayaran lama (referensi budgetItemId lama) pasti yatim —
@@ -1460,8 +1407,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         _diffAndSync('payments', 'budget_payments', payments.value),
         _diffAndSync('fund', 'wedding_fund_transactions', fund.value),
         _diffAndSync('vendors', 'vendors', vendors.value),
-        _diffAndSync('seserahan', 'seserahan_items', seserahan.value),
-        _diffAndSync('mahar', 'mahar_items', mahar.value),
+        _diffAndSync('gifts', 'wedding_gifts', gifts.value),
         _diffAndSyncNested('adminGroups', 'admin_groups', 'adminItems', 'admin_items', admin.value),
         _diffAndSyncNested('checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist.value),
       ])
@@ -1476,8 +1422,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   const TAB_IO = {
     tamu:      { label: 'tamu',         get: () => guests.value,    apply: v => { guests.value = v; clearSelected(); saveG() } },
     vendor:    { label: 'vendor',       get: () => vendors.value,   apply: v => { vendors.value = v; saveV() } },
-    seserahan: { label: 'seserahan',    get: () => seserahan.value, apply: v => { seserahan.value = v; saveS() } },
-    mahar:     { label: 'mahar',        get: () => mahar.value,     apply: v => { mahar.value = v; saveM() } },
+    gifts:     { label: 'mahar & seserahan', get: () => gifts.value, apply: v => { gifts.value = v; saveGifts() } },
     admin:     { label: 'administrasi', get: () => admin.value,     apply: v => { admin.value = v; saveA() } },
     checklist: { label: 'checklist',    get: () => checklist.value, apply: v => { checklist.value = v; saveCK() } },
     budget:    { label: 'budget',       get: () => budget.value,    apply: v => { budget.value = v; payments.value = []; saveB(); saveP() } },
@@ -1527,31 +1472,28 @@ export const useWeddingStore = defineStore('wedding', () => {
     _seedShadow('timeline', timeline.value)
   }
 
-  // Wave 2: budget/vendors/seserahan/mahar juga sudah pindah ke tabel
+  // Wave 2: budget/vendors/gifts juga sudah pindah ke tabel
   // sendiri — dimuat terpisah, fungsi baru (bukan digabung ke
   // _loadGuestsAndTimeline) biar resikonya kecil, sama seperti keputusan
   // Wave 1 dulu.
-  async function _loadBudgetVendorsSeserahanMahar(ownerId) {
-    const [{ data: b }, { data: p }, { data: f }, { data: v }, { data: s }, { data: m }] = await Promise.all([
+  async function _loadBudgetVendorsGifts(ownerId) {
+    const [{ data: b }, { data: p }, { data: f }, { data: v }, { data: g }] = await Promise.all([
       supabase.from('budget_items').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('budget_payments').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('wedding_fund_transactions').select('*').eq('owner_user_id', ownerId).order('id'),
       supabase.from('vendors').select('*').eq('owner_user_id', ownerId).order('id'),
-      supabase.from('seserahan_items').select('*').eq('owner_user_id', ownerId).order('id'),
-      supabase.from('mahar_items').select('*').eq('owner_user_id', ownerId).order('id'),
+      supabase.from('wedding_gifts').select('*').eq('owner_user_id', ownerId).order('id'),
     ])
     budget.value    = b || []
     payments.value  = p || []
     fund.value      = f || []
     vendors.value   = v || []
-    seserahan.value = s || []
-    mahar.value     = m || []
+    gifts.value     = g || []
     _seedShadow('budget', budget.value)
     _seedShadow('payments', payments.value)
     _seedShadow('fund', fund.value)
     _seedShadow('vendors', vendors.value)
-    _seedShadow('seserahan', seserahan.value)
-    _seedShadow('mahar', mahar.value)
+    _seedShadow('gifts', gifts.value)
 
     // dibayar itu cache turunan dari jumlah entri pembayaran lunas. Rekap
     // ulang saat load kalau ada yang meleset dari sinkronisasi lintas-device
@@ -1611,7 +1553,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       _applyData(pData)
       await Promise.all([
         _loadGuestsAndTimeline(pData.user_id),
-        _loadBudgetVendorsSeserahanMahar(pData.user_id),
+        _loadBudgetVendorsGifts(pData.user_id),
         _loadAdminAndChecklist(pData.user_id),
       ])
       return
@@ -1627,7 +1569,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       _applyData(data)
       await Promise.all([
         _loadGuestsAndTimeline(userId),
-        _loadBudgetVendorsSeserahanMahar(userId),
+        _loadBudgetVendorsGifts(userId),
         _loadAdminAndChecklist(userId),
       ])
       if (!data.settings?.ownerEmail && user.value?.email) saveSettings()
@@ -1640,11 +1582,11 @@ export const useWeddingStore = defineStore('wedding', () => {
     partnerEmail.value = ''
     isNewUser.value    = true
     await supabase.from('wedding_data').insert({ user_id: userId, settings: {} })
-    // guests & vendors & mahar: array kosong, tidak ada seed
-    guests.value  = []; vendors.value = []; mahar.value = []
+    // guests & vendors & gifts: array kosong, tidak ada seed
+    guests.value  = []; vendors.value = []; gifts.value = []
     payments.value = []
     fund.value = []
-    _seedShadow('guests', []); _seedShadow('vendors', []); _seedShadow('mahar', [])
+    _seedShadow('guests', []); _seedShadow('vendors', []); _seedShadow('gifts', [])
     _seedShadow('payments', [])
     _seedShadow('fund', [])
 
@@ -1670,19 +1612,6 @@ export const useWeddingStore = defineStore('wedding', () => {
     const { data: insertedBudget } = await supabase.from('budget_items').insert(budgetSeedRows).select()
     budget.value = insertedBudget || []
     _seedShadow('budget', budget.value)
-
-    // seserahan: SESERAHAN_SEED kosong hari ini, tapi tetap tulis jalurnya
-    // biar siap kalau seed-nya diisi nanti — hindari insert() 0 baris.
-    if (SESERAHAN_SEED.length) {
-      const seserahanSeedRows = SESERAHAN_SEED.map(item => ({
-        owner_user_id: userId, item: item.item, status: false, budget: 0, harga: 0, link: '',
-      }))
-      const { data: insertedSeserahan } = await supabase.from('seserahan_items').insert(seserahanSeedRows).select()
-      seserahan.value = insertedSeserahan || []
-    } else {
-      seserahan.value = []
-    }
-    _seedShadow('seserahan', seserahan.value)
 
     // admin: grup dulu (dapat id asli), baru item — di-resolve via legacy_id
     // (BUKAN asumsi urutan array balik dari RETURNING sama dengan urutan
@@ -1746,7 +1675,7 @@ export const useWeddingStore = defineStore('wedding', () => {
   // masih dipakai kolom wedding_data lain yang belum dinormalisasi).
   const _lastRowWriteAt = {
     guests: new Map(), timeline: new Map(),
-    budget: new Map(), payments: new Map(), fund: new Map(), vendors: new Map(), seserahan: new Map(), mahar: new Map(),
+    budget: new Map(), payments: new Map(), fund: new Map(), vendors: new Map(), gifts: new Map(),
     adminGroups: new Map(), adminItems: new Map(),
     checklistGroups: new Map(), checklistItems: new Map(),
   }
@@ -1897,13 +1826,9 @@ export const useWeddingStore = defineStore('wedding', () => {
         filter: `owner_user_id=eq.${listenId}`,
       }, p => _applyRowChange('vendors', vendors, p))
       .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'seserahan_items',
+        event: '*', schema: 'public', table: 'wedding_gifts',
         filter: `owner_user_id=eq.${listenId}`,
-      }, p => _applyRowChange('seserahan', seserahan, p))
-      .on('postgres_changes', {
-        event: '*', schema: 'public', table: 'mahar_items',
-        filter: `owner_user_id=eq.${listenId}`,
-      }, p => _applyRowChange('mahar', mahar, p))
+      }, p => _applyRowChange('gifts', gifts, p))
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'admin_groups',
         filter: `owner_user_id=eq.${listenId}`,
@@ -1955,7 +1880,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       if (data) _applyData(data)
       await Promise.all([
         _loadGuestsAndTimeline(ownerUid),
-        _loadBudgetVendorsSeserahanMahar(ownerUid),
+        _loadBudgetVendorsGifts(ownerUid),
         _loadAdminAndChecklist(ownerUid),
       ])
     } else {
@@ -2145,7 +2070,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         partnerEmail.value = ''
         _channel?.unsubscribe()
         guests.value = []; budget.value = []; payments.value = []; fund.value = []; vendors.value = []
-        seserahan.value = []; mahar.value = []; admin.value = []
+        gifts.value = []; admin.value = []
         checklist.value = []; timeline.value = []
         couple.value = { pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '' }
         targetBudget.value = 0
@@ -2204,7 +2129,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     quickAddTarget, quickAddNonce, requestQuickAdd,
     reminders, saveReminderSettings, markReminderNotified,
     // state
-    guests, budget, payments, fund, vendors, seserahan, mahar, admin, checklist, timeline,
+    guests, budget, payments, fund, vendors, gifts, admin, checklist, timeline,
     activeTab, tabOrder, bFilter, vFilter, selectedMap,
     toastMsg, toastVisible,
     confirmShow, confirmTitle, confirmMessage, confirmOk, confirmCancel, confirmDanger,
@@ -2218,7 +2143,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     isSelected, toggleSelected, clearSelected,
     // core
     init, toast,
-    saveG, saveB, saveP, saveF, saveV, saveS, saveM, saveA, saveCK, saveTL, saveTabOrder,
+    saveG, saveB, saveP, saveF, saveV, saveA, saveCK, saveTL, saveTabOrder,
     // budget
     bStatus, bSisa, bSelisih, bDisplayPrice, budgetSelisihTotal, budgetEstimasiSetCount, budgetOrigin,
     addBudgetItem, delBudget, removeBudgetEmptyItem,
@@ -2227,7 +2152,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     // wedding fund
     fundMasuk, fundKeluar, fundSaldo, fundTxForPayment, addFundTx, updateFundTx, delFundTx,
     // sync
-    syncSeserahanToBudget, syncMaharToBudget, handleVendorDecision,
+    syncGiftsToBudget, handleVendorDecision,
     // guest
     saveGuest, delGuest, duplicateGuest, exportGuestsCSV, exportBudgetCSV,
     // timeline
@@ -2235,10 +2160,8 @@ export const useWeddingStore = defineStore('wedding', () => {
     // vendor
     addVendor, delVendor, setVendorStatus, vendorPayInfo,
     categoryIncludedBy, vendorIncludedByOther,
-    // seserahan
-    addSeserahanItem, delSeserahan, removeEmptySeserahan,
-    // mahar
-    addMaharItem, delMahar, removeEmptyMahar,
+    // mahar & seserahan (gifts)
+    addGift, delGift, removeEmptyGift, saveGifts,
     // admin
     delAdminGroup, addAdminGroup, addAdminItem,
     // checklist

@@ -39,8 +39,7 @@ const items = [
   { tab: 'tamu',      icon: '👥', title: 'Tambah Tamu',      hint: 'Isi undangan baru' },
   { tab: 'budget',    icon: '💰', title: 'Tambah Budget',    hint: 'Catat pos biaya' },
   { tab: 'vendor',    icon: '🤝', title: 'Tambah Vendor',    hint: 'Simpan kandidat vendor' },
-  { tab: 'seserahan', icon: '🎁', title: 'Tambah Seserahan', hint: 'Catat item seserahan' },
-  { tab: 'mahar',     icon: '💍', title: 'Tambah Mahar',     hint: 'Catat item mahar' },
+  { tab: 'gifts',     icon: '💍', title: 'Tambah Mahar/Seserahan', hint: 'Catat item mahar atau seserahan' },
 ]
 
 async function choose(tab) {

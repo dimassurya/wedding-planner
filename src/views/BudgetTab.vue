@@ -203,7 +203,7 @@ const BUDGET_STEPS = computed(() => [
     selector: isMobile.value ? '.mb-origin' : '.b-origin',
     icon: '🔖',
     title: 'Label Asal Item',
-    desc: 'Badge kecil yang menandai dari mana item ini berasal — template bawaan, dari tab Vendor, Seserahan, atau Mahar. Item dari tab lain dikelola di sumber asalnya dan tidak bisa dihapus langsung dari sini.',
+    desc: 'Badge kecil yang menandai dari mana item ini berasal — template bawaan, dari tab Vendor, atau dari tab Mahar & Seserahan. Item dari tab lain dikelola di sumber asalnya dan tidak bisa dihapus langsung dari sini.',
   },
   {
     selector: isMobile.value ? '.mb-status' : '.b-progress',
@@ -287,10 +287,10 @@ const tDib = computed(() => store.budget.reduce((s, b) => s + (b.dibayar || 0), 
 const tSis = computed(() => store.budget.reduce((s, b) => s + store.bSisa(b), 0))
 const pctPaid = computed(() => tAkt.value ? Math.round(tDib.value / tAkt.value * 100) : 0)
 
-// Urutan tampil: Vendor > Seserahan > Mahar > manual (nggak ada origin) >
+// Urutan tampil: Vendor > Mahar & Seserahan > manual (nggak ada origin) >
 // Template paling bawah. Pengurutan cuma buat tampilan (visRows), array
 // asli store.budget nggak diubah — jadi nggak perlu persist apa-apa.
-const ORIGIN_RANK = { 'bo-vendor': 0, 'bo-ser': 1, 'bo-mahar': 2, 'bo-tpl': 4 }
+const ORIGIN_RANK = { 'bo-vendor': 0, 'bo-gift': 1, 'bo-tpl': 4 }
 function originRank(b) {
   const cls = store.budgetOrigin(b)?.cls
   return cls != null ? (ORIGIN_RANK[cls] ?? 3) : 3

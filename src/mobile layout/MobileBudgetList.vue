@@ -147,8 +147,7 @@ function originStyle(o) {
   const map = {
     'bo-tpl':    { background: 'var(--gold-soft)', color: '#7a5c28' },
     'bo-vendor': { background: '#0A1D4B', color: '#fff' },
-    'bo-ser':    { background: 'var(--rose-soft)', color: '#7a1a1a' },
-    'bo-mahar':  { background: '#6E151A', color: '#fff' },
+    'bo-gift':   { background: '#6E151A', color: '#fff' },
   }
   return map[o.cls] || { background: 'var(--ivory)', color: 'var(--muted)' }
 }

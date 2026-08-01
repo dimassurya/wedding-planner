@@ -49,7 +49,7 @@ const store    = useWeddingStore()
 const isMobile = useIsMobile()
 
 // Tabs yang hanya ada di sidebar mobile (bukan bottom nav)
-const SIDEBAR_TABS = new Set(['vendor', 'seserahan', 'mahar', 'admin'])
+const SIDEBAR_TABS = new Set(['vendor', 'gifts', 'admin'])
 
 const ALL_STEPS = [
   {
@@ -83,16 +83,10 @@ const ALL_STEPS = [
     desc: 'Cari dan bandingkan vendor. Aktifkan "Dipakai" untuk sync harga ke Anggaran otomatis.',
   },
   {
-    tab: 'seserahan',
-    icon: '🎁',
-    title: 'Seserahan',
-    desc: 'Daftar item seserahan lengkap dengan status dan estimasi harga.',
-  },
-  {
-    tab: 'mahar',
+    tab: 'gifts',
     icon: '💍',
-    title: 'Mahar',
-    desc: 'Catat dan kelola rincian mahar yang akan diserahkan.',
+    title: 'Mahar & Seserahan',
+    desc: 'Catat dan kelola rincian mahar & seserahan yang akan diserahkan, lengkap dengan status dan estimasi harga.',
   },
   {
     tab: 'admin',

@@ -215,7 +215,20 @@ export const INCLUDED_VENDOR_CATEGORY_OPTIONS = [
   { id: 'lainnya', label: 'Lainnya' },
 ]
 
-export const SESERAHAN_SEED = []
+// Status Mahar & Seserahan (tab gabungan) — set gabungan dari kedua jenis,
+// form cuma nawarin subset yang relevan lewat GIFT_STATUS_BY_TYPE (Mahar
+// skip "Sudah Dikemas", cuma dipakai Seserahan yang butuh tahap kemas
+// sebelum diserahkan).
+export const GIFT_STATUS_OPTIONS = {
+  belum_dibeli:     { label: 'Belum Dibeli' },
+  sudah_dibeli:     { label: 'Sudah Dibeli' },
+  sudah_dikemas:    { label: 'Sudah Dikemas' },
+  sudah_diserahkan: { label: 'Sudah Diserahkan' },
+}
+export const GIFT_STATUS_BY_TYPE = {
+  mahar:     ['belum_dibeli', 'sudah_dibeli', 'sudah_diserahkan'],
+  seserahan: ['belum_dibeli', 'sudah_dibeli', 'sudah_dikemas', 'sudah_diserahkan'],
+}
 
 function buildAdminSyarat(ktpLabel) {
   return [
@@ -335,8 +348,7 @@ export const WP_TABS = [
   { tab: 'home',      label: 'Home' },
   { tab: 'tamu',      label: 'Tamu' },
   { tab: 'vendor',    label: 'Vendor' },
-  { tab: 'seserahan', label: 'Seserahan' },
-  { tab: 'mahar',     label: 'Mahar' },
+  { tab: 'gifts',     label: 'Mahar & Seserahan' },
   { tab: 'admin',     label: 'Dokumen Nikah' },
   { tab: 'checklist', label: 'Checklist' },
   { tab: 'budget',    label: 'Budget' },
@@ -359,8 +371,6 @@ export const STORAGE_KEYS = {
   GKEY:  'weddingGuests_v3',
   BKEY:  'weddingBudget_v1',
   VKEY:  'weddingVendors_v1',
-  SKEY:  'wp_seserahan',
-  MKEY:  'wp_mahar',
   AKEY:  'wp_admin',
   CKEY:  'wp_checklist',
   TLKEY: 'wp_timeline',

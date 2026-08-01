@@ -244,8 +244,7 @@ main { max-width: 1060px; margin: 0 auto; padding: 30px 20px 0; }
 .b-origin { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; padding: 2px 7px; border-radius: 5px; margin-top: 4px; }
 .bo-tpl    { color: #7a5c28; background: var(--gold-soft); }
 .bo-vendor { color: #fff; background: #0A1D4B; }
-.bo-ser    { color: #7a1a1a; background: var(--rose-soft); }
-.bo-mahar  { color: #fff; background: #6E151A; }
+.bo-gift   { color: #fff; background: #6E151A; }
 .budget-origin-hint { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin: -4px 4px 14px; }
 .budget-origin-hint b { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; }
 
