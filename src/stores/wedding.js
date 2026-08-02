@@ -268,6 +268,32 @@ export const useWeddingStore = defineStore('wedding', () => {
     checklistGroups: new Map(), checklistItems: new Map(),
   }
 
+  // Terjemahin error Supabase jadi kalimat yang menjelaskan APA yang salah.
+  // Dulu semua kegagalan cuma jadi "Gagal ..., coba lagi" — padahal
+  // penyebabnya sering bukan hal yang bisa diperbaiki dengan mengulang
+  // (mis. kolom belum ada di DB, offline, sesi kedaluwarsa). Pesan yang
+  // spesifik bikin masalahnya kelihatan tanpa harus buka console.
+  function _errMsg(error, aksi = 'menyimpan data') {
+    if (!error) return `Gagal ${aksi}, coba lagi`
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return `Gagal ${aksi} — kamu sedang offline. Perubahan belum tersimpan.`
+    }
+    const code = error.code || ''
+    const msg  = error.message || ''
+    // PGRST204: kolom yang dikirim nggak ada di tabel (skema belum di-migrasi)
+    if (code === 'PGRST204' || /column .* does not exist|schema cache/i.test(msg)) {
+      const kolom = msg.match(/'([^']+)' column/)?.[1]
+      return `Gagal ${aksi} — kolom${kolom ? ` "${kolom}"` : ''} belum ada di database. Ini bug aplikasi, bukan salah kamu.`
+    }
+    if (code === '23505') return `Gagal ${aksi} — data serupa sudah ada.`
+    if (code === '23503') return `Gagal ${aksi} — data terkait sudah dihapus. Muat ulang halaman.`
+    if (code === '42501' || code === 'PGRST301' || /jwt|permission/i.test(msg)) {
+      return `Gagal ${aksi} — sesi kamu kedaluwarsa. Muat ulang halaman lalu coba lagi.`
+    }
+    if (/fetch|network/i.test(msg)) return `Gagal ${aksi} — koneksi bermasalah. Cek internet kamu.`
+    return `Gagal ${aksi}: ${msg || 'penyebab tidak diketahui'}`
+  }
+
   function _seedShadow(col, rows, stripKeys = []) {
     _shadow[col].clear()
     const strip = r => {
@@ -326,6 +352,11 @@ export const useWeddingStore = defineStore('wedding', () => {
       return rest
     }
 
+    // Kegagalan sync dulu cuma masuk console — user merasa datanya
+    // tersimpan padahal nggak. Sekarang error pertama dikumpulkan lalu
+    // ditoast SEKALI per batch (bukan per baris, biar nggak spam).
+    let firstError = null
+
     await Promise.all([
       ...toInsert.map(async row => {
         const { data, error } = await supabase.from(table)
@@ -338,6 +369,7 @@ export const useWeddingStore = defineStore('wedding', () => {
           shadow.set(data.id, JSON.parse(JSON.stringify(_stripKeys(row))))
         } else if (error) {
           console.error(`[_diffAndSync] insert ${table} gagal:`, error)
+          firstError ||= error
         }
       }),
       ...toUpdate.map(async row => {
@@ -348,15 +380,23 @@ export const useWeddingStore = defineStore('wedding', () => {
         const { error } = await supabase.from(table)
           .update(_stripSystem(row)).eq('id', row.id).eq('owner_user_id', uid)
         if (!error) shadow.set(row.id, JSON.parse(JSON.stringify(_stripKeys(row))))
-        else console.error(`[_diffAndSync] update ${table} gagal:`, error)
+        else {
+          console.error(`[_diffAndSync] update ${table} gagal:`, error)
+          firstError ||= error
+        }
       }),
       ...toDeleteIds.map(async id => {
         _lastRowWriteAt[col]?.set(id, Date.now())
         const { error } = await supabase.from(table).delete().eq('id', id).eq('owner_user_id', uid)
         if (!error) shadow.delete(id)
-        else console.error(`[_diffAndSync] delete ${table} gagal:`, error)
+        else {
+          console.error(`[_diffAndSync] delete ${table} gagal:`, error)
+          firstError ||= error
+        }
       }),
     ])
+
+    if (firstError) toast(_errMsg(firstError, 'menyimpan perubahan'))
   }
 
   function scheduleDiffSync(col, table, rowsRef) {
@@ -1082,7 +1122,11 @@ export const useWeddingStore = defineStore('wedding', () => {
     const jadi = vData.status === 'dipakai'
     const { data: row, error } = await supabase.from('vendors')
       .insert({ owner_user_id: uid, ...vData, jadi }).select().single()
-    if (error || !row) { toast('Gagal menambah vendor, coba lagi'); return null }
+    if (error || !row) {
+      console.error('[addVendor] insert vendors gagal:', error)
+      toast(_errMsg(error, 'menambah vendor'))
+      return null
+    }
     vendors.value.push(row)
     _shadow.vendors.set(row.id, JSON.parse(JSON.stringify(row)))
     if (jadi) handleVendorDecision(row, true)  // langsung masukin ke Budget
