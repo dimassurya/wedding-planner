@@ -9,6 +9,16 @@
           </button>
         </div>
 
+        <button class="m-side-profile" @click="$emit('profile')">
+          <img v-if="avatar" :src="avatar" class="m-side-ava" :alt="accountName">
+          <span v-else class="m-side-ava m-side-ava-initial">{{ accountName?.[0]?.toUpperCase() || '?' }}</span>
+          <span class="m-side-profile-main">
+            <span class="m-side-profile-name">{{ accountName }}</span>
+            <span class="m-side-profile-sub">Profil &amp; Informasi</span>
+          </span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+
         <nav class="m-side-nav">
           <button
             v-for="t in items"
@@ -49,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { WP_TABS } from '../data/constants'
 import { BOTTOM_TABS } from './mobileNav'
@@ -57,7 +67,7 @@ import { useInstallPWA } from '../composables/useInstallPWA'
 import AddPartnerCard from '../components/AddPartnerCard.vue'
 
 defineProps({ open: Boolean })
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'profile'])
 
 const store = useWeddingStore()
 const { canInstall, install } = useInstallPWA()
@@ -65,6 +75,11 @@ const importRef   = ref(null)
 const showPartner = ref(false)
 
 const items = WP_TABS.filter(t => !BOTTOM_TABS.includes(t.tab))
+
+const avatar      = computed(() => store.user?.user_metadata?.avatar_url)
+const accountName = computed(() =>
+  store.user?.user_metadata?.full_name || store.user?.email?.split('@')[0] || ''
+)
 
 function go(tab) {
   if (store.activeTab !== tab) {
@@ -136,6 +151,53 @@ function onSignOut() {
   cursor: pointer;
 }
 .m-close:active { background: var(--gold-soft); }
+
+/* Baris profil — pintu masuk "Profil & Informasi" di HP (di web lewat
+   foto profil / menu titik tiga di header). */
+.m-side-profile {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: calc(100% - 20px);
+  margin: 10px 10px 2px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--ivory);
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s;
+}
+.m-side-profile:active { background: var(--gold-soft); }
+.m-side-ava {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--line);
+}
+.m-side-ava-initial {
+  display: grid;
+  place-items: center;
+  background: var(--plum);
+  color: #fff;
+  font-family: 'Jost', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+}
+.m-side-profile-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.m-side-profile-name {
+  font-family: 'Jost', sans-serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.m-side-profile-sub { font-size: 11.5px; color: var(--muted); }
 
 .m-side-nav {
   flex: 1;

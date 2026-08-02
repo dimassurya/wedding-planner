@@ -41,10 +41,18 @@
         </button>
       </template>
 
-      <!-- ── State B: sudah onboarding, trial habis & belum bayar ── -->
+      <!-- ── State B: sudah onboarding — trial habis, ATAU user sengaja
+           buka halaman ini dari kartu Status Aplikasi di Profil (masih
+           punya akses, cuma mau bayar duluan). ── -->
       <template v-else>
-        <h2 class="pay-title">Trial Kamu Sudah Berakhir</h2>
-        <p class="pay-desc">Masa coba gratis 2 hari sudah habis. Lanjutkan dengan sekali bayar untuk buka kembali akses ke semua data & fitur kamu.</p>
+        <template v-if="voluntary">
+          <h2 class="pay-title">Aktifkan Akses Penuh</h2>
+          <p class="pay-desc">Bayar sekali biar aksesmu nggak terputus setelah masa coba habis. Semua data yang sudah kamu isi tetap utuh.</p>
+        </template>
+        <template v-else>
+          <h2 class="pay-title">Trial Kamu Sudah Berakhir</h2>
+          <p class="pay-desc">Masa coba gratis 2 hari sudah habis. Lanjutkan dengan sekali bayar untuk buka kembali akses ke semua data & fitur kamu.</p>
+        </template>
 
         <div class="pay-price">
           <span class="pay-amount">{{ fmt(PRICE) }}</span>
@@ -78,7 +86,8 @@
         </div>
       </template>
 
-      <button class="pay-signout" @click="store.signOut()">Keluar akun</button>
+      <button v-if="voluntary" class="pay-signout" @click="store.forcePaywall = false">Kembali ke aplikasi</button>
+      <button v-else class="pay-signout" @click="store.signOut()">Keluar akun</button>
     </div>
   </div>
 </template>
@@ -100,6 +109,11 @@ const name   = computed(() => store.user?.user_metadata?.full_name || store.user
 const Check = () => h('svg', { viewBox: '0 0 20 20', fill: 'none' }, [
   h('path', { d: 'M4 10l4.5 4.5L16 6', stroke: '#6E151A', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
 ])
+
+// true = user buka halaman ini sendiri dari Profil (masih punya akses),
+// bukan kena kunci karena trial habis. Bedanya cuma judul + tombol
+// kembali; alur QR-nya persis sama.
+const voluntary = computed(() => store.forcePaywall && store.hasAccess)
 
 const payState   = ref('idle') // idle | loading | qr | timeout | error
 const qrDataUrl  = ref('')
@@ -123,12 +137,16 @@ async function payNow() {
   const paid = await store.pollUntilPaid()
   // Kalau paid, App.vue sudah otomatis pindah ke app utama (hasAccess jadi
   // true) sebelum baris ini sempat jalan — cuma relevan kalau timeout.
-  if (!paid) payState.value = 'timeout'
+  // Kecuali kalau halaman ini dibuka sukarela: gerbangnya `forcePaywall`,
+  // jadi harus dimatikan sendiri biar user balik ke aplikasi.
+  if (paid) store.forcePaywall = false
+  else payState.value = 'timeout'
 }
 
 async function checkAgain() {
   const paid = await store.pollUntilPaid({ timeoutMs: 15000 })
-  if (!paid) store.toast('Masih belum terdeteksi. Coba beberapa saat lagi.')
+  if (paid) store.forcePaywall = false
+  else store.toast('Masih belum terdeteksi. Coba beberapa saat lagi.')
 }
 </script>
 

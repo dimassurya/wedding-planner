@@ -1368,6 +1368,7 @@ import { useWeddingStore } from '../../stores/wedding'
 import { VENDOR_CATEGORIES, VENDOR_STATUS, VENDOR_STATUS_ORDER, GENRE_MUSIK, DURASI_LIPUTAN_OPTIONS, LIPUTAN_ACARA_OPTIONS, HASIL_FOTOVIDEO_OPTIONS, BUSANA_OPTIONS, LAYANAN_TAMBAHAN_OPTIONS, ACARA_MC_OPTIONS, DURASI_MC_OPTIONS, BAHASA_MC_OPTIONS, ADAT_MC_OPTIONS, GAYA_MC_OPTIONS, NAMA_SOUVENIR_OPTIONS, PACKAGING_OPTIONS, CUSTOMISASI_OPTIONS, ESTIMASI_PRODUKSI_OPTIONS, JENIS_LAYANAN_WO_OPTIONS, JUMLAH_MEETING_OPTIONS, JUMLAH_CREW_OPTIONS, KOORDINASI_VENDOR_OPTIONS, DOKUMEN_WO_OPTIONS, JENIS_VENUE_OPTIONS, KONSEP_VENUE_OPTIONS, FASILITAS_VENUE_OPTIONS, KEBIJAKAN_VENUE_OPTIONS, JENIS_PAKET_CATERING_OPTIONS, INCLUDE_CATERING_OPTIONS, DURASI_PELAYANAN_CATERING_OPTIONS, SISTEM_REFILL_OPTIONS, KEBIJAKAN_CATERING_OPTIONS, INCLUDED_VENDOR_CATEGORY_OPTIONS } from '../../data/constants'
 import { VENDOR_JADWAL_JENIS } from '../../data/constants'
 import { grp, num, fmtDate } from '../../utils/index'
+import { useFormDraft } from '../../composables/useFormDraft'
 import RepeatableCard from '../RepeatableCard.vue'
 
 // Icon kategori kecil buat ringkasan card Included Vendor — dupe kecil dari
@@ -1470,6 +1471,16 @@ watch(() => props.show, open => {
     showMoreCatering.value = false
   }
   nextTick(() => { namaInput.value?.focus(); autoGrowDesk() })
+})
+
+// Draft anti-refresh — form vendor paling panjang di app ini, paling sakit
+// kalau hilang gara-gara refresh nggak sengaja. WAJIB dipanggil setelah
+// watcher `show` di atas biar inisialisasi form selesai duluan.
+useFormDraft('vendor', {
+  show: () => props.show,
+  form,
+  context: () => props.editId ?? null,
+  onRestore: () => store.toast('Isian terakhirmu dipulihkan'),
 })
 
 // Total Personel = jumlah Struktur Tim; fallback ke angka di Jumlah Crew

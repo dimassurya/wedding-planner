@@ -140,7 +140,7 @@
             class="tl-item"
             :class="[
               'tl-cat-' + e.cat,
-              { 'tl-late': e.status.tone === 'late', 'tl-done': e.done, 'tl-hh': e.hariH, 'tl-clickable': !!e.goto },
+              { 'tl-done': e.done, 'tl-hh': e.hariH, 'tl-clickable': !!e.goto },
             ]"
             :title="e.goto ? 'Buka di ' + catLabel(e.cat) : null"
             @click="e.goto && (store.activeTab = e.goto)"
@@ -509,7 +509,8 @@ function preview(list) {
 }
 .tl-clickable { cursor: pointer; }
 .tl-clickable:hover { background: var(--ivory); border-color: var(--gold); }
-.tl-late { border-left: 3px solid var(--rose); }
+/* Item terlambat sengaja NGGAK dikasih garis merah di kiri — cukup ditandai
+   lewat chip status di kanan, biar semua kartu punya bentuk yang sama. */
 .tl-done { opacity: .62; }
 .tl-done .tl-name { text-decoration: line-through; }
 

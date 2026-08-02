@@ -1,9 +1,9 @@
 import { defineStore, acceptHMRUpdate } from 'pinia'
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { supabase } from '../lib/supabase'
 import {
   BUDGET_SEED, ADMIN_SEED, CHECKLIST_SEED,
-  VENDOR_CATEGORIES,
+  VENDOR_CATEGORIES, WP_TABS,
 } from '../data/constants'
 import { downloadJSON, downloadCSV, dateStamp, toCSV, fmt } from '../utils/index'
 
@@ -46,6 +46,11 @@ export const useWeddingStore = defineStore('wedding', () => {
     return !!t && new Date(t).getTime() < Date.now()
   })
   const hasAccess = computed(() => !PAYMENT_ENABLED || isPaid.value || !trialExpired.value)
+  const paymentEnabled = computed(() => PAYMENT_ENABLED)
+  // User yang masih punya akses tapi mau bayar duluan (dari kartu Status
+  // Aplikasi di Profil). App.vue nampilin PaymentPage selama ini true;
+  // PaymentPage sendiri kasih tombol kembali karena ini bukan penguncian.
+  const forcePaywall = ref(false)
   const trialDaysLeft = computed(() => {
     const t = profile.value?.trial_ends_at
     if (!t) return null
@@ -93,7 +98,14 @@ export const useWeddingStore = defineStore('wedding', () => {
   const checklist = ref([])
   const timeline  = ref([])
 
-  const activeTab  = ref('home')
+  // Tab terakhir yang dibuka diingat di localStorage — refresh (sengaja
+  // atau tidak) balikin user ke halaman yang sama, bukan dilempar ke Home.
+  const VALID_TAB_IDS = new Set(WP_TABS.map(t => t.tab))
+  let _savedTab = null
+  try { _savedTab = localStorage.getItem('wp_activeTab') } catch (_) {}
+  const activeTab  = ref(VALID_TAB_IDS.has(_savedTab) ? _savedTab : 'home')
+  watch(activeTab, t => { try { localStorage.setItem('wp_activeTab', t) } catch (_) {} })
+
   const tabOrder   = ref([])
   const bFilter    = ref('all')
   const vFilter    = ref('wo')
@@ -2114,7 +2126,8 @@ export const useWeddingStore = defineStore('wedding', () => {
   return {
     // auth
     user, profile, isPaid, loading, currentUserName,
-    hasAccess, trialExpired, trialDaysLeft, createPayment, pollUntilPaid,
+    hasAccess, trialExpired, trialDaysLeft, paymentEnabled, forcePaywall,
+    createPayment, pollUntilPaid,
     initAuth, signInWithGoogle, signOut,
     // partner
     ownerUserId, isPartner, partnerEmail, ownerEmail,

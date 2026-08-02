@@ -7,11 +7,12 @@ import { TIMELINE_CATEGORIES, MAIN_EVENTS } from '../data/constants'
 //  Sumber data tunggal halaman Timeline.
 //
 //  Timeline TIDAK punya data sendiri: composable ini cuma MEMBACA state
-//  yang rumahnya di modul lain (Checklist, Budget, Vendor, Dokumen, Mahar
-//  & Seserahan, Keuangan, dan tanggal acara di profil pasangan) lalu
-//  meratakannya jadi satu daftar kronologis. Karena semuanya computed di
-//  atas store yang reaktif, tanggal yang diubah dari modul asalnya
-//  langsung kelihatan di Timeline tanpa sinkronisasi manual.
+//  yang rumahnya di modul lain (Checklist, Budget, Vendor, Mahar &
+//  Seserahan, Keuangan, dan tanggal acara di profil pasangan) lalu
+//  meratakannya jadi satu daftar kronologis. Dokumen Nikah SENGAJA tidak
+//  punya tanggal (syarat administrasi, bukan hal berjadwal). Karena semua
+//  computed di atas store yang reaktif, tanggal yang diubah dari modul
+//  asalnya langsung kelihatan di Timeline tanpa sinkronisasi manual.
 //
 //  Nambah sumber baru = tambah satu blok push() di bawah + satu entri di
 //  TIMELINE_CATEGORIES. Jangan pernah nyimpen tanggal di halaman Timeline
@@ -144,18 +145,6 @@ export function useTimelineFeed() {
         detail: [v.nama, (j.catatan || '').trim()].filter(Boolean).join(' · '),
         done: j.status === 'selesai',
         goto: 'vendor',
-      })
-    }))
-
-    // ── Dokumen Nikah: jadwal KUA, pengambilan dokumen, legalisasi ───
-    store.admin.forEach(g => (g.items || []).forEach(it => {
-      if (!it.tanggal) return
-      push({
-        key: `ad-${it.id}`, date: it.tanggal, cat: 'dokumen',
-        title: (it.syarat || '').trim() || 'Dokumen',
-        detail: g.grup || '',
-        done: !!it.status,
-        goto: 'admin',
       })
     }))
 

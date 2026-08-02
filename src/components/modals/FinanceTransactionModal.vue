@@ -51,6 +51,7 @@ import { reactive, computed, watch } from 'vue'
 import { useWeddingStore } from '../../stores/wedding'
 import { grp, num } from '../../utils/index'
 import { FUND_KATEGORI_MASUK, FUND_KATEGORI_KELUAR } from '../../data/constants'
+import { useFormDraft } from '../../composables/useFormDraft'
 
 const props = defineProps({ show: Boolean, txId: { default: null } })
 const emit = defineEmits(['close'])
@@ -77,6 +78,16 @@ function resetForm() {
 }
 
 watch(() => props.show, open => { if (open) resetForm() })
+
+// Draft anti-refresh — dipanggil setelah watcher `show` di atas biar
+// resetForm() selesai duluan sebelum draft dipulihkan. Transaksi yang
+// ter-link Budget nggak masalah ikut: field terkuncinya tetap dikunci UI.
+useFormDraft('fund', {
+  show: () => props.show,
+  form,
+  context: () => props.txId ?? null,
+  onRestore: () => store.toast('Isian terakhirmu dipulihkan'),
+})
 
 // Transaksi otomatis dari Budget pakai kategori 'Vendor' — sengaja BUKAN
 // bagian dari FUND_KATEGORI_KELUAR (nggak ditawarkan buat entri manual),

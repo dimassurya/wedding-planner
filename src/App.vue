@@ -17,7 +17,7 @@
     <!-- App utama (sudah onboarding DAN masih trial/sudah bayar — kalau
          trial habis & belum bayar, jatuh ke PaymentPage di bawah meski
          onboarded=true, ini yang bikin "kunci total" jalan) -->
-    <template v-else-if="store.onboarded && store.hasAccess">
+    <template v-else-if="store.onboarded && store.hasAccess && !store.forcePaywall">
       <!-- ══ Header PC ══ -->
       <header v-if="!isMobile" class="app-header">
         <div class="app-brand">
@@ -59,15 +59,20 @@
         </nav>
 
         <div class="app-actions">
-          <div class="app-user">
-            <img v-if="userAvatar" :src="userAvatar" class="user-avatar" :alt="userName" :title="store.user?.email">
-            <span v-else class="user-initial" :title="store.user?.email">{{ userName?.[0]?.toUpperCase() }}</span>
-          </div>
+          <button class="app-user" title="Profil & Informasi" @click="showProfile = true">
+            <img v-if="userAvatar" :src="userAvatar" class="user-avatar" :alt="userName">
+            <span v-else class="user-initial">{{ userName?.[0]?.toUpperCase() }}</span>
+          </button>
           <div class="act-menu" ref="actMenu">
             <button class="icon-btn act-menu-btn" :class="{ open: showActMenu }" @click="showActMenu = !showActMenu" title="Menu">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
             </button>
             <div v-if="showActMenu" class="pop-menu act-menu-pop">
+              <button class="pop-item" @click="showProfile = true; showActMenu = false">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M5 20a7 7 0 0 1 14 0"/></svg>
+                Profil &amp; Informasi
+              </button>
+              <div class="pop-sep"></div>
               <button class="pop-item" @click="store.startTour(); showActMenu = false">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .83c0 1.67-2.5 2.5-2.5 2.5"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>
                 Panduan
@@ -125,9 +130,14 @@
       <template v-if="isMobile">
         <MobileQuickAddFab v-show="!isBulkActive" />
         <MobileBottomNav v-show="!isBulkActive" />
-        <MobileSidebar :open="mobileMenuOpen || store.tourSidebarOpen" @close="mobileMenuOpen = false" />
+        <MobileSidebar
+          :open="mobileMenuOpen || store.tourSidebarOpen"
+          @close="mobileMenuOpen = false"
+          @profile="mobileMenuOpen = false; showProfile = true"
+        />
       </template>
 
+      <ProfileModal v-if="showProfile" @close="showProfile = false" />
       <ConfirmDialog />
       <ToastNotif />
       <WelcomeGuide v-if="store.showWelcomeGuide" />
@@ -162,6 +172,7 @@ import AdminTab     from './views/AdminTab.vue'
 import ChecklistTab from './views/ChecklistTab.vue'
 import TimelineView from './views/TimelineView.vue'
 import BulkEditModal from './components/modals/BulkEditModal.vue'
+import ProfileModal  from './components/modals/ProfileModal.vue'
 import ToastNotif   from './components/ToastNotif.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 
@@ -183,6 +194,7 @@ const importAllRef = ref(null)
 const showBulk     = ref(false)
 const showMoreMenu = ref(false)
 const showActMenu  = ref(false)
+const showProfile  = ref(false)
 const visibleCount = ref(WP_TABS.length)
 
 const isMobile       = useIsMobile()
@@ -321,6 +333,7 @@ onMounted(() => {
       showBulk.value = false
       showMoreMenu.value = false
       showActMenu.value = false
+      showProfile.value = false
     }
   })
 
@@ -418,7 +431,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: transform .15s;
 }
+.app-user:hover { transform: scale(1.06); }
+.app-user:hover .user-avatar,
+.app-user:hover .user-initial { border-color: var(--gold); }
 
 .user-avatar {
   width: 28px;

@@ -352,12 +352,11 @@ export const TIMELINE_CATEGORIES = {
   checklist: { icon: '📝', label: 'Checklist',         color: '#CD9F65', tab: 'checklist' },
   bayar:     { icon: '💰', label: 'Pembayaran',        color: '#B32E33', tab: 'budget' },
   vendor:    { icon: '🤝', label: 'Vendor',            color: '#0A1D4B', tab: 'vendor' },
-  dokumen:   { icon: '📄', label: 'Dokumen',           color: '#7090C8', tab: 'admin' },
   gift:      { icon: '💍', label: 'Mahar & Seserahan', color: '#810100', tab: 'gifts' },
   keuangan:  { icon: '🏦', label: 'Keuangan',          color: '#3B6D11', tab: 'keuangan' },
   acara:     { icon: '❤️', label: 'Hari Pernikahan',   color: '#6E151A', tab: 'home' },
 }
-export const TIMELINE_CATEGORY_ORDER = ['checklist', 'bayar', 'vendor', 'dokumen', 'gift', 'keuangan', 'acara']
+export const TIMELINE_CATEGORY_ORDER = ['checklist', 'bayar', 'vendor', 'gift', 'keuangan', 'acara']
 
 // Acara utama pernikahan. Tanggalnya disimpan di `couple` (settings), satu
 // rumah dengan tanggal Hari-H yang sudah ada — diedit di tab Home, cuma

@@ -9,6 +9,15 @@
   --m-chip:  9.5px;  /* chip status / badge */
 }
 
+/* ── Matikan pull-to-refresh di HP ──
+   Tarik-ke-bawah di Chrome/Android me-reload seluruh app — penyebab paling
+   umum "kok balik ke awal & isian hilang". App ini sync realtime, jadi
+   pull-to-refresh memang tidak dibutuhkan. Overscroll bounce vertikal ikut
+   hilang; scroll biasa tidak terpengaruh. */
+@media (max-width: 680px) {
+  html, body { overscroll-behavior-y: contain; }
+}
+
 /* ── Filter chips (kategori vendor, filter budget, dll) di mobile ──
    PC tetap wrap multi-baris. Di HP diubah jadi strip horizontal yang
    bisa di-swipe supaya rapih, tidak menumpuk berbaris-baris. */

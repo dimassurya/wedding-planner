@@ -35,17 +35,6 @@
               @input="e => onSyarat(it, e.target.value)"
               @blur="onSyaratBlur(g, it)"
             >
-            <input
-              v-if="editingDateIds.has(it.id)"
-              class="mad-date-input" type="date" :data-id="it.id"
-              :value="it.tanggal || ''"
-              @change="e => onTanggal(it, e.target.value)"
-              @blur="stopEditDate(it.id)"
-            >
-            <button v-else-if="it.tanggal" class="mad-date-chip" :class="{ late: dateInfo(it).late }" @click="startEditDate(it.id)">
-              📅 {{ dateInfo(it).text }}<span v-if="dateInfo(it).rel"> · {{ dateInfo(it).rel }}</span>
-            </button>
-            <button v-else class="mad-date-add" @click="startEditDate(it.id)">📅 Tambah Tanggal</button>
           </div>
           <button class="mad-del-item item-action-btn" title="Hapus syarat" @click="delItem(g, it)">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
@@ -57,9 +46,8 @@
 </template>
 
 <script setup>
-import { nextTick, ref } from 'vue'
+import { nextTick } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
-import { daysLeft, fmtDate } from '../utils/index'
 import SwitchToggle from '../components/SwitchToggle.vue'
 
 defineProps({ rows: { type: Array, default: () => [] } })
@@ -112,36 +100,6 @@ function onSyaratBlur(g, it) {
 function delItem(g, it) {
   g.items = g.items.filter(x => x.id !== it.id)
   store.saveA()
-}
-
-// Tanggal per syarat — sama seperti versi desktop (AdminTab.vue): rumah
-// datanya di sini, tab Timeline cuma baca. Kosong wajib null (kolom date).
-const editingDateIds = ref(new Set())
-
-function onTanggal(it, val) {
-  it.tanggal = val || null
-  store.saveA()
-}
-function startEditDate(id) {
-  const s = new Set(editingDateIds.value); s.add(id); editingDateIds.value = s
-  nextTick(() => {
-    const el = document.querySelector(`.mad-date-input[data-id="${id}"]`)
-    el?.focus()
-    el?.showPicker?.()
-  })
-}
-function stopEditDate(id) {
-  const s = new Set(editingDateIds.value); s.delete(id); editingDateIds.value = s
-}
-function dateInfo(it) {
-  const d = daysLeft(it.tanggal)
-  let rel = ''
-  if (!it.status) {
-    if (d === 0) rel = 'Hari ini'
-    else if (d > 0) rel = `${d} hari lagi`
-    else rel = `Terlambat ${Math.abs(d)} hari`
-  }
-  return { text: fmtDate(it.tanggal), rel, late: !it.status && d < 0 }
 }
 </script>
 
@@ -260,31 +218,6 @@ function dateInfo(it) {
 .mad-syarat:hover { background: var(--ivory); }
 .mad-syarat:focus { outline: none; border-color: var(--gold); background: #fff; }
 .mad-row.done .mad-syarat { color: var(--muted); text-decoration: line-through; }
-/* Tanggal syarat — baris kecil di bawah nama syarat */
-.mad-date-chip, .mad-date-add {
-  display: block;
-  margin: 1px 0 0 8px;
-  padding: 2px 0;
-  border: none;
-  background: none;
-  font-family: 'Jost', sans-serif;
-  font-size: var(--m-sub);
-  color: var(--muted);
-  text-align: left;
-  cursor: pointer;
-}
-.mad-date-chip.late { color: var(--rose); font-weight: 600; }
-.mad-date-add { opacity: .75; }
-.mad-date-input {
-  margin: 4px 0 0 8px;
-  font-family: 'Jost', sans-serif;
-  font-size: var(--m-sub);
-  color: var(--ink);
-  border: 1.5px solid var(--gold);
-  background: #fff;
-  border-radius: 8px;
-  padding: 5px 7px;
-}
 .mad-del-item {
   flex: none;
   display: grid;

@@ -43,7 +43,8 @@
       </div>
     </div>
 
-    <!-- Actionable insights -->
+    <!-- ══ 2. Perlu Perhatian — hal mendesak yang butuh tindakan ══ -->
+    <div class="hm-sec-head">Perlu Perhatian</div>
     <div class="hm-alerts">
       <button
         v-for="a in alerts" :key="a.id"
@@ -61,95 +62,54 @@
         </span>
       </button>
       <div v-if="!alerts.length" class="hm-alert-empty">
-        <span>✅</span> Aman, belum ada hal mendesak.
+        <span>✨</span> Aman! Tidak ada yang mendesak — persiapan masih di jalurnya.
       </div>
     </div>
 
-    <!-- Metrics -->
-    <div class="hm-metrics">
-      <button class="hm-metric hm-clickable" @click="goTab('tamu')">
-        <div class="hm-m-num">{{ totalOrang.toLocaleString('id-ID') }}</div>
-        <div class="hm-m-lbl">Total Tamu (orang)</div>
-        <div class="hm-m-sub">{{ confirmedList.length }} undangan diperhitungkan</div>
-        <span class="hm-m-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
-      </button>
-      <button class="hm-metric hm-clickable" @click="goTab('budget')">
-        <div class="hm-m-num">{{ fmt(tAkt) }}</div>
-        <div class="hm-m-lbl">Anggaran Aktual</div>
-        <div class="hm-m-sub">
-          {{ store.budgetEstimasiSetCount > 0
-            ? (store.budgetSelisihTotal >= 0 ? 'Hemat ' + fmt(store.budgetSelisihTotal) : 'Lebih ' + fmt(-store.budgetSelisihTotal)) + ' dari rencana'
-            : 'Belum ada estimasi diisi' }}
-        </div>
-        <span class="hm-m-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
-      </button>
-      <button class="hm-metric hm-clickable" @click="goTab('budget')">
-        <div class="hm-m-num">{{ pctPaid }}%</div>
-        <div class="hm-m-lbl">Sudah Dibayar</div>
-        <div class="hm-m-sub">sisa {{ fmt(tSis) }}</div>
-        <span class="hm-m-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
-      </button>
-      <div class="hm-metric">
-        <div class="hm-m-num">{{ prepPct }}%</div>
-        <div class="hm-m-lbl">Progres Persiapan</div>
-        <div class="hm-m-sub">{{ prepDone }}/{{ prepTotal }} selesai</div>
+    <!-- ══ 3. Aktivitas Hari Ini ══ -->
+    <div class="card hm-section hm-sec-today">
+      <div class="hm-chart-title">Aktivitas Hari Ini</div>
+      <div v-if="!todayItems.length" class="hm-empty">Tidak ada jadwal khusus hari ini. Nikmati harimu ☕</div>
+      <div v-else class="hm-deadlines">
+        <button v-for="it in todayItems" :key="it.key" class="hm-dl hm-clickable" @click="goTab(it.tab)">
+          <div class="hm-dl-date">Hari ini</div>
+          <div class="hm-dl-main">
+            <span class="hm-dl-src" :style="{ color: it.color, background: it.color + '1a' }">{{ it.src }}</span>
+            {{ it.label }}
+          </div>
+          <div class="hm-dl-left">
+            <span v-if="it.amount" class="hm-dl-days">{{ fmt(it.amount) }}</span>
+            <span v-else class="hm-dl-soon">hari ini</span>
+          </div>
+          <span class="hm-dl-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
+        </button>
       </div>
     </div>
 
-    <!-- Mobile: ringkasan singkat -->
-    <div v-if="isMobile" class="hm-mob-summary">
-      <button class="hm-mob-card hm-clickable" @click="goTab('budget')">
-        <div class="hm-mob-title">Anggaran<span class="hm-mob-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
-        <div class="hm-mob-track">
-          <div class="hm-mob-fill" :style="{ width: pctPaid + '%' }"></div>
-        </div>
-        <div class="hm-mob-row">
-          <span><span class="hm-mob-dot" style="background:#CD9F65"></span>Terbayar: {{ fmt(tDib) }}</span>
-          <span><span class="hm-mob-dot" style="background:#B32E33"></span>Sisa: {{ fmt(tSis) }}</span>
-        </div>
-      </button>
-      <button class="hm-mob-card hm-clickable" @click="goTab('tamu')">
-        <div class="hm-mob-title">Komposisi Tamu<span class="hm-mob-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
-        <div class="hm-mob-row">
-          <span><span class="hm-mob-dot" style="background:#0A1D4B"></span>Pria: {{ pria }} org</span>
-          <span><span class="hm-mob-dot" style="background:#B32E33"></span>Wanita: {{ wanita }} org</span>
-          <span v-if="lainnya"><span class="hm-mob-dot" style="background:#CD9F65"></span>Lainnya: {{ lainnya }} org</span>
-        </div>
-      </button>
+    <!-- ══ 4. Deadline Terdekat (yang akan datang — yang telat ada di Perlu Perhatian) ══ -->
+    <div class="card hm-section hm-sec-deadline">
+      <div class="hm-chart-title">Deadline Terdekat</div>
+      <div v-if="!upcoming.length" class="hm-empty">Belum ada deadline ke depan. Isi jatuh tempo di Budget atau deadline tugas di Checklist.</div>
+      <div v-else class="hm-deadlines">
+        <button v-for="it in upcoming" :key="it.key" class="hm-dl hm-clickable" @click="goTab(it.tab)">
+          <div class="hm-dl-date">{{ fmtDate(it.date) }}</div>
+          <div class="hm-dl-main">
+            <span class="hm-dl-src" :style="{ color: it.color, background: it.color + '1a' }">{{ it.src }}</span>
+            {{ it.label }}
+          </div>
+          <div class="hm-dl-left">
+            <span v-if="daysLeft(it.date) <= 7" class="hm-dl-soon">{{ daysLeft(it.date) === 1 ? 'besok' : daysLeft(it.date) + ' hari lagi' }}</span>
+            <span v-else class="hm-dl-days">{{ daysLeft(it.date) }} hari lagi</span>
+          </div>
+          <span class="hm-dl-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
+        </button>
+      </div>
     </div>
 
-    <!-- Donut charts (desktop only) -->
-    <div v-if="!isMobile" class="hm-charts">
-      <button class="card hm-chart hm-clickable" @click="goTab('tamu')">
-        <div class="hm-chart-title">Komposisi Tamu<span class="hm-chart-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
-        <svg viewBox="0 0 160 160" class="hm-donut" v-html="donutArcs([
-          { value: pria, color: '#0A1D4B' },
-          { value: wanita, color: '#B32E33' },
-          { value: lainnya, color: '#CD9F65' },
-        ], totalOrang.toLocaleString('id-ID'), 'orang')"></svg>
-        <div class="hm-legend">
-          <div class="hm-leg"><span class="hm-leg-dot" style="background:#0A1D4B"></span>Pihak Pria<b>{{ pria }}</b></div>
-          <div class="hm-leg"><span class="hm-leg-dot" style="background:#B32E33"></span>Pihak Wanita<b>{{ wanita }}</b></div>
-          <div class="hm-leg"><span class="hm-leg-dot" style="background:#CD9F65"></span>Lainnya<b>{{ lainnya }}</b></div>
-        </div>
-      </button>
-
-      <button class="card hm-chart hm-clickable" @click="goTab('budget')">
-        <div class="hm-chart-title">Anggaran<span class="hm-chart-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
-        <svg viewBox="0 0 160 160" class="hm-donut" v-html="donutArcs([
-          { value: tDib, color: '#CD9F65' },
-          { value: tSis, color: '#B32E33' },
-        ], pctPaid + '%', 'terbayar')"></svg>
-        <div class="hm-legend">
-          <div class="hm-leg"><span class="hm-leg-dot" style="background:#CD9F65"></span>Terbayar<b>{{ fmt(tDib) }}</b></div>
-          <div class="hm-leg"><span class="hm-leg-dot" style="background:#B32E33"></span>Belum Dibayar<b>{{ fmt(tSis) }}</b></div>
-        </div>
-      </button>
-    </div>
-
-    <!-- Progress bars -->
-    <div class="card hm-section">
-      <div class="hm-chart-title">Progres Persiapan per Bagian</div>
+    <!-- ══ 5. Progress Persiapan ══ -->
+    <div class="card hm-section hm-sec-progress">
+      <div class="hm-chart-title">Progress Persiapan<span class="hm-sec-side">{{ prepDone }}/{{ prepTotal }} · {{ prepPct }}%</span></div>
+      <div class="hm-track hm-overall"><span :style="{ width: prepPct + '%', background: 'linear-gradient(90deg,#E5C99A,#CD9F65)' }"></span></div>
       <div class="hm-bars">
         <button v-for="bar in progressBars" :key="bar.label" class="hm-bar hm-clickable" @click="goTab(bar.tab)">
           <div class="hm-bar-top"><span>{{ bar.label }}</span><span class="hm-bar-val">{{ bar.done }}/{{ bar.total }} · {{ bar.pct }}%</span></div>
@@ -159,41 +119,68 @@
       </div>
     </div>
 
-    <!-- Acara utama — rumah data tanggal Lamaran/Akad/Resepsi/Hari-H.
-         Diisi di sini, dibaca (read-only) oleh tab Timeline. -->
-    <div class="card hm-section hm-events">
-      <div class="hm-chart-title">Acara Utama</div>
-      <div class="hm-ev-grid">
-        <label v-for="ev in EVENT_FIELDS" :key="ev.key" class="hm-ev" :class="{ 'hm-ev-hh': ev.key === 'tanggal' }">
-          <span class="hm-ev-lbl">{{ ev.icon }} {{ ev.label }}</span>
-          <input
-            class="hm-ev-date" type="date"
-            :value="store.couple?.[ev.key] || ''"
-            @change="e => setEventDate(ev.key, e.target.value)"
-          >
-          <span class="hm-ev-sub">{{ eventRel(ev.key) }}</span>
-        </label>
-      </div>
-      <div class="hm-ev-hint">Tanggal yang diisi otomatis muncul di tab Timeline.</div>
+    <!-- ══ 6 & 7. Budget + Wedding Fund ══ -->
+    <div class="hm-grid2">
+      <button class="card hm-section hm-sum hm-clickable" @click="goTab('budget')">
+        <div class="hm-chart-title">💰 Budget<span class="hm-chart-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
+        <div class="hm-big">{{ fmt(tAkt) }}</div>
+        <div class="hm-big-lbl">total biaya pernikahan</div>
+        <div class="hm-track hm-sum-track"><span :style="{ width: pctPaid + '%', background: '#CD9F65' }"></span></div>
+        <div class="hm-kv"><span>Sudah dibayar</span><b>{{ fmt(tDib) }} · {{ pctPaid }}%</b></div>
+        <div class="hm-kv"><span>Sisa tagihan</span><b>{{ fmt(tSis) }}</b></div>
+        <div v-if="store.budgetEstimasiSetCount > 0" class="hm-note-line" :class="store.budgetSelisihTotal >= 0 ? 'good' : 'bad'">
+          {{ store.budgetSelisihTotal >= 0 ? 'Hemat ' + fmt(store.budgetSelisihTotal) + ' dari rencana 👍' : 'Lebih ' + fmt(-store.budgetSelisihTotal) + ' dari rencana' }}
+        </div>
+      </button>
+
+      <button class="card hm-section hm-sum hm-clickable" @click="goTab('keuangan')">
+        <div class="hm-chart-title">🏦 Wedding Fund<span class="hm-chart-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
+        <div class="hm-big">{{ fmt(store.fundSaldo) }}</div>
+        <div class="hm-big-lbl">saldo tabungan nikah</div>
+        <div class="hm-track hm-sum-track"><span :style="{ width: fundPct + '%', background: '#3B6D11' }"></span></div>
+        <div class="hm-kv"><span>Target dana</span><b>{{ store.targetBudget ? fmt(store.targetBudget) : 'Belum diisi' }}</b></div>
+        <div v-if="kurangTarget > 0" class="hm-kv"><span>Masih kurang</span><b>{{ fmt(kurangTarget) }}</b></div>
+        <div v-else-if="store.targetBudget > 0" class="hm-note-line good">Target dana tercapai 🎉</div>
+      </button>
     </div>
 
-    <!-- Upcoming deadlines -->
-    <div class="card hm-section">
-      <div class="hm-chart-title">Deadline Terdekat</div>
-      <div v-if="!upcoming.length" class="hm-empty">Belum ada deadline. Isi jatuh tempo di Budget atau deadline tugas di Checklist.</div>
-      <div v-else class="hm-deadlines">
-        <button v-for="it in upcoming" :key="it.key" class="hm-dl hm-clickable" @click="goTab(it.tab)">
-          <div class="hm-dl-date">{{ fmtDate(it.date) }}</div>
-          <div class="hm-dl-main">
-            <span class="hm-dl-src" :style="{ color: it.color, background: it.color + '1a' }">{{ it.src }}</span>
-            {{ it.label }}
-          </div>
-          <div class="hm-dl-left">
-            <span v-if="daysLeft(it.date) < 0" class="hm-dl-late">lewat {{ Math.abs(daysLeft(it.date)) }} hari</span>
-            <span v-else-if="daysLeft(it.date) === 0" class="hm-dl-soon">hari ini</span>
-            <span v-else class="hm-dl-days">{{ daysLeft(it.date) }} hari lagi</span>
-          </div>
-          <span class="hm-dl-arrow"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span>
+    <!-- ══ 8 & 9. Tamu + Vendor ══ -->
+    <div class="hm-grid2">
+      <button class="card hm-section hm-sum hm-clickable" @click="goTab('tamu')">
+        <div class="hm-chart-title">👥 Tamu<span class="hm-chart-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
+        <div class="hm-big">{{ totalOrang.toLocaleString('id-ID') }} <span class="hm-big-unit">orang</span></div>
+        <div class="hm-big-lbl">dari {{ confirmedList.length }} undangan yang diperhitungkan</div>
+        <div class="hm-chips">
+          <span class="hm-chip ok">🟢 Hadir {{ store.hadirOrangCount }}</span>
+          <span class="hm-chip">🟡 Belum {{ kehBelum }}</span>
+          <span v-if="kehTidak" class="hm-chip">🔴 Tidak {{ kehTidak }}</span>
+          <span v-if="store.hampersCount" class="hm-chip">🎁 Hampers {{ store.hampersCount }}</span>
+        </div>
+      </button>
+
+      <button class="card hm-section hm-sum hm-clickable" @click="goTab('vendor')">
+        <div class="hm-chart-title">🤝 Vendor<span class="hm-chart-arrow"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg></span></div>
+        <div class="hm-big">{{ catCovered }}<span class="hm-big-unit">/ {{ VENDOR_CATEGORIES.length }} kategori</span></div>
+        <div class="hm-big-lbl">kebutuhan vendor sudah terpenuhi</div>
+        <div class="hm-kv"><span>Vendor dipakai</span><b>{{ vJadi }}</b></div>
+        <div class="hm-kv"><span>Kandidat menunggu</span><b>{{ store.vendors.length - vJadi }}</b></div>
+      </button>
+    </div>
+
+    <!-- ══ 10. Insight / Rekomendasi ══ -->
+    <div class="card hm-section hm-sec-insight">
+      <div class="hm-chart-title">💡 Insight &amp; Rekomendasi</div>
+      <div class="hm-ins-list">
+        <button
+          v-for="i in homeInsights" :key="i.id"
+          class="hm-ins" :class="{ 'hm-ins-static': !i.action }"
+          @click="i.action?.()"
+        >
+          <span class="hm-ins-ico">{{ i.icon }}</span>
+          <span class="hm-ins-text">{{ i.text }}</span>
+          <span v-if="i.cta" class="hm-ins-cta">{{ i.cta }}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+          </span>
         </button>
       </div>
     </div>
@@ -207,15 +194,13 @@
 import { ref, computed } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { fmt, fmtDate } from '../utils/index'
-import { META, WEDDING_DATE, MAIN_EVENTS, TIMELINE_CATEGORIES } from '../data/constants'
-import { useIsMobile } from '../mobile layout/useIsMobile'
+import { WEDDING_DATE, TIMELINE_CATEGORIES, VENDOR_CATEGORIES } from '../data/constants'
 import { useReminderNotifications } from '../composables/useReminderNotifications'
 import { useTimelineFeed } from '../composables/useTimelineFeed'
 import TourBtn from '../components/TourBtn.vue'
 import AddPartnerCard from '../components/AddPartnerCard.vue'
 
 const store = useWeddingStore()
-const isMobile = useIsMobile()
 const showPartnerCard = ref(false)
 
 const { supported: notifSupported, permission: notifPermission, requestPermission } = useReminderNotifications()
@@ -241,7 +226,7 @@ const HOME_STEPS = computed(() => [
     selector: '#panel-home .hm-hero',
     icon: '📅',
     title: 'Hitung Mundur',
-    desc: 'Sisa hari menuju hari pernikahan ada di sebelah kanan. Informasi nama pasangan, tanggal, dan waktu acara bisa diatur dari menu Pengaturan (ikon gear di header).',
+    desc: 'Sisa hari menuju hari pernikahan ada di sebelah kanan. Nama pasangan, tanggal, dan jam acara bisa diubah lewat Profil & Informasi (klik foto profil).',
   },
   {
     selector: '#panel-home .hm-partner-banner',
@@ -250,30 +235,40 @@ const HOME_STEPS = computed(() => [
     desc: 'Undang pasanganmu untuk mengedit data bersama secara real-time. Klik banner ini untuk mengirim undangan atau kelola akses pasangan.',
   },
   {
-    selector: '#panel-home .hm-metrics',
-    icon: '📊',
-    title: 'Metrik Ringkasan',
-    desc: 'Empat angka sekilas: total tamu yang dikonfirmasi, anggaran aktual, persentase yang sudah dibayar, dan progres persiapan keseluruhan dari semua tab.',
+    selector: '#panel-home .hm-alerts',
+    icon: '🚨',
+    title: 'Perlu Perhatian',
+    desc: 'Hal paling mendesak ditaruh paling atas: pembayaran telat, deadline minggu ini, atau anggaran yang melebihi rencana. Klik untuk langsung menanganinya.',
   },
   {
-    selector: isMobile.value ? '#panel-home .hm-mob-summary' : '#panel-home .hm-charts',
-    icon: '🥧',
-    title: isMobile.value ? 'Ringkasan Visual' : 'Grafik Ringkasan',
-    desc: isMobile.value
-      ? 'Ringkasan cepat: progress bar anggaran (terbayar vs sisa) dan komposisi tamu per pihak.'
-      : 'Dua donut chart: komposisi tamu pihak pria, wanita, dan lainnya — plus status anggaran berapa yang sudah terbayar.',
+    selector: '#panel-home .hm-sec-today',
+    icon: '📌',
+    title: 'Aktivitas Hari Ini',
+    desc: 'Semua yang jatuh tepat hari ini — tugas, pembayaran, jadwal vendor. Kalau kosong, berarti hari ini bisa santai.',
   },
   {
-    selector: '#panel-home .hm-bars',
-    icon: '📈',
-    title: 'Progres per Area',
-    desc: 'Progress bar tiap area persiapan — checklist, dokumen nikah, mahar & seserahan, timeline, dan vendor. Langsung kelihatan mana yang masih butuh perhatian.',
-  },
-  {
-    selector: '#panel-home .hm-deadlines',
+    selector: '#panel-home .hm-sec-deadline',
     icon: '⏰',
     title: 'Deadline Terdekat',
-    desc: '5 hal terdekat yang belum selesai — deadline Checklist, jatuh tempo Budget, jadwal Vendor, dan lainnya. Sumber datanya sama persis dengan tab Timeline.',
+    desc: '5 hal terdekat yang akan datang, dari semua tab. Sumber datanya sama persis dengan tab Timeline.',
+  },
+  {
+    selector: '#panel-home .hm-sec-progress',
+    icon: '📈',
+    title: 'Progress Persiapan',
+    desc: 'Progres keseluruhan plus rincian per area — langsung kelihatan bagian mana yang masih tertinggal.',
+  },
+  {
+    selector: '#panel-home .hm-grid2',
+    icon: '📊',
+    title: 'Ringkasan Angka',
+    desc: 'Kondisi Budget, tabungan Wedding Fund, tamu, dan vendor dalam kartu ringkas. Klik kartu untuk membuka tab lengkapnya.',
+  },
+  {
+    selector: '#panel-home .hm-sec-insight',
+    icon: '💡',
+    title: 'Insight & Rekomendasi',
+    desc: 'Saran kecil yang bisa langsung dikerjakan — misalnya berapa yang perlu ditabung per bulan agar target dana tercapai.',
   },
 ])
 
@@ -286,29 +281,6 @@ const coupleNames = computed(() => {
   if (c.pria && c.wanita) return `${c.pria} & ${c.wanita}`
   return c.pria || c.wanita || ''
 })
-
-// ── Acara utama ──────────────────────────────────────────────────────
-// Tanggal Lamaran/Akad/Resepsi nebeng di profil pasangan (`couple`), satu
-// rumah dengan tanggal Hari-H yang sudah ada — bukan tabel baru. Tab
-// Timeline cuma membaca dari sini.
-const EVENT_FIELDS = [
-  ...MAIN_EVENTS,
-  { key: 'tanggal', label: 'Hari Pernikahan', icon: '❤️' },
-]
-
-function setEventDate(key, val) {
-  store.couple = { ...store.couple, [key]: val || '' }
-  store.saveSettings()
-}
-
-function eventRel(key) {
-  const date = store.couple?.[key]
-  if (!date) return 'Belum diisi'
-  const d = daysLeft(date)
-  if (d === 0) return 'Hari ini'
-  if (d > 0) return `${d} hari lagi`
-  return `${Math.abs(d)} hari lalu`
-}
 
 const heroTime = computed(() => {
   const c = store.couple || {}
@@ -336,14 +308,27 @@ const heroSub = computed(() =>
 const confirmedList = computed(() => store.confirmedGuests)
 const totalOrang    = computed(() => confirmedList.value.reduce((s, g) => s + g.jumlah, 0))
 
-const pria = computed(() => confirmedList.value.filter(g => META[g.relasi]?.side === 'pria').reduce((s, g) => s + g.jumlah, 0))
-const wanita = computed(() => confirmedList.value.filter(g => META[g.relasi]?.side === 'wanita').reduce((s, g) => s + g.jumlah, 0))
-const lainnya = computed(() => Math.max(totalOrang.value - pria.value - wanita.value, 0))
+// Rincian kehadiran (satuan orang) — lebih berguna buat aksi ("siapa yang
+// perlu di-follow-up") dibanding komposisi pria/wanita yang dulu di donut.
+const kehBelum = computed(() => store.guests.filter(g => (g.kehadiran || 'belum') === 'belum').reduce((s, g) => s + (g.jumlah || 0), 0))
+const kehTidak = computed(() => store.guests.filter(g => g.kehadiran === 'tidak').reduce((s, g) => s + (g.jumlah || 0), 0))
 
 const tAkt    = computed(() => store.budget.reduce((s, b) => s + (b.aktual || 0), 0))
 const tDib    = computed(() => store.budget.reduce((s, b) => s + (b.dibayar || 0), 0))
 const tSis    = computed(() => store.budget.reduce((s, b) => s + store.bSisa(b), 0))
 const pctPaid = computed(() => tAkt.value ? Math.round(tDib.value / tAkt.value * 100) : 0)
+
+// Wedding Fund vs Target Dana Pernikahan — angka yang sama dengan tab Keuangan.
+const fundPct      = computed(() => store.targetBudget > 0 ? Math.min(100, Math.round(store.fundSaldo / store.targetBudget * 100)) : 0)
+const kurangTarget = computed(() => Math.max((store.targetBudget || 0) - store.fundSaldo, 0))
+
+// Kategori vendor yang sudah terpenuhi — dipakai langsung ATAU ke-cover
+// paket vendor lain (Included Vendor), sama seperti hitungan tab Vendor.
+const catCovered = computed(() =>
+  VENDOR_CATEGORIES.filter(c =>
+    store.vendors.some(v => v.jadi && v.category === c.id) || store.categoryIncludedBy(c.id)
+  ).length
+)
 
 const ckDone  = computed(() => store.checklist.reduce((s, g) => s + g.items.filter(i => i.status).length, 0))
 const ckTotal = computed(() => store.checklist.reduce((s, g) => s + g.items.length, 0))
@@ -371,19 +356,29 @@ function goTab(tab) { store.activeTab = tab }
 
 const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
 
-// Deadline terdekat — baca dari feed Timeline yang sama (satu sumber
-// aturan buat "apa saja yang bertanggal"), bukan ngumpulin ulang sendiri.
-// Milestone (Hari-H, acara, target tabungan) dikecualikan: ini daftar
-// hal yang perlu DIKERJAKAN, bukan penanda waktu.
+const _mapFeedItem = e => ({
+  key: e.key, date: e.date, label: e.title, src: e.badge,
+  amount: e.amount || 0,
+  color: TIMELINE_CATEGORIES[e.cat]?.color || '#9C7575',
+  tab: e.goto || 'timeline',
+})
+
+// Semua diambil dari feed Timeline yang sama (satu sumber aturan buat
+// "apa saja yang bertanggal"), bukan ngumpulin ulang sendiri.
+// Aktivitas Hari Ini: yang jatuh tepat hari ini — milestone (acara/Hari-H)
+// SENGAJA ikut, itu justru kabar terbesar hari itu.
+const todayItems = computed(() =>
+  timelineItems.value.filter(e => !e.done && e.date === todayStr).map(_mapFeedItem)
+)
+
+// Deadline Terdekat: yang AKAN datang saja — hari ini punya section
+// sendiri, yang telat sudah teriak di Perlu Perhatian. Milestone
+// dikecualikan: ini daftar hal yang perlu DIKERJAKAN.
 const upcoming = computed(() =>
   timelineItems.value
-    .filter(e => !e.done && !e.milestone)
+    .filter(e => !e.done && !e.milestone && e.date > todayStr)
     .slice(0, 5)
-    .map(e => ({
-      key: e.key, date: e.date, label: e.title, src: e.badge,
-      color: TIMELINE_CATEGORIES[e.cat]?.color || '#9C7575',
-      tab: e.goto || 'timeline',
-    }))
+    .map(_mapFeedItem)
 )
 
 const daysLeft = date => {
@@ -453,17 +448,6 @@ const alerts = computed(() => {
     })
   }
 
-  // Belum dibayar tapi tidak punya jatuh tempo — tidak ke-cover 2 alert di atas
-  const budgetUnpaidNoDate = store.budget.filter(b => store.bStatus(b).key !== 'lunas' && (b.aktual || 0) > 0 && !b.jatuhTempo)
-  if (budgetUnpaidNoDate.length) {
-    list.push({
-      id: 'budget-unpaid-nodate', severity: 'info', icon: '💰',
-      title: `${budgetUnpaidNoDate.length} item budget belum dibayar`,
-      desc: `Total sisa ${fmt(budgetUnpaidNoDate.reduce((s, b) => s + store.bSisa(b), 0))} — belum ada jatuh tempo diisi.`,
-      cta: 'Lihat Budget', action: () => goBudget(budgetUnpaidNoDate),
-    })
-  }
-
   // Tamu melebihi kapasitas venue yang dipakai (capacityOver null = belum ada venue)
   if (store.capacityOver !== null && store.capacityOver > 0) {
     list.push({
@@ -471,16 +455,6 @@ const alerts = computed(() => {
       title: `Tamu lebih ${store.capacityOver} dari kapasitas venue`,
       desc: `${store.totalGuestPax} tamu vs kapasitas ${store.venueCapacity} — kurangi tamu atau cari venue lebih besar.`,
       cta: 'Lihat Vendor', action: () => { store.activeTab = 'vendor' },
-    })
-  }
-
-  const unconfirmed = store.guests.filter(g => (g.kehadiran || 'belum') === 'belum')
-  if (unconfirmed.length) {
-    list.push({
-      id: 'tamu-unconfirmed', severity: 'info', icon: '👥',
-      title: `${unconfirmed.length} tamu belum konfirmasi kehadiran`,
-      desc: 'Follow up kehadiran biar data makin akurat.',
-      cta: 'Lihat Tamu', action: () => { store.activeTab = 'tamu' },
     })
   }
 
@@ -559,68 +533,55 @@ const alerts = computed(() => {
   return sorted
 })
 
-function donutArcs(segments, top, bottom) {
-  const cx = 80, cy = 80, r = 58, sw = 20, C = 2 * Math.PI * r
-  const total = segments.reduce((s, x) => s + x.value, 0)
-  let off = 0, arcs = ''
-  if (total > 0) {
-    segments.forEach(s => {
-      if (s.value <= 0) return
-      const len = s.value / total * C
-      arcs += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${sw}" stroke-dasharray="${len.toFixed(2)} ${(C - len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`
-      off += len
+// ── Insight & Rekomendasi (section 10) — beda tujuan dari `alerts`
+// (Perlu Perhatian, hal mendesak): ini saran maju-ke-depan/informatif,
+// dibaca dari data yang sudah dihitung di file ini juga.
+const homeInsights = computed(() => {
+  const list = []
+
+  if (kurangTarget.value > 0 && days.value > 0) {
+    const bulanTersisa = Math.max(1, Math.ceil(days.value / 30))
+    const perBulan = Math.ceil(kurangTarget.value / bulanTersisa)
+    list.push({
+      id: 'ins-nabung', icon: '💰',
+      text: `Nabung sekitar ${fmt(perBulan)}/bulan (${bulanTersisa} bulan tersisa) biar Target Dana Pernikahan tercapai tepat waktu.`,
+      cta: 'Lihat Wedding Fund', action: () => goTab('keuangan'),
     })
   }
-  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#F1E9E4" stroke-width="${sw}"/>
-    ${arcs}
-    <text x="${cx}" y="${cy - 1}" text-anchor="middle" class="hm-donut-num">${top}</text>
-    <text x="${cx}" y="${cy + 17}" text-anchor="middle" class="hm-donut-lbl">${bottom}</text>`
-}
+
+  if (kehBelum.value > 0) {
+    list.push({
+      id: 'ins-rsvp', icon: '📮',
+      text: `${kehBelum.value} tamu belum konfirmasi kehadiran — follow up sekarang biar hitungan katering makin akurat.`,
+      cta: 'Lihat Tamu', action: () => goTab('tamu'),
+    })
+  }
+
+  if (catCovered.value < VENDOR_CATEGORIES.length) {
+    const sisa = VENDOR_CATEGORIES.length - catCovered.value
+    list.push({
+      id: 'ins-vendor', icon: '🤝',
+      text: `${sisa} kategori vendor belum ada yang dipakai.`,
+      cta: 'Lihat Vendor', action: () => goTab('vendor'),
+    })
+  }
+
+  if (store.budgetEstimasiSetCount > 0 && store.budgetSelisihTotal > 0) {
+    list.push({
+      id: 'ins-hemat', icon: '👍',
+      text: `Kamu hemat ${fmt(store.budgetSelisihTotal)} dari rencana awal.`,
+    })
+  }
+
+  if (!list.length) {
+    list.push({ id: 'ins-ok', icon: '🌿', text: 'Persiapan kamu berjalan baik — terus pantau dari sini.' })
+  }
+
+  return list.slice(0, 4)
+})
 </script>
 
 <style scoped>
-/* ── Acara utama ── */
-.hm-ev-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-}
-.hm-ev {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 11px 13px;
-  background: var(--ivory);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
-}
-.hm-ev:hover { border-color: var(--gold); background: var(--paper); }
-.hm-ev-hh { border-color: var(--gold); background: var(--gold-soft); }
-.hm-ev-lbl {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.hm-ev-date {
-  width: 100%;
-  font-family: 'Jost', sans-serif;
-  font-size: 13.5px;
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 6px 8px;
-  cursor: pointer;
-}
-.hm-ev-date:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
-.hm-ev-sub { font-size: 11px; color: var(--muted); }
-.hm-ev-hint { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
-
 /* TourBtn pojok kanan hero */
 .hm-hero { position: relative; }
 
@@ -643,75 +604,6 @@ function donutArcs(segments, top, bottom) {
   border-color: var(--gold-soft);
   background: rgba(255,255,255,.22);
   color: #fff;
-}
-
-.hm-mob-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-.hm-mob-card {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px 16px;
-  box-shadow: 0 1px 3px rgba(36,8,8,.05);
-  display: block;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
-  width: 100%;
-  margin: 0;
-  transition: transform .15s, box-shadow .15s;
-}
-.hm-mob-card:active { transform: translateY(0); background: var(--ivory); }
-
-.hm-mob-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--plum);
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.hm-mob-arrow { display: inline-flex; align-items: center; color: var(--muted); }
-
-.hm-mob-track {
-  height: 8px;
-  background: var(--line);
-  border-radius: 100px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-
-.hm-mob-fill {
-  height: 100%;
-  background: #CD9F65;
-  border-radius: 100px;
-  transition: width .4s ease;
-}
-
-.hm-mob-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  font-size: 13px;
-  color: var(--ink);
-  font-weight: 500;
-}
-
-.hm-mob-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 5px;
-  vertical-align: middle;
 }
 
 /* ── Partner Banner ── */
@@ -891,5 +783,115 @@ function donutArcs(segments, top, bottom) {
   border: 1px solid var(--line);
   color: var(--muted);
   font-size: 13.5px;
+}
+
+/* ── Section 2 heading (bukan di dalam card, langsung di atas .hm-alerts) ── */
+.hm-sec-head {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--plum);
+  margin-bottom: 12px;
+}
+
+/* ── Progress Persiapan (section 5) ── */
+.hm-sec-side {
+  margin-left: auto;
+  font-family: 'Jost', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.hm-overall { margin-bottom: 18px; }
+
+/* ── Ringkasan angka: Budget/Fund/Tamu/Vendor (section 6-9) ── */
+.hm-grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+@media (max-width: 640px) {
+  .hm-grid2 { grid-template-columns: 1fr; }
+}
+
+.hm-sum { display: block; text-align: left; width: 100%; }
+.hm-big {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+.hm-big-unit { font-size: 16px; font-weight: 500; color: var(--muted); }
+.hm-big-lbl { font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+
+.hm-sum-track { margin-bottom: 12px; }
+
+.hm-kv {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 3px 0;
+}
+.hm-kv b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.hm-note-line {
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 7px 10px;
+  border-radius: 8px;
+}
+.hm-note-line.good { color: #2b5010; background: #EAF3DE; }
+.hm-note-line.bad  { color: #7a1a1a; background: var(--rose-soft); }
+
+.hm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.hm-chip {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--ivory);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 4px 10px;
+}
+.hm-chip.ok { color: #2b5010; background: #EAF3DE; border-color: transparent; }
+
+/* ── Insight & Rekomendasi (section 10) ── */
+.hm-ins-list { display: flex; flex-direction: column; gap: 8px; }
+.hm-ins {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--ivory);
+  cursor: pointer;
+  transition: background .15s;
+}
+.hm-ins:hover { background: var(--gold-soft); }
+.hm-ins-static { cursor: default; }
+.hm-ins-static:hover { background: var(--ivory); }
+
+.hm-ins-ico { font-size: 17px; flex-shrink: 0; line-height: 1; }
+.hm-ins-text { flex: 1; min-width: 0; font-size: 13px; color: var(--ink); line-height: 1.5; }
+.hm-ins-cta {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--plum);
+  white-space: nowrap;
 }
 </style>

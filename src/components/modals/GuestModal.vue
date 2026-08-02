@@ -121,6 +121,7 @@
 import { ref, watch, nextTick, computed } from 'vue'
 import { useWeddingStore } from '../../stores/wedding'
 import { META, ORDER, KEHADIRAN_STATUS, KEHADIRAN_ORDER, INFORMASI_PENTING_OPTIONS } from '../../data/constants'
+import { useFormDraft } from '../../composables/useFormDraft'
 import Stepper from '../Stepper.vue'
 
 const props = defineProps({ show: Boolean, editId: { type: Number, default: null } })
@@ -175,6 +176,15 @@ watch(() => props.show, open => {
   nextTick(() => namaInput.value?.focus())
 })
 
+// Draft anti-refresh — WAJIB dipanggil setelah watcher `show` di atas,
+// biar inisialisasi form selesai dulu sebelum draft dipulihkan.
+const { rebaseline } = useFormDraft('guest', {
+  show: () => props.show,
+  form,
+  context: () => props.editId ?? null,
+  onRestore: () => store.toast('Isian terakhirmu dipulihkan'),
+})
+
 async function save(addAnother) {
   if (!form.value.nama.trim()) { store.toast('Nama belum diisi'); return }
   const ok = await store.saveGuest({
@@ -192,6 +202,7 @@ async function save(addAnother) {
     // beruntun dari grup/sisi yang sama. Sisanya balik ke kosong.
     form.value = { ...blankForm(), undangan: form.value.undangan, relasi: form.value.relasi }
     showInfoPenting.value = false
+    rebaseline()   // entri barusan sudah tersimpan — draft lama dibuang
     nextTick(() => namaInput.value?.focus())
     return
   }
