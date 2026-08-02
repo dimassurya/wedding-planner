@@ -326,14 +326,29 @@ async function handleDelete() {
 .modal-quick-lbl { font-size: 12px; color: var(--muted); margin-right: auto; }
 
 /* Footer nempel di bawah pas modal-nya discroll (form makin panjang
-   gara-gara accordion dibuka) — biar Simpan selalu gampang dijangkau. */
+   gara-gara accordion dibuka) — biar Simpan selalu gampang dijangkau.
+
+   PENTING: padding-bottom modal HARUS 0. Titik "nempel bawah" elemen
+   sticky dihitung browser dari tepi KONTEN scroll container — kalau
+   modal masih punya padding-bottom 30px, footer berhenti 30px di atas
+   dasar modal dan konten yang discroll kelihatan lewat strip itu
+   (kejadian nyata di form Tambah Tamu). Ganti rugi ruangnya dibawa
+   footer sendiri lewat padding-bottom di bawah. Margin samping negatif
+   = kebalikan padding samping .modal (28px), biar full-bleed tanpa
+   celah. Radius bawah ngikutin radius modal (20px). */
 .gm-footer {
   position: sticky;
   bottom: 0;
+  z-index: 2;
+  margin: 4px -28px 0;
+  padding: 12px 28px calc(18px + env(safe-area-inset-bottom, 0px));
   background: var(--paper);
-  padding-top: 12px;
-  margin-top: 4px;
-  padding-bottom: max(2px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 20px 20px;
+  box-shadow: 0 -8px 16px -12px rgba(36, 8, 8, .25);
 }
 .gm-footer .modal-actions { margin-top: 0; }
+
+/* Scoped ke modal milik komponen ini saja — modal lain tetap normal. */
+.modal { padding-bottom: 0; }
 </style>

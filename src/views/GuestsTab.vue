@@ -6,15 +6,24 @@
       <div class="gh-hero-top">
         <span class="gh-hero-title">👥 Ringkasan Tamu</span>
       </div>
+      <!-- Tiga angka bercerita berurutan: berapa undangan disebar → total
+           orang di dalamnya → berapa yang diperkirakan beneran datang.
+           Label "Orang" doang terbukti membingungkan (dikira jumlah yang
+           hadir, padahal termasuk Tidak Hadir & Hampers). -->
       <div class="gh-hero-nums">
-        <div class="gh-hero-num-item">
+        <div class="gh-hero-num-item" title="Jumlah undangan yang disebar — 1 undangan bisa berisi lebih dari 1 orang">
           <div class="gh-hero-num">{{ totalUndangan }}</div>
           <div class="gh-hero-num-lbl">Undangan</div>
         </div>
         <div class="gh-hero-num-sep"></div>
-        <div class="gh-hero-num-item">
+        <div class="gh-hero-num-item" title="Total orang dari semua undangan — termasuk yang Tidak Hadir dan Kirim Hampers">
           <div class="gh-hero-num">{{ totalOrangSemua }}</div>
-          <div class="gh-hero-num-lbl">Orang</div>
+          <div class="gh-hero-num-lbl">Total Orang Diundang</div>
+        </div>
+        <div class="gh-hero-num-sep"></div>
+        <div class="gh-hero-num-item" title="Orang yang diperhitungkan datang: status Hadir + yang belum konfirmasi (dianggap hadir sampai diputuskan). Angka ini yang dipakai buat kursi, konsumsi, & kapasitas venue">
+          <div class="gh-hero-num gh-hero-num-accent">{{ store.totalGuestPax }}</div>
+          <div class="gh-hero-num-lbl">Diperkirakan Hadir</div>
         </div>
       </div>
       <div class="gh-hero-bar"><span :style="{ width: rsvpPct + '%' }"></span></div>
@@ -218,13 +227,25 @@
       <button class="icon-btn solid" @click="openAdd">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Tambah Tamu
       </button>
+      <!-- Mobile: baris toolbar cuma berisi Tambah Tamu + ⋮ jadi banyak
+           ruang kosong — dua aksi yang paling sering dipakai (Ekspor CSV
+           & Panduan) dikeluarkan dari ⋮ jadi tombol sendiri. Desktop
+           tetap seperti semula (ruangnya sudah keisi Search/Filter). -->
+      <template v-if="isMobile">
+        <button type="button" class="icon-btn gh-mtool" @click="store.exportGuestsCSV()">📊 Ekspor CSV</button>
+        <button type="button" class="icon-btn gh-mtool" @click="store.startTour(TAMU_STEPS)">🧭 Panduan</button>
+      </template>
       <div class="gh-overflow-wrap" ref="overflowWrapRef">
         <button type="button" class="icon-btn gh-overflow-btn" aria-label="Menu lainnya" @click="overflowOpen = !overflowOpen">⋮</button>
         <div v-if="overflowOpen" class="gh-overflow-menu">
-          <button type="button" @click="overflowOpen = false; store.exportGuestsCSV()">📊 Ekspor CSV</button>
+          <template v-if="!isMobile">
+            <button type="button" @click="overflowOpen = false; store.exportGuestsCSV()">📊 Ekspor CSV</button>
+          </template>
           <button type="button" @click="overflowOpen = false; store.exportTab('tamu')">📤 Export Data</button>
           <button type="button" @click="overflowOpen = false; importRef?.click()">📥 Import Data</button>
-          <button type="button" @click="overflowOpen = false; store.startTour(TAMU_STEPS)">🧭 Panduan</button>
+          <template v-if="!isMobile">
+            <button type="button" @click="overflowOpen = false; store.startTour(TAMU_STEPS)">🧭 Panduan</button>
+          </template>
         </div>
       </div>
       <input ref="importRef" type="file" accept=".json,application/json" hidden @change="onImport">
@@ -589,6 +610,13 @@ onBeforeUnmount(() => {
 .gh-hero-num { font-family: 'Cormorant Garamond', serif; font-size: 34px; font-weight: 700; color: var(--plum); line-height: 1; font-variant-numeric: tabular-nums; }
 .gh-hero-num-lbl { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
 .gh-hero-num-sep { width: 1px; align-self: stretch; background: var(--line); }
+/* Angka yang paling sering dicari (buat kursi/konsumsi/venue) dikasih
+   aksen beda biar langsung ketangkep mata. */
+.gh-hero-num-accent { color: #3B6D11; }
+@media (max-width: 560px) {
+  .gh-hero-nums { flex-wrap: wrap; gap: 14px 18px; }
+  .gh-hero-num { font-size: 28px; }
+}
 
 .gh-hero-bar { position: relative; height: 12px; background: var(--gold-soft); border-radius: 100px; overflow: hidden; margin-top: 18px; }
 .gh-hero-bar > span { display: block; height: 100%; border-radius: 100px; background: linear-gradient(90deg, var(--plum), var(--wine)); transition: width .5s ease; }
@@ -720,6 +748,15 @@ onBeforeUnmount(() => {
     padding-left: 0;
     padding-right: 0;
   }
+  /* Isi ruang kosong: Tambah Tamu + Ekspor CSV + Panduan bagi rata lebar
+     baris, ⋮ tetap kecil di ujung (isinya tinggal Export/Import Data). */
+  .g-toolbar .icon-btn.solid,
+  .g-toolbar .gh-mtool {
+    flex: 1 1 auto;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .gh-mtool { font-size: 12.5px; font-weight: 600; padding: 11px 10px; }
 }
 
 /* Mobile Device — Search + Filter Relasi (`.gh-mobile-filters` di template,

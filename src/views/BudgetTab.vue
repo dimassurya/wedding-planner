@@ -1,18 +1,43 @@
 <template>
   <section class="panel active" id="panel-budget">
-    <!-- Summary bar -->
-    <div class="b-summary">
-      <div class="b-sum-item"><div class="b-sum-lbl">Estimasi</div><div class="b-sum-val" id="bEst">{{ fmt(tEst) }}</div></div>
-      <div class="b-sum-item"><div class="b-sum-lbl">Aktual</div><div class="b-sum-val">{{ fmt(tAkt) }}</div></div>
-      <div class="b-sum-item"><div class="b-sum-lbl">Dibayar</div><div class="b-sum-val">{{ fmt(tDib) }}</div></div>
-      <div class="b-sum-item"><div class="b-sum-lbl">Belum Dibayar</div><div class="b-sum-val rose">{{ fmt(tSis) }}</div></div>
-    </div>
-    <div class="b-prog-wrap">
-      <div class="b-prog-bar"><div class="b-prog-fill" :style="{ width: pctPaid + '%' }"></div></div>
-      <span class="b-prog-pct">{{ pctPaid }}% terbayar</span>
-      <span v-if="tEstSet > 0" class="b-prog-selisih" :class="tSelisih >= 0 ? 'hemat' : 'lebih'">
-        {{ tSelisih >= 0 ? 'Hemat ' + fmt(tSelisih) : 'Lebih ' + fmt(-tSelisih) }} dari rencana
-      </span>
+    <!-- Hero — pola sama dengan Checklist/Dokumen/Timeline, biar Budget
+         terasa satu keluarga. Fokusnya progress pembayaran, bukan tabel. -->
+    <div class="bh-hero">
+      <div class="bh-hero-title">💰 Budget Pernikahan</div>
+
+      <div class="bh-hero-progress">
+        <div class="bh-hero-bar"><div class="bh-hero-fill" :style="{ width: pctPaid + '%' }"></div></div>
+        <div class="bh-hero-pct-row">
+          <span class="bh-hero-pct">{{ pctPaid }}%</span>
+          <span class="bh-hero-pct-lbl">terbayar{{ tAkt > 0 ? ' dari ' + fmt(tAkt) : '' }}</span>
+        </div>
+      </div>
+
+      <div class="bh-hero-stats">
+        <div class="bh-hero-stat">
+          <div class="bh-hero-stat-val">{{ fmt(tEst) }}</div>
+          <div class="bh-hero-stat-lbl">Estimasi</div>
+          <div v-if="tEstSet > 0" class="bh-selisih" :class="tSelisih >= 0 ? 'hemat' : 'lebih'">
+            {{ tSelisih >= 0 ? 'Hemat ' + fmt(tSelisih) : 'Lebih ' + fmt(-tSelisih) }}
+          </div>
+        </div>
+        <div class="bh-hero-stat">
+          <div class="bh-hero-stat-val">{{ fmt(tAkt) }}</div>
+          <div class="bh-hero-stat-lbl">Aktual</div>
+        </div>
+        <div class="bh-hero-stat">
+          <div class="bh-hero-stat-val">{{ fmt(tDib) }}</div>
+          <div class="bh-hero-stat-lbl">Dibayar</div>
+        </div>
+        <div class="bh-hero-stat">
+          <div class="bh-hero-stat-val" :class="{ rose: tSis > 0 }">{{ fmt(tSis) }}</div>
+          <div class="bh-hero-stat-lbl">Belum Dibayar</div>
+        </div>
+      </div>
+
+      <div class="bh-hero-insight" :class="'tone-' + heroInsight.tone">
+        <span>{{ heroInsight.icon }}</span>{{ heroInsight.text }}
+      </div>
     </div>
 
     <!-- Controls -->
@@ -168,10 +193,10 @@ watch(() => store.quickAddNonce, () => {
 
 const BUDGET_STEPS = computed(() => [
   {
-    selector: '#panel-budget .b-summary',
+    selector: '#panel-budget .bh-hero',
     icon: '💰',
     title: 'Ringkasan Anggaran',
-    desc: 'Empat angka utama: Estimasi (rencana awal), Aktual (harga nyata), Dibayar (uang yang sudah keluar), dan Belum Dibayar (sisa tagihan). Progress bar di bawahnya menunjukkan persentase yang sudah terbayar.',
+    desc: 'Progress pembayaran plus empat angka utama: Estimasi (rencana awal), Aktual (harga nyata), Dibayar (uang yang sudah keluar), dan Belum Dibayar (sisa tagihan). Baris insight di bawahnya menunjukkan pembayaran yang paling dekat.',
   },
   {
     selector: '#panel-budget #bChips',
@@ -287,6 +312,42 @@ const tDib = computed(() => store.budget.reduce((s, b) => s + (b.dibayar || 0), 
 const tSis = computed(() => store.budget.reduce((s, b) => s + store.bSisa(b), 0))
 const pctPaid = computed(() => tAkt.value ? Math.round(tDib.value / tAkt.value * 100) : 0)
 
+// ── Insight hero: kondisi pembayaran yang paling butuh perhatian ──────
+const overdueCount = computed(() =>
+  store.payments.filter(p => !p.paid && p.dueDate && daysLeft(p.dueDate) < 0).length
+)
+// Termin belum-lunas terdekat di seluruh item (yang belum lewat).
+const nearestDue = computed(() => {
+  const open = store.payments
+    .filter(p => !p.paid && p.dueDate && daysLeft(p.dueDate) >= 0)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+  const p = open[0]
+  if (!p) return null
+  const b = store.budget.find(x => x.id === p.budgetItemId)
+  return { item: (b?.item || '').trim() || 'Item budget', date: p.dueDate, amount: p.amount || 0 }
+})
+
+const heroInsight = computed(() => {
+  if (overdueCount.value > 0) {
+    return { icon: '🔴', tone: 'bad', text: `${overdueCount.value} termin pembayaran lewat jatuh tempo — buka tampilan Jadwal untuk melihat yang mana.` }
+  }
+  if (tAkt.value > 0 && tSis.value <= 0) {
+    return { icon: '🎉', tone: 'good', text: 'Semua tagihan sudah lunas. Kerja bagus!' }
+  }
+  if (nearestDue.value) {
+    const d = daysLeft(nearestDue.value.date)
+    const kapan = d === 0 ? 'hari ini' : d === 1 ? 'besok' : `${d} hari lagi`
+    return {
+      icon: '💰', tone: d <= 7 ? 'warn' : 'info',
+      text: `Pembayaran terdekat: ${nearestDue.value.item} — ${kapan}${nearestDue.value.amount ? ` (${fmt(nearestDue.value.amount)})` : ''}.`,
+    }
+  }
+  if (tSis.value > 0) {
+    return { icon: '🗓️', tone: 'info', text: `Masih ada ${fmt(tSis.value)} tagihan tanpa termin terjadwal — atur lewat detail item biar muncul di Timeline.` }
+  }
+  return { icon: '💰', tone: 'info', text: 'Isi harga item untuk mulai melacak pembayaranmu.' }
+})
+
 // Urutan tampil: Vendor > Mahar & Seserahan > manual (nggak ada origin) >
 // Template paling bawah. Pengurutan cuma buat tampilan (visRows), array
 // asli store.budget nggak diubah — jadi nggak perlu persist apa-apa.
@@ -355,6 +416,82 @@ function onImport(e) {
 </script>
 
 <style scoped>
+/* ── Hero — pola visual sama dengan ch-hero (Checklist) / ah-hero
+   (Dokumen), gradasi gold buat nuansa "uang". ── */
+.bh-hero {
+  position: relative;
+  background: linear-gradient(135deg, var(--paper) 55%, var(--gold-soft) 160%);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 24px 24px 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(36, 8, 8, .05), 0 14px 34px rgba(36, 8, 8, .07);
+}
+.bh-hero-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--plum);
+  margin-bottom: 18px;
+}
+.bh-hero-progress { margin-bottom: 18px; }
+.bh-hero-bar { height: 9px; background: var(--ivory); border-radius: 100px; overflow: hidden; margin-bottom: 8px; }
+.bh-hero-fill { height: 100%; background: linear-gradient(90deg, #E5C99A, #CD9F65); border-radius: 100px; transition: width .5s cubic-bezier(.22,1,.36,1); }
+.bh-hero-pct-row { display: flex; align-items: baseline; gap: 7px; }
+.bh-hero-pct { font-family: 'Jost', sans-serif; font-size: 15px; font-weight: 700; color: var(--ink); }
+.bh-hero-pct-lbl { font-size: 12.5px; color: var(--muted); }
+
+.bh-hero-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.bh-hero-stat { flex: 1; min-width: 130px; }
+.bh-hero-stat-val {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(18px, 2.2vw, 24px);
+  font-weight: 600;
+  color: var(--plum);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bh-hero-stat-val.rose { color: var(--rose); }
+.bh-hero-stat-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; }
+.bh-selisih {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 100px;
+}
+.bh-selisih.hemat { color: #2b5010; background: #EAF3DE; }
+.bh-selisih.lebih { color: #7a1a1a; background: var(--rose-soft); }
+
+.bh-hero-insight {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 11px 14px;
+  border-radius: 12px;
+}
+.bh-hero-insight.tone-info { background: var(--gold-soft); color: #6b4f1f; }
+.bh-hero-insight.tone-warn { background: var(--gold-soft); color: #7a5c28; }
+.bh-hero-insight.tone-good { background: #EAF3DE; color: #2b5010; }
+.bh-hero-insight.tone-bad  { background: var(--rose-soft); color: #7a1a1a; }
+
+@media (max-width: 680px) {
+  .bh-hero { padding: 20px 18px 16px; border-radius: 20px; }
+  .bh-hero-stats { gap: 12px; }
+  .bh-hero-stat { flex: 1 1 40%; min-width: 120px; }
+}
+
 .view-switch { padding-right: 10px; border-right: 1px solid var(--line); }
 .b-head-c { text-align: center; }
 
