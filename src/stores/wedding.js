@@ -165,9 +165,18 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (v.paxPengali === 'hampers') return hampersCount.value
     return v.paxManualVal || 1
   }
+  // Biaya tambahan (mis. transport, surcharge weekend) itu biaya NYATA yang
+  // harus ikut kehitung — dulu cuma ditampilkan di detail vendor tapi nggak
+  // pernah dijumlahkan, jadi total Vendor & baris Budget-nya kekecilan.
+  // Bukan turunan jumlah tamu, jadi ditambahkan setelah perkalian pax.
+  function vendorBiayaTambahan(v) {
+    return (v.biayaTambahan || []).reduce((s, b) => s + (parseInt(b?.nominal) || 0), 0)
+  }
   function vendorEffectiveHarga(v) {
-    if (v.tipeHarga !== 'pax') return v.harga || 0
-    return (v.hargaPax || 0) * vendorPaxMultiplier(v)
+    const dasar = v.tipeHarga !== 'pax'
+      ? (v.harga || 0)
+      : (v.hargaPax || 0) * vendorPaxMultiplier(v)
+    return dasar + vendorBiayaTambahan(v)
   }
 
   // ── Kapasitas venue ──────────────────────────────────────────────
@@ -2190,7 +2199,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     // computed
     confirmedGuests, selectedCount, selectedIds,
     totalGuestPax, venueCapacity, capacityOver, hampersCount,
-    hadirOrangCount, rsvpUndanganCount, vendorPaxMultiplier, vendorEffectiveHarga,
+    hadirOrangCount, rsvpUndanganCount, vendorPaxMultiplier, vendorEffectiveHarga, vendorBiayaTambahan,
     // confirm dialog
     askConfirm, resolveConfirm,
     // selection

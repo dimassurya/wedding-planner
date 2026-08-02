@@ -37,6 +37,7 @@
           <div class="mv-catlbl">{{ catLabel(v.category) }}</div>
           <div class="mv-sub">
             <span class="mv-price">Rp {{ grp(store.vendorEffectiveHarga(v)) }} <small>· {{ tipeHargaTag(v) }}</small></span>
+            <span v-if="store.vendorBiayaTambahan(v)" class="mv-cap">termasuk Rp {{ grp(store.vendorBiayaTambahan(v)) }} biaya tambahan</span>
             <span v-if="v.namaPaket" class="mv-cap">{{ v.namaPaket }}</span>
           </div>
           <div v-if="cardStatusKey(v) === 'included'" class="mv-inc-src">

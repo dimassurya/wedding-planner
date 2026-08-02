@@ -281,6 +281,7 @@
             <div class="vh-chip-price">
               <span class="vh-chip-rp">Rp {{ grp(store.vendorEffectiveHarga(v)) }}</span>
               <span class="vh-chip-tag">{{ tipeHargaTag(v) }}</span>
+              <span v-if="store.vendorBiayaTambahan(v)" class="vh-chip-extra">termasuk Rp {{ grp(store.vendorBiayaTambahan(v)) }} biaya tambahan</span>
             </div>
 
             <div class="vh-chip-status" @click.stop>
@@ -1121,6 +1122,7 @@ function onImport(e) {
 .vh-chip-price { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 120px; }
 .vh-chip-rp { font-family: 'Cormorant Garamond', serif; font-size: 17px; font-weight: 700; color: var(--plum); }
 .vh-chip-tag { font-size: 11px; color: var(--muted); }
+.vh-chip-extra { font-size: 10.5px; color: var(--muted); opacity: .85; text-align: right; line-height: 1.35; }
 
 .vh-chip-status { flex: none; display: flex; align-items: center; gap: 8px; }
 .vh-chip-statlbl { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
