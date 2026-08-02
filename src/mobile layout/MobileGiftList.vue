@@ -6,39 +6,47 @@
     </div>
 
     <div v-for="g in rows" :key="g.id" class="mg-card" :class="{ done: g.status === 'sudah_diserahkan' }" @click="emit('update:editId', g.id)">
-      <div class="mg-main">
-        <div class="mg-title">
-          <span class="mg-type">{{ g.type === 'seserahan' ? '🎁' : '💍' }}</span>
-          <span class="mg-name">{{ g.item || 'Tanpa nama' }}</span>
-          <span v-if="g.includeInBudget" class="mg-linked" title="Masuk Budget">🔗</span>
-        </div>
-        <div class="mg-price-row">
-          <span class="mg-price">Rp {{ grp(g.hargaAktual || g.hargaEstimasi) }}</span>
-          <span class="mg-badge">{{ g.type === 'seserahan' ? 'Seserahan' : 'Mahar' }}</span>
-        </div>
-        <div class="mg-status" :class="{ ok: g.status === 'sudah_diserahkan' }">
-          <span class="mg-dot"></span>{{ GIFT_STATUS_OPTIONS[g.status]?.label || g.status }}
+      <div class="mg-top">
+        <span class="mg-badge">{{ g.type === 'seserahan' ? '🎁 Seserahan' : '💍 Mahar' }}</span>
+        <span class="mg-chip" :class="statusClass(g.status)">{{ GIFT_STATUS_OPTIONS[g.status]?.label }}</span>
+        <div class="mg-menu-wrap" @click.stop>
+          <button class="mg-menu-btn" @click="toggleMenu(g.id)" title="Menu">⋯</button>
+          <div v-if="openMenuId === g.id" class="pop-menu mg-menu-pop">
+            <button class="pop-item" @click="emit('update:editId', g.id); openMenuId = null">Lihat Detail</button>
+            <button class="pop-item" @click="toggleBudget(g)">{{ g.includeInBudget ? 'Keluarkan dari Budget' : 'Masukkan ke Budget' }}</button>
+            <div class="pop-sep"></div>
+            <button class="pop-item danger" @click="removeItem(g)">Hapus</button>
+          </div>
         </div>
       </div>
 
-      <div class="mg-actions" @click.stop>
-        <button class="mg-act item-action-btn" title="Edit" @click="emit('update:editId', g.id)">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
-        </button>
-        <button class="mg-act del item-action-btn" title="Hapus" @click="store.delGift(g.id)">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-        </button>
+      <div class="mg-name">{{ g.item || 'Tanpa nama' }}</div>
+
+      <div class="mg-stages">
+        <span v-for="(st, i) in stagesFor(g)" :key="st" class="mg-stage" :class="{ done: giftStageIndex(g) > i }">
+          {{ giftStageIndex(g) > i ? '✓' : '○' }} {{ STAGE_SHORT[st] }}
+        </span>
+      </div>
+
+      <div class="mg-meta">
+        <span class="mg-price">Rp {{ grp(g.hargaAktual || g.hargaEstimasi) }}</span>
+        <span v-if="g.tanggalPembelian" class="mg-meta-item">{{ fmtDate(g.tanggalPembelian) }}</span>
+        <span v-if="g.namaToko" class="mg-meta-item">{{ g.namaToko }}</span>
+        <span v-if="g.includeInBudget" class="mg-linked" title="Masuk Budget">🔗</span>
       </div>
     </div>
+
+    <div v-if="openMenuId" class="mg-menu-backdrop" @click="openMenuId = null"></div>
 
     <MobileGiftEdit :id="editId" @close="emit('update:editId', null)" />
   </div>
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
-import { grp } from '../utils/index'
-import { GIFT_STATUS_OPTIONS } from '../data/constants'
+import { grp, fmtDate } from '../utils/index'
+import { GIFT_STATUS_OPTIONS, GIFT_STATUS_BY_TYPE } from '../data/constants'
 import MobileGiftEdit from './MobileGiftEdit.vue'
 
 defineProps({
@@ -48,111 +56,137 @@ defineProps({
 const emit = defineEmits(['update:editId'])
 
 const store = useWeddingStore()
+const openMenuId = ref(null)
+
+const STAGE_SHORT = { sudah_dibeli: 'Dibeli', sudah_dikemas: 'Dikemas', sudah_diserahkan: 'Diserahkan' }
+
+function giftStages(type) { return GIFT_STATUS_BY_TYPE[type] || GIFT_STATUS_BY_TYPE.mahar }
+function giftStageIndex(g) {
+  const idx = giftStages(g.type).indexOf(g.status)
+  return idx < 0 ? 0 : idx
+}
+function stagesFor(g) { return giftStages(g.type).slice(1) }
+function statusClass(status) {
+  if (status === 'sudah_diserahkan') return 'st-done'
+  if (status === 'belum_dibeli') return 'st-todo'
+  return 'st-progress'
+}
+
+function toggleMenu(id) {
+  openMenuId.value = openMenuId.value === id ? null : id
+}
+function toggleBudget(g) {
+  g.includeInBudget = !g.includeInBudget
+  store.saveGifts()
+  openMenuId.value = null
+}
+function removeItem(g) {
+  openMenuId.value = null
+  store.delGift(g.id)
+}
 </script>
 
 <style scoped>
 .mg-wrap {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  position: relative;
 }
 .mg-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 14px;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 13px;
   background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: 0 1px 3px rgba(36, 8, 8, .05);
   cursor: pointer;
 }
 .mg-card.done { border-color: var(--green); }
 
-.mg-main {
-  flex: 1;
-  min-width: 0;
+.mg-top {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  align-items: center;
+  gap: 6px;
 }
-.mg-title {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  min-width: 0;
+.mg-badge {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2.5px 8px;
+  border-radius: 100px;
+  color: var(--muted);
+  background: var(--ivory);
+  border: 1px solid var(--line);
 }
-.mg-type { flex: none; font-size: 15px; }
+.mg-chip {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2.5px 8px;
+  border-radius: 100px;
+}
+.mg-chip.st-todo     { color: var(--muted); background: var(--ivory); }
+.mg-chip.st-progress { color: #7a5c28; background: var(--gold-soft); }
+.mg-chip.st-done      { color: #2b5010; background: #EAF3DE; }
+
+.mg-menu-wrap { position: relative; margin-left: auto; }
+.mg-menu-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.mg-menu-btn:active { background: var(--gold-soft); color: var(--plum); }
+.mg-menu-pop { top: calc(100% + 4px); right: 0; min-width: 200px; }
+.mg-menu-backdrop { position: fixed; inset: 0; z-index: 150; }
+
 .mg-name {
   font-family: 'Cormorant Garamond', serif;
   font-size: var(--m-title);
   font-weight: 600;
   color: var(--ink);
-  line-height: 1.1;
+  line-height: 1.15;
   word-break: break-word;
 }
-.mg-linked { flex: none; font-size: 12px; }
-.mg-price-row {
+
+.mg-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.mg-stage.done { color: var(--green); font-weight: 600; }
+
+.mg-meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px 8px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--muted);
 }
 .mg-price {
   font-size: var(--m-value);
   font-weight: 700;
   color: var(--plum);
+  margin-right: 2px;
 }
-.mg-badge {
-  font-size: var(--m-chip);
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 100px;
-  color: var(--muted);
-  background: var(--ivory);
-  border: 1px solid var(--line);
-  line-height: 1.3;
-}
-.mg-status {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--m-sub);
-  font-weight: 500;
-  color: var(--muted);
-}
-.mg-status .mg-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  border: 1.5px solid var(--muted);
-  background: transparent;
-}
-.mg-status.ok { color: var(--green); }
-.mg-status.ok .mg-dot { background: var(--green); border-color: var(--green); }
-
-.mg-actions {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.mg-act {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 1.5px solid var(--line);
-  border-radius: 8px;
-  background: var(--ivory);
-  color: var(--plum);
-  cursor: pointer;
-  transition: background .15s, border-color .15s;
-}
-.mg-act:active { background: var(--gold-soft); }
-.mg-act.del { color: var(--rose); }
-.mg-act.del:active { background: var(--rose-soft); }
+.mg-meta-item::before { content: '·'; margin-right: 8px; color: var(--line); }
+.mg-linked { margin-left: auto; font-size: 12px; }
 
 .mg-empty {
   text-align: center;

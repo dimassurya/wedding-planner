@@ -259,67 +259,68 @@ function ckItems(rows) {
   return rows.map((r, i) => ({ id: i + 1, tugas: r[0], status: !!r[1] }))
 }
 
+// Kategori bawaan Checklist — dipakai buat render CHECKLIST_SEED, opsi
+// cepat pas "Tambah Kategori", dan lookup icon kategori (termasuk fase
+// lama/kategori custom yang namanya cocok salah satu dari daftar ini).
+export const CHECKLIST_KATEGORI_DEFAULTS = [
+  { icon: '📋', label: 'Persiapan Vendor' },
+  { icon: '📄', label: 'Dokumen Pernikahan' },
+  { icon: '👨‍👩‍👧‍👦', label: 'Persiapan Keluarga' },
+  { icon: '🎉', label: 'Persiapan Acara' },
+  { icon: '👤', label: 'Persiapan Pribadi' },
+  { icon: '💍', label: 'Mahar & Seserahan' },
+  { icon: '💰', label: 'Keuangan Pernikahan' },
+  { icon: '📝', label: 'Lainnya' },
+]
+export const CHECKLIST_KATEGORI_FALLBACK_ICON = '📌'
+
 export const CHECKLIST_SEED = [
-  { id: 1, fase: '6 Bulan Sebelum', items: ckItems([
-    ['Tentukan tanggal pernikahan (20 Desember 2026)', true],
-    ['Diskusikan konsep & tema pernikahan (intimate)', true],
-    ['Buat anggaran/budget nikah (under 45jt)', true],
-    ['Susun list tamu kasar', true],
-    ['Survey & booking vendor utama: dekorasi, katering, fotografer, videografer', false],
-    ['Cari & pilih wedding organizer (jika pakai)', false],
-    ['Mulai riset undangan (fisik & digital)', false],
-    ['Tentukan seserahan & mahar', false],
-    ['Rencanakan acara adat (lamaran, siraman, pengajian, dll. jika ada)', false],
-    ['Survey cincin nikah (cpw done, cpp belum)', true],
-    ['Rencana Honeymoon', false],
-    ['Survei dekorasi & tenda', false],
+  { id: 1, kategori: 'Persiapan Vendor', items: ckItems([
+    ['Booking Venue', false],
+    ['Booking Catering', false],
+    ['Booking Dekorasi', false],
+    ['Booking MUA', false],
+    ['Booking Fotografer', false],
+    ['Booking MC', false],
+    ['Food Testing', false],
+    ['Meeting Final Vendor', false],
   ]) },
-  { id: 2, fase: '5 Bulan Sebelum', items: ckItems([
-    ['Booking venue utama (gedung/tempat resepsi)', false],
-    ['Booking perias/make-up artist', false],
-    ['Tentukan MC & entertainment (band, DJ, traditional art)', false],
-    ['Pilih & booking desainer/butik busana pengantin', false],
-    ['Diskusi & test food catering', false],
-    ['Susun rundown acara sementara', false],
-    ['Finalisasi konsep dekorasi & detail bunga', false],
-    ['Buat list penginapan untuk keluarga/tamu luar kota', false],
+  { id: 2, kategori: 'Dokumen Pernikahan', items: ckItems([
+    ['Lengkapi Dokumen Nikah', false],
+    ['Daftar KUA', false],
+    ['Ambil Buku Nikah', false],
+    ['Cetak Undangan', false],
   ]) },
-  { id: 3, fase: '4 Bulan Sebelum', items: ckItems([
-    ['Mulai cicilan pembayaran vendor', false],
-    ['Pilih pengiring pengantin (bridesmaid, groomsmen)', false],
-    ['Tentukan souvenir pernikahan', false],
-    ['Mulai perawatan tubuh (skincare, diet sehat, olahraga)', false],
-    ['Pilih desain undangan final', false],
-    ['Konfirmasi vendor utama (progress & pembayaran)', false],
-    ['Siapkan dokumen legal & administrasi pernikahan (KUA/Catatan Sipil)', false],
-    ['Fitting pertama baju pengantin', false],
+  { id: 3, kategori: 'Persiapan Keluarga', items: ckItems([
+    ['Kunjungan Keluarga', false],
+    ['Brief Orang Tua', false],
+    ['Brief Bridesmaid', false],
+    ['Brief Groomsmen', false],
   ]) },
-  { id: 4, fase: '3 Bulan Sebelum', items: ckItems([
-    ['Fitting kedua baju pengantin', false],
-    ['Test make-up', false],
-    ['Mulai persiapan acara adat (siraman/pengajian)', false],
-    ['Kirim undangan ke tamu luar kota (save the date opsional)', false],
-    ['Finalisasi dekorasi & detail teknis dengan vendor', false],
-    ['Koordinasi rundown detail dengan MC & WO', false],
-    ['Pastikan semua vendor sudah DP/terbayar sebagian', false],
-    ['Cek ulang list tamu & seating plan', false],
+  { id: 4, kategori: 'Persiapan Acara', items: ckItems([
+    ['Susun Rundown', false],
+    ['Gladi Bersih', false],
+    ['Test Sound', false],
+    ['Cek Dekorasi', false],
+    ['Final Seating Plan', false],
   ]) },
-  { id: 5, fase: '2 Bulan Sebelum', items: ckItems([
-    ['Susun playlist musik', false],
-    ['Cetak & distribusi undangan resmi (fisik/digital)', false],
-    ['Fitting ketiga baju pengantin', false],
-    ['Finalisasi souvenir, kue, dan cincin nikah', false],
-    ['Persiapan kebutuhan acara adat (siraman, pengajian, dll.)', false],
-    ['Konfirmasi semua vendor (jadwal & kontrak)', false],
+  { id: 5, kategori: 'Persiapan Pribadi', items: ckItems([
+    ['Fitting Baju', false],
+    ['Spa / Perawatan', false],
+    ['Potong Rambut', false],
+    ['Packing Barang', false],
+    ['Latihan Jalan Masuk', false],
   ]) },
-  { id: 6, fase: '1 Bulan Sebelum', items: ckItems([
-    ['Latihan teknis dengan pengiring pengantin', false],
-    ['Siapkan daftar kontak darurat vendor (penanggung jawab tiap vendor)', false],
-    ['Ambil & cek kelengkapan baju pengantin', false],
-    ['Gladi bersih (jika ada)', false],
-    ['Perawatan tubuh akhir (facial, spa, lulur)', false],
-    ['Jaga kesehatan & istirahat cukup', false],
-    ['Mulai persiapan koper honeymoon', false],
+  { id: 6, kategori: 'Mahar & Seserahan', items: ckItems([
+    ['Beli Mahar', false],
+    ['Lengkapi Seserahan', false],
+    ['Bungkus Seserahan', false],
+    ['Serahkan Mahar', false],
+  ]) },
+  { id: 7, kategori: 'Keuangan Pernikahan', items: ckItems([
+    ['Siapkan Dana Vendor', false],
+    ['Siapkan Dana Darurat', false],
+    ['Cek Seluruh Pembayaran', false],
   ]) },
 ]
 

@@ -1165,8 +1165,8 @@ export const useWeddingStore = defineStore('wedding', () => {
     const uid = ownerUserId.value || user.value.id
     const position = checklist.value.length
     const { data: row, error } = await supabase.from('checklist_groups')
-      .insert({ owner_user_id: uid, fase: name, position }).select().single()
-    if (error || !row) { toast('Gagal menambah fase, coba lagi'); return null }
+      .insert({ owner_user_id: uid, kategori: name, position }).select().single()
+    if (error || !row) { toast('Gagal menambah kategori, coba lagi'); return null }
     row.items = []
     checklist.value.push(row)
     const { items, ...groupSnap } = row
@@ -1179,7 +1179,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     if (!g) return null
     const uid = ownerUserId.value || user.value.id
     const { data: row, error } = await supabase.from('checklist_items')
-      .insert({ owner_user_id: uid, group_id: groupId, tugas: '', status: false }).select().single()
+      .insert({ owner_user_id: uid, group_id: groupId, tugas: '', status: false, prioritas: null, catatan: '' }).select().single()
     if (error || !row) { toast('Gagal menambah tugas, coba lagi'); return null }
     g.items.push(row)
     _shadow.checklistItems.set(row.id, JSON.parse(JSON.stringify(row)))
@@ -1636,14 +1636,14 @@ export const useWeddingStore = defineStore('wedding', () => {
 
     // checklist: pola sama, plus position dari urutan asli CHECKLIST_SEED.
     const checklistGroupRows = CHECKLIST_SEED.map((g, i) => ({
-      owner_user_id: userId, legacy_id: g.id, fase: g.fase, position: i,
+      owner_user_id: userId, legacy_id: g.id, kategori: g.kategori, position: i,
     }))
     const { data: insertedChecklistGroups } = await supabase.from('checklist_groups').insert(checklistGroupRows).select()
     const checklistItemRows = []
     ;(insertedChecklistGroups || []).forEach(cg => {
       const seedGroup = CHECKLIST_SEED.find(g => g.id === cg.legacy_id)
       ;(seedGroup?.items || []).forEach(it => {
-        checklistItemRows.push({ owner_user_id: userId, group_id: cg.id, tugas: it.tugas, status: !!it.status })
+        checklistItemRows.push({ owner_user_id: userId, group_id: cg.id, tugas: it.tugas, status: !!it.status, prioritas: null, catatan: '' })
       })
     })
     const { data: insertedChecklistItems } = checklistItemRows.length

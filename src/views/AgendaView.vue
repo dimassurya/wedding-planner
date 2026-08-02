@@ -117,7 +117,7 @@ const entries = computed(() => {
     list.push({
       key: 't' + t.id, type: 'tugas', date: t.deadline,
       name: t.tugas || 'tugas',
-      color: 'var(--gold)', tag: 'TIMELINE', tagCls: 'ag-tag-ck',
+      color: 'var(--gold)', tag: 'ACARA', tagCls: 'ag-tag-ck',
       done,
       late: !done && daysLeft(t.deadline) < 0,
       goto: null,
@@ -133,7 +133,7 @@ const entries = computed(() => {
       list.push({
         key: 'c' + it.id, type: 'tugas', date: it.deadline,
         name: it.tugas || 'tugas',
-        color: 'var(--gold)', tag: grp.fase || 'CHECKLIST', tagCls: 'ag-tag-ck',
+        color: 'var(--gold)', tag: grp.kategori || 'CHECKLIST', tagCls: 'ag-tag-ck',
         done: !!it.status,
         late: !it.status && daysLeft(it.deadline) < 0,
         goto: 'checklist',

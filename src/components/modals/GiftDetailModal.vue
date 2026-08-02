@@ -10,7 +10,7 @@
       <GiftForm :gift="gift" />
 
       <div class="modal-actions">
-        <button class="btn-ghost" @click="onDelete">Hapus</button>
+        <button class="gdm-del" @click="onDelete">Hapus</button>
         <button class="btn" @click="$emit('close')">Selesai</button>
       </div>
     </div>
@@ -47,4 +47,18 @@ async function onDelete() {
   border-radius: 100px;
   padding: 2px 10px;
 }
+.gdm-del {
+  flex: none;
+  padding: 0 20px;
+  border: 1.5px solid var(--rose-soft);
+  border-radius: 12px;
+  background: var(--rose-soft);
+  color: var(--rose);
+  font-family: 'Jost', sans-serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.gdm-del:hover { background: var(--rose); color: #fff; }
 </style>

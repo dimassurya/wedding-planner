@@ -103,14 +103,14 @@ async function del() {
   padding: 12px 18px;
   border: 1.5px solid var(--rose-soft);
   border-radius: 12px;
-  background: var(--paper);
+  background: var(--rose-soft);
   color: var(--rose);
   font-family: 'Jost', sans-serif;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
-.mge-del:active { background: var(--rose-soft); }
+.mge-del:active { background: var(--rose); color: #fff; }
 .mge-done {
   flex: 1;
   border: none;

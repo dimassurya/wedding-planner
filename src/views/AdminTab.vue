@@ -1,22 +1,35 @@
 <template>
   <section class="panel active" id="panel-admin">
-    <div class="stat-grid">
-      <div class="stat a-plum">
-        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg></div>
-        <div class="num">{{ total }}</div><div class="lbl">Total syarat</div>
+    <!-- Hero — satu-satunya card besar, fokus ke progress dokumen -->
+    <div class="ah-hero">
+      <div class="ah-hero-title">📄 Dokumen Nikah</div>
+
+      <div class="ah-hero-progress">
+        <div class="ah-hero-bar"><div class="ah-hero-bar-fill" :style="{ width: pct + '%' }"></div></div>
+        <div class="ah-hero-pct-row">
+          <span class="ah-hero-pct">{{ pct }}%</span>
+          <span class="ah-hero-pct-lbl">syarat lengkap</span>
+        </div>
       </div>
-      <div class="stat a-teal">
-        <div class="stat-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-        <div class="num">{{ done }}</div><div class="lbl">Sudah lengkap</div>
+
+      <div class="ah-hero-stats">
+        <div class="ah-hero-stat">
+          <div class="ah-hero-stat-val">{{ total }}</div>
+          <div class="ah-hero-stat-lbl">Total Syarat</div>
+        </div>
+        <div class="ah-hero-stat">
+          <div class="ah-hero-stat-val">{{ done }}</div>
+          <div class="ah-hero-stat-lbl">Sudah Lengkap</div>
+        </div>
+        <div class="ah-hero-stat">
+          <div class="ah-hero-stat-val">{{ total - done }}</div>
+          <div class="ah-hero-stat-lbl">Belum Lengkap</div>
+        </div>
       </div>
-      <div class="stat a-rose">
-        <div class="stat-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="currentColor"/></svg></div>
-        <div class="num">{{ total - done }}</div><div class="lbl">Belum lengkap</div>
+
+      <div class="ah-hero-insight" :class="'tone-' + insight.tone">
+        <span>{{ insight.icon }}</span>{{ insight.text }}
       </div>
-    </div>
-    <div class="b-prog-wrap">
-      <div class="b-prog-bar"><div class="b-prog-fill" :style="{ width: pct + '%', background: '#0A1D4B' }"></div></div>
-      <span class="b-prog-pct">{{ pct }}% selesai</span>
     </div>
 
     <div class="adm-info">
@@ -105,7 +118,7 @@ const isMobile  = useIsMobile()
 
 const ADMIN_STEPS = [
   {
-    selector: '#panel-admin .stat-grid',
+    selector: '#panel-admin .ah-hero',
     icon: '📄',
     title: 'Progres Dokumen',
     desc: 'Total syarat dokumen, berapa yang sudah dilengkapi, dan progress bar persentasenya. Semua dihitung otomatis dari status di setiap baris.',
@@ -151,6 +164,12 @@ function grupAccent(name) {
 const total = computed(() => store.admin.reduce((s, g) => s + g.items.length, 0))
 const done  = computed(() => store.admin.reduce((s, g) => s + g.items.filter(i => i.status).length, 0))
 const pct   = computed(() => total.value ? Math.round(done.value / total.value * 100) : 0)
+
+const insight = computed(() => {
+  if (!total.value) return { icon: '📄', tone: 'info', text: 'Belum ada syarat dokumen yang dicatat.' }
+  if (done.value === total.value) return { icon: '🎉', tone: 'good', text: 'Selamat! Semua dokumen sudah lengkap.' }
+  return { icon: '⏳', tone: 'info', text: `Masih ada ${total.value - done.value} syarat yang perlu dilengkapi.` }
+})
 
 async function addGroup() {
   const row = await store.addAdminGroup()
@@ -208,6 +227,55 @@ function onImport(e) {
 </script>
 
 <style scoped>
+/* ── Hero — satu-satunya card besar, fokus ke progress dokumen ── */
+.ah-hero {
+  position: relative;
+  background: linear-gradient(135deg, var(--paper) 55%, var(--teal-soft, var(--gold-soft)) 160%);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 24px 24px 20px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(36, 8, 8, .05), 0 14px 34px rgba(36, 8, 8, .07);
+}
+.ah-hero-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 21px;
+  font-weight: 600;
+  color: var(--plum);
+  margin-bottom: 18px;
+}
+.ah-hero-progress { margin-bottom: 18px; }
+.ah-hero-bar { height: 9px; background: var(--ivory); border-radius: 100px; overflow: hidden; margin-bottom: 8px; }
+.ah-hero-bar-fill { height: 100%; background: linear-gradient(90deg, #7090C8, #0A1D4B); border-radius: 100px; transition: width .5s cubic-bezier(.22,1,.36,1); }
+.ah-hero-pct-row { display: flex; align-items: baseline; gap: 7px; }
+.ah-hero-pct { font-family: 'Jost', sans-serif; font-size: 15px; font-weight: 700; color: var(--ink); }
+.ah-hero-pct-lbl { font-size: 12.5px; color: var(--muted); }
+
+.ah-hero-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+.ah-hero-stat { flex: 1; min-width: 96px; }
+.ah-hero-stat-val { font-family: 'Jost', sans-serif; font-size: 19px; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ah-hero-stat-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 3px; }
+
+.ah-hero-insight {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 11px 14px;
+  border-radius: 12px;
+}
+.ah-hero-insight.tone-info { background: var(--gold-soft); color: #6b4f1f; }
+.ah-hero-insight.tone-good { background: #EAF3DE; color: #2b5010; }
+
 /* Data kolom "No" (.adm-no) rata tengah, header disamain. */
 .adm-h-center { text-align: center; }
 

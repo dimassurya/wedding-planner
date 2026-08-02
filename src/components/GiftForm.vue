@@ -1,6 +1,11 @@
 <template>
   <div class="gift-form">
     <div class="field">
+      <label>Nama Barang</label>
+      <input type="text" :value="gift.item" placeholder="cth: Cincin Emas" @input="e => setField('item', e.target.value)">
+    </div>
+
+    <div class="field">
       <label>Jenis</label>
       <div class="gf-seg">
         <button type="button" class="gf-seg-btn" :class="{ on: gift.type === 'mahar' }" @click="setType('mahar')">💍 Mahar</button>
@@ -9,21 +14,8 @@
     </div>
 
     <div class="field">
-      <label>Nama Barang</label>
-      <input type="text" :value="gift.item" placeholder="cth: Cincin Emas" @input="e => setField('item', e.target.value)">
-    </div>
-
-    <div class="row2">
-      <div class="field">
-        <label>Kategori</label>
-        <input type="text" :value="gift.kategori" placeholder="cth: Perhiasan" @input="e => setField('kategori', e.target.value)">
-      </div>
-      <div class="field">
-        <label>Status</label>
-        <select :value="gift.status" @change="e => setField('status', e.target.value)">
-          <option v-for="s in statusOptions" :key="s" :value="s">{{ GIFT_STATUS_OPTIONS[s].label }}</option>
-        </select>
-      </div>
+      <label>Kategori</label>
+      <input type="text" :value="gift.kategori" placeholder="cth: Perhiasan" @input="e => setField('kategori', e.target.value)">
     </div>
 
     <div class="row2">
@@ -42,6 +34,13 @@
     </div>
 
     <div class="field">
+      <label>Status</label>
+      <select :value="gift.status" @change="e => setField('status', e.target.value)">
+        <option v-for="s in statusOptions" :key="s" :value="s">{{ GIFT_STATUS_OPTIONS[s].label }}</option>
+      </select>
+    </div>
+
+    <div class="field">
       <label>Tanggal Pembelian</label>
       <input type="date" :value="gift.tanggalPembelian || ''" @change="e => setField('tanggalPembelian', e.target.value || null)">
     </div>
@@ -51,12 +50,12 @@
       <input type="text" :value="gift.catatan" placeholder="Catatan singkat tentang item ini..." @input="e => setField('catatan', e.target.value)">
     </div>
 
-    <div class="field">
+    <div class="gf-budget-block">
       <label class="gf-check-lbl">
-        <input type="checkbox" :checked="gift.includeInBudget" @change="e => setField('includeInBudget', e.target.checked)">
+        <input type="checkbox" class="gf-check" :checked="gift.includeInBudget" @change="e => setField('includeInBudget', e.target.checked)">
         Masukkan ke Budget
       </label>
-      <div class="field-hint">Item ini akan muncul sebagai baris tersendiri di tab Budget, mengikuti Harga Estimasi &amp; Aktual di atas.</div>
+      <div class="gf-hint">Item ini akan muncul sebagai baris tersendiri di tab Budget, mengikuti Harga Estimasi &amp; Aktual di atas.</div>
     </div>
 
     <details class="gf-more">
@@ -147,17 +146,36 @@ function onCur(field, e) {
   font-weight: 600;
 }
 
+.gf-budget-block {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--ivory);
+}
 .gf-check-lbl {
-  display: flex !important;
+  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
+  font-family: 'Jost', sans-serif;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink);
   cursor: pointer;
 }
-.gf-check-lbl input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
+.gf-check {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
   accent-color: var(--plum);
   cursor: pointer;
+}
+.gf-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 6px 0 0 27px;
 }
 
 .gf-more {

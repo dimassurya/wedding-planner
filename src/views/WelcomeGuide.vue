@@ -56,7 +56,7 @@ const ALL_STEPS = [
     tab: 'checklist',
     icon: '✅',
     title: 'Checklist Persiapan',
-    desc: 'Mulai dari sini. Buat daftar tugas per fase — 6 bulan, 3 bulan, sampai H-1.',
+    desc: 'Mulai dari sini. Buat daftar tugas per kategori — Vendor, Dokumen, Keluarga, dan lainnya.',
   },
   {
     tab: 'budget',
