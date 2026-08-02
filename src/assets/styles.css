@@ -1594,6 +1594,10 @@ button.hm-clickable:active { transform: translateY(0); }
   white-space: nowrap;
 }
 .pop-item svg { flex: none; color: var(--muted); }
+.pop-item:disabled { opacity: .6; cursor: default; }
+.pop-item:disabled:hover { background: transparent; color: var(--ink, #3a2530); }
+.ic-spin { animation: ic-spin 1s linear infinite; transform-origin: 50% 50%; }
+@keyframes ic-spin { to { transform: rotate(360deg); } }
 .pop-item:hover { background: var(--rose-soft); color: var(--plum); }
 .pop-item:hover svg { color: var(--plum); }
 .pop-item.active { background: var(--plum); color: #fff; }

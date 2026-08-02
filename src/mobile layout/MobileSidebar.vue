@@ -37,6 +37,10 @@
         </div>
 
         <div class="m-side-bottom">
+          <button class="m-side-row" :disabled="syncing" @click="syncNow">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" :class="{ 'ic-spin': syncing }"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.6-4.2"/><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.6 4.2"/><path d="M20 3v5h-5M4 21v-5h5"/></svg>
+            {{ syncing ? 'Menyinkronkan…' : 'Sinkronkan sekarang' }}
+          </button>
           <button class="m-side-row" @click="showPartner = true">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             {{ store.isPartner ? 'Dashboard Bersama' : store.partnerEmail ? 'Kelola Pasangan' : 'Tambah Pasangan' }}
@@ -73,6 +77,20 @@ const store = useWeddingStore()
 const { canInstall, install } = useInstallPWA()
 const importRef   = ref(null)
 const showPartner = ref(false)
+const syncing     = ref(false)
+
+// Jaring pengaman manual kalau ada perubahan pasangan yang kelewat —
+// jalur otomatisnya ada di store.refetchAll(). Sidebar sengaja TIDAK
+// ditutup: user perlu lihat konfirmasi "Data tersinkron"-nya.
+async function syncNow() {
+  if (syncing.value) return
+  syncing.value = true
+  try {
+    await store.refetchAll({ force: true, quiet: false })
+  } finally {
+    syncing.value = false
+  }
+}
 
 const items = WP_TABS.filter(t => !BOTTOM_TABS.includes(t.tab))
 
@@ -273,6 +291,7 @@ function onSignOut() {
   text-align: left;
 }
 .m-side-row:active { background: var(--ivory); }
+.m-side-row:disabled { opacity: .6; cursor: default; }
 .m-side-row.danger { color: var(--rose); }
 .m-side-row.danger:active { background: #fdf0f0; }
 .m-partner-dot {

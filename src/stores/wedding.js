@@ -237,6 +237,42 @@ export const useWeddingStore = defineStore('wedding', () => {
   // ── Debounced Supabase save ────────────────────────────────────────
   const _timers = {}
 
+  // Tulisan yang masih nunggu debounce (belum kekirim ke server). Dipakai
+  // refetchAll() buat NGEBURU tulisan itu duluan sebelum muat ulang —
+  // tanpa ini, data server yang baru bakal nimpa editan yang belum sempat
+  // tersimpan. Key-nya sama dengan key _timers.
+  const _pendingFlush = {}
+
+  function _schedule(key, fn, delay = 600) {
+    clearTimeout(_timers[key])
+    _pendingFlush[key] = fn
+    _timers[key] = setTimeout(() => {
+      delete _pendingFlush[key]
+      fn()
+    }, delay)
+  }
+
+  // Batalkan tulisan terjadwal DAN antreannya. Dipakai kalau pemanggilnya
+  // mau nulis langsung (awaited) — kalau cuma clearTimeout, antrean flush
+  // masih nyimpen callback basi yang bisa kekirim ulang nanti.
+  function _cancelScheduled(key) {
+    clearTimeout(_timers[key])
+    delete _pendingFlush[key]
+  }
+
+  // Jalankan semua tulisan yang masih ngantre SEKARANG, jangan tunggu
+  // debounce-nya habis. Dipanggil sebelum refetchAll().
+  async function flushPendingSaves() {
+    const keys = Object.keys(_pendingFlush)
+    if (!keys.length) return
+    await Promise.all(keys.map(k => {
+      clearTimeout(_timers[k])
+      const fn = _pendingFlush[k]
+      delete _pendingFlush[k]
+      return fn()
+    }))
+  }
+
   // Kapan terakhir tiap kolom ditulis dari sini. Dipakai realtime handler
   // supaya echo dari tulisan sendiri (yang bisa berisi snapshot basi kalau
   // user masih lanjut mengetik/toggle) tidak menimpa balik state lokal.
@@ -261,8 +297,7 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   function scheduleSave(col, val) {
     if (!user.value) return
-    clearTimeout(_timers[col])
-    _timers[col] = setTimeout(() => _upsert({ [col]: val }), 600)
+    _schedule(col, () => _upsert({ [col]: val }))
   }
 
   // ── Tabel ternormalisasi (Wave 1: guests, timeline) ─────────────────
@@ -415,8 +450,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     // loadData/_load*) — race-nya bisa bikin data lama ke-insert ulang jadi
     // dobel. Cuma warning, nggak ngeblok, biar nggak nyembunyiin bug lain.
     if (loading.value) console.warn(`[sync] scheduleDiffSync('${col}') dipanggil pas loading=true — cek race dengan reload data`)
-    clearTimeout(_timers[col])
-    _timers[col] = setTimeout(() => _diffAndSync(col, table, rowsRef.value), 600)
+    _schedule(col, () => _diffAndSync(col, table, rowsRef.value))
   }
 
   // ── Grup bersarang (Wave 3: admin, checklist) ───────────────────────
@@ -435,11 +469,7 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   function scheduleDiffSyncNested(timerKey, groupsCol, groupsTable, itemsCol, itemsTable, groupsRef) {
     if (!user.value) return
-    clearTimeout(_timers[timerKey])
-    _timers[timerKey] = setTimeout(
-      () => _diffAndSyncNested(groupsCol, groupsTable, itemsCol, itemsTable, groupsRef.value),
-      600
-    )
+    _schedule(timerKey, () => _diffAndSyncNested(groupsCol, groupsTable, itemsCol, itemsTable, groupsRef.value))
   }
 
   // ── Save functions ─────────────────────────────────────────────────
@@ -568,7 +598,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     // Simpan LANGSUNG (awaited), bukan lewat debounce, supaya flag onboarded
     // + profil pasangan pasti sudah masuk DB sebelum user sempat refresh.
     if (isNewUser.value) showWelcomeGuide.value = true
-    clearTimeout(_timers.settings)
+    _cancelScheduled('settings')
     payload.settings = _settingsPayload()
     await Promise.all([
       _upsert(payload),
@@ -1721,6 +1751,9 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   // ── Supabase: realtime sync ────────────────────────────────────────
   let _channel = null
+  // true kalau channel sempat putus — dipakai buat memutuskan perlu
+  // catch-up atau nggak begitu status balik ke SUBSCRIBED.
+  let _realtimeWasDown = false
 
   // Wave 1: guests & timeline_tasks sync per-BARIS, bukan per-kolom.
   // Dibanding _lastWriteAt (per-kolom, blok SEMUA baris kolom itu 3 detik),
@@ -1907,7 +1940,21 @@ export const useWeddingStore = defineStore('wedding', () => {
         event: '*', schema: 'public', table: 'checklist_items',
         filter: `owner_user_id=eq.${listenId}`,
       }, p => _applyItemChange('checklistItems', checklist, p))
-      .subscribe()
+      // Status channel dipantau buat tahu kapan koneksi PUTUS lalu NYAMBUNG
+      // lagi. Event yang lewat selama putus nggak pernah diulang Supabase,
+      // jadi begitu tersambung ulang data ditarik ulang sekali (catch-up).
+      // SUBSCRIBED pertama (pas baru login) di-skip — datanya baru saja
+      // dimuat loadData(), nggak perlu ditarik dua kali.
+      .subscribe(status => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          _realtimeWasDown = true
+          return
+        }
+        if (status === 'SUBSCRIBED' && _realtimeWasDown) {
+          _realtimeWasDown = false
+          refetchAll()
+        }
+      })
   }
 
   // ── Partner invite ─────────────────────────────────────────────────
@@ -2031,6 +2078,59 @@ export const useWeddingStore = defineStore('wedding', () => {
     }
   }
 
+  // ── Muat ulang data dari server (catch-up) ─────────────────────────
+  //  Realtime Supabase itu WebSocket: cuma ngantar perubahan SELAMA
+  //  koneksinya hidup, dan TIDAK pernah mengulang event yang terlewat.
+  //  Di HP koneksi gampang putus (layar mati, app di-background, pindah
+  //  WiFi↔seluler, idle timeout) — perubahan dari device pasangan yang
+  //  terjadi pas socket lagi putus hilang selamanya buat device ini.
+  //  Makanya perlu ditarik ulang di momen yang menandakan "mungkin ada
+  //  yang terlewat": app kembali ke depan, realtime nyambung ulang, atau
+  //  user menekan Sinkronkan manual.
+  //
+  //  URUTAN PENTING:
+  //  1. flushPendingSaves() — kirim dulu editan yang masih ngantre
+  //     debounce, kalau nggak bakal ketimpa data server.
+  //  2. loading=true — kunci UI + cegah save() nyempit di tengah reload
+  //     (shadow lagi di-reseed dari nol; race-nya pernah bikin data dobel).
+  let _refetching = false
+  let _lastRefetchAt = 0
+
+  async function refetchAll({ force = false, quiet = true } = {}) {
+    if (!user.value || _refetching || loading.value) return false
+    // Jangan narik ulang tiap kali app dilirik sebentar — focus/visibility
+    // bisa nyala beruntun. Tombol manual pakai force:true biar selalu jalan.
+    if (!force && Date.now() - _lastRefetchAt < 15000) return false
+
+    _refetching = true
+    try {
+      await flushPendingSaves()
+      const ownerUid = ownerUserId.value || user.value.id
+      loading.value = true
+      try {
+        const { data } = await supabase.from('wedding_data')
+          .select('*').eq('user_id', ownerUid).maybeSingle()
+        if (data) _applyData(data)
+        await Promise.all([
+          _loadGuestsAndTimeline(ownerUid),
+          _loadBudgetVendorsGifts(ownerUid),
+          _loadAdminAndChecklist(ownerUid),
+        ])
+      } finally {
+        loading.value = false
+      }
+      _lastRefetchAt = Date.now()
+      if (!quiet) toast('Data tersinkron')
+      return true
+    } catch (e) {
+      console.error('[refetchAll] gagal:', e)
+      if (!quiet) toast(_errMsg(e, 'menyinkronkan data'))
+      return false
+    } finally {
+      _refetching = false
+    }
+  }
+
   async function _processPendingInvite() {
     const token = sessionStorage.getItem('pending_invite')
     if (!token || !user.value) return
@@ -2085,10 +2185,21 @@ export const useWeddingStore = defineStore('wedding', () => {
     // Saat app kembali ke depan, sinkronkan status kemitraan dgn DB.
     // Menutup celah realtime: partner yg dikeluarkan tak dpt event (RLS),
     // jadi cek ulang di sini biar statusnya ikut update tanpa perlu refresh.
+    // Selain cek kemitraan, data juga ditarik ulang: selama app di belakang
+    // koneksi realtime biasanya ditidurkan OS, jadi perubahan dari device
+    // pasangan bisa terlewat (lihat refetchAll). Ada throttle 15 detik di
+    // dalamnya biar nggak narik ulang tiap kali app dilirik sebentar.
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') revalidateMembership()
+      if (document.visibilityState !== 'visible') return
+      revalidateMembership()
+      refetchAll()
     })
-    window.addEventListener('focus', () => revalidateMembership())
+    window.addEventListener('focus', () => {
+      revalidateMembership()
+      refetchAll()
+    })
+    // Koneksi balik setelah offline — kandidat kuat ada yang terlewat.
+    window.addEventListener('online', () => refetchAll({ force: true }))
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'INITIAL_SESSION') {
         try {
@@ -2181,6 +2292,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     user, profile, isPaid, loading, currentUserName,
     hasAccess, trialExpired, trialDaysLeft, paymentEnabled, forcePaywall,
     createPayment, pollUntilPaid,
+    refetchAll,
     initAuth, signInWithGoogle, signOut,
     // partner
     ownerUserId, isPartner, partnerEmail, ownerEmail,

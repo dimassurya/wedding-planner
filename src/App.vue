@@ -73,6 +73,10 @@
                 Profil &amp; Informasi
               </button>
               <div class="pop-sep"></div>
+              <button class="pop-item" :disabled="syncing" @click="syncNow">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" :class="{ 'ic-spin': syncing }"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.6-4.2"/><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.6 4.2"/><path d="M20 3v5h-5M4 21v-5h5"/></svg>
+                {{ syncing ? 'Menyinkronkan…' : 'Sinkronkan sekarang' }}
+              </button>
               <button class="pop-item" @click="store.startTour(); showActMenu = false">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .83c0 1.67-2.5 2.5-2.5 2.5"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>
                 Panduan
@@ -195,7 +199,23 @@ const showBulk     = ref(false)
 const showMoreMenu = ref(false)
 const showActMenu  = ref(false)
 const showProfile  = ref(false)
+const syncing      = ref(false)
 const visibleCount = ref(WP_TABS.length)
+
+// Jaring pengaman manual kalau ada perubahan pasangan yang kelewat —
+// jalur otomatisnya (app kembali ke depan / realtime nyambung ulang)
+// ada di store.refetchAll(). force: abaikan throttle, quiet: false biar
+// user dapat konfirmasi kalau sudah selesai.
+async function syncNow() {
+  if (syncing.value) return
+  syncing.value = true
+  try {
+    await store.refetchAll({ force: true, quiet: false })
+  } finally {
+    syncing.value = false
+    showActMenu.value = false
+  }
+}
 
 const isMobile       = useIsMobile()
 const mobileMenuOpen = ref(false)
