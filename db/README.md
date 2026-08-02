@@ -137,6 +137,18 @@ oleh kode aplikasi.
     Resepsi tidak butuh migrasi (ikut `wedding_data.settings->couple`,
     satu rumah dengan tanggal Hari-H).
 
+21. `027_budget_dedupe_guard.sql` — bersihkan & cegah baris budget dobel
+    (kejadian nyata 2026-08-02: race di `_diffAndSync` client menginsert
+    baris mirror vendor/gift dua kali saat dua run sync tumpang-tindih).
+    Bagian A menghapus duplikat mirror yang ada (termin pembayaran
+    dipindah dulu ke baris yang dipertahankan, id terkecil menang);
+    Bagian B memasang unique index `(owner_user_id, "vendorId")` dan
+    `(owner_user_id, "weddingGiftId")` supaya duplikat mirror mustahil
+    terjadi lagi apapun bug client-nya. Duplikat baris manual/template
+    tidak dihapus otomatis — ada query diagnostik di komentar file untuk
+    meninjaunya. Perbaikan sisi client ada di `wedding.js` (antrean
+    `_enqueueSync` per kolom + penanda `_insertInFlight`).
+
 ## Pembayaran (iPaymu)
 
 **Status saat ini: penguncian dimatikan.** `VITE_PAYMENT_ENABLED=false`

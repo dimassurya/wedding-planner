@@ -264,13 +264,16 @@ export const useWeddingStore = defineStore('wedding', () => {
   // debounce-nya habis. Dipanggil sebelum refetchAll().
   async function flushPendingSaves() {
     const keys = Object.keys(_pendingFlush)
-    if (!keys.length) return
     await Promise.all(keys.map(k => {
       clearTimeout(_timers[k])
       const fn = _pendingFlush[k]
       delete _pendingFlush[k]
       return fn()
     }))
+    // Tunggu juga run sync yang MASIH DI JALAN (bukan cuma yang ngantre
+    // debounce) — refetchAll butuh jaminan semua tulisan beneran selesai
+    // sebelum array & shadow di-reseed dari data server.
+    await Promise.all(Object.values(_syncQueue))
   }
 
   // Kapan terakhir tiap kolom ditulis dari sini. Dipakai realtime handler
@@ -349,11 +352,34 @@ export const useWeddingStore = defineStore('wedding', () => {
     rows.forEach(r => { if (r.id != null) _shadow[col].set(r.id, JSON.parse(JSON.stringify(strip(r)))) })
   }
 
+  // ── Anti-duplikasi (kejadian nyata: budget dobel 2026-08-02) ─────────
+  // _diffAndSync TIDAK boleh jalan tumpang-tindih untuk kolom yang sama.
+  // Baris baru (id==null, mis. mirror vendor→Budget) baru dapat id setelah
+  // INSERT-nya balik dari server; kalau run kedua sempat mulai SELAGI
+  // INSERT run pertama masih di jalan, dua-duanya melihat baris yang sama
+  // sebagai "baru" → keinsert dua kali → data dobel di database.
+  //
+  // (a) _syncQueue: semua run diserialisasi per kolom lewat promise chain —
+  //     run berikutnya nunggu run aktif selesai, apapun jalurnya
+  //     (debounce, flushPendingSaves, importAll, onboarding).
+  // (b) _insertInFlight: lapisan kedua — baris yang INSERT-nya masih di
+  //     jalan ditandai & di-skip run lain, kalau-kalau ada jalur yang
+  //     lolos dari antrean.
+  const _syncQueue = {}
+  const _insertInFlight = new WeakSet()
+
+  function _enqueueSync(col, job) {
+    const tail = (_syncQueue[col] || Promise.resolve()).then(job, job)
+    _syncQueue[col] = tail.catch(() => {})
+    return tail
+  }
+
   // opts.stripKeys: field yang dikecualikan dari perbandingan DAN payload ke
   // server (dipakai grup admin/checklist buat exclude field "items" nested-nya
   // sendiri — tanpa ini tiap edit item bakal keliatan kayak "grup berubah" dan
   // salah kirim UPDATE ke tabel grup yang isinya nggak nyambung). Default []
   // -> perilaku persis sama seperti sebelumnya buat 6 entity flat yang sudah ada.
+  // JANGAN panggil langsung dari luar — selalu lewat _enqueueSync (lihat atas).
   async function _diffAndSync(col, table, rows, opts = {}) {
     if (!user.value) return
     const stripKeys = opts.stripKeys || []
@@ -380,7 +406,12 @@ export const useWeddingStore = defineStore('wedding', () => {
     // Row ber-id yang belum ada di shadow sekarang dikirim sebagai UPDATE
     // (idempotent, aman) — bukan INSERT.
     for (const row of rows) {
-      if (row.id == null) { toInsert.push(row); continue }
+      if (row.id == null) {
+        // Skip baris yang INSERT-nya masih di jalan dari run lain — insert
+        // kedua = baris dobel di database.
+        if (!_insertInFlight.has(row)) toInsert.push(row)
+        continue
+      }
       seen.add(row.id)
       if (!shadow.has(row.id) || JSON.stringify(shadow.get(row.id)) !== JSON.stringify(_stripKeys(row))) toUpdate.push(row)
     }
@@ -403,17 +434,28 @@ export const useWeddingStore = defineStore('wedding', () => {
 
     await Promise.all([
       ...toInsert.map(async row => {
-        const { data, error } = await supabase.from(table)
-          .insert({ owner_user_id: uid, ..._stripSystem(row) }).select().single()
-        if (!error && data) {
-          // Tandai SEBELUM apapun lagi — echo baris ini nggak mungkin nyampe
-          // sebelum insert-nya sendiri selesai (baris/id-nya belum ada).
-          _lastRowWriteAt[col]?.set(data.id, Date.now())
-          Object.assign(row, data)
-          shadow.set(data.id, JSON.parse(JSON.stringify(_stripKeys(row))))
-        } else if (error) {
-          console.error(`[_diffAndSync] insert ${table} gagal:`, error)
-          firstError ||= error
+        _insertInFlight.add(row)
+        try {
+          const { data, error } = await supabase.from(table)
+            .insert({ owner_user_id: uid, ..._stripSystem(row) }).select().single()
+          if (!error && data) {
+            _lastRowWriteAt[col]?.set(data.id, Date.now())
+            Object.assign(row, data)
+            shadow.set(data.id, JSON.parse(JSON.stringify(_stripKeys(row))))
+            // Echo realtime INSERT ini BISA tiba duluan sebelum response
+            // HTTP-nya (WebSocket vs REST beda jalur) — waktu itu terjadi,
+            // handler realtime nggak nemu baris ber-id ini (punya kita
+            // masih id==null) dan main push. Begitu id asli kepasang di
+            // atas, buang salinan nyasar itu biar nggak dobel di layar.
+            for (let i = rows.length - 1; i >= 0; i--) {
+              if (rows[i] !== row && rows[i]?.id === data.id) rows.splice(i, 1)
+            }
+          } else if (error) {
+            console.error(`[_diffAndSync] insert ${table} gagal:`, error)
+            firstError ||= error
+          }
+        } finally {
+          _insertInFlight.delete(row)
         }
       }),
       ...toUpdate.map(async row => {
@@ -450,7 +492,10 @@ export const useWeddingStore = defineStore('wedding', () => {
     // loadData/_load*) — race-nya bisa bikin data lama ke-insert ulang jadi
     // dobel. Cuma warning, nggak ngeblok, biar nggak nyembunyiin bug lain.
     if (loading.value) console.warn(`[sync] scheduleDiffSync('${col}') dipanggil pas loading=true — cek race dengan reload data`)
-    _schedule(col, () => _diffAndSync(col, table, rowsRef.value))
+    // rowsRef.value diresolve pas job-nya BENERAN jalan (bisa lebih telat
+    // dari timer karena ngantre di belakang run lain) — biar yang kekirim
+    // selalu snapshot terbaru, bukan array basi saat timer menyala.
+    _schedule(col, () => _enqueueSync(col, () => _diffAndSync(col, table, rowsRef.value)))
   }
 
   // ── Grup bersarang (Wave 3: admin, checklist) ───────────────────────
@@ -461,10 +506,14 @@ export const useWeddingStore = defineStore('wedding', () => {
   // balik ke object lewat Object.assign, dan itu harus kena ke object yang
   // sama yang dipakai di sini buat nge-set group_id-nya item.
   async function _diffAndSyncNested(groupsCol, groupsTable, itemsCol, itemsTable, groups) {
-    await _diffAndSync(groupsCol, groupsTable, groups, { stripKeys: ['items'] })
-    const flatItems = []
-    groups.forEach(g => (g.items || []).forEach(it => { it.group_id = g.id; flatItems.push(it) }))
-    await _diffAndSync(itemsCol, itemsTable, flatItems)
+    await _enqueueSync(groupsCol, () => _diffAndSync(groupsCol, groupsTable, groups, { stripKeys: ['items'] }))
+    await _enqueueSync(itemsCol, () => {
+      // Flatten DI DALAM job — group_id diambil setelah insert grup selesai,
+      // dan run-nya sendiri sudah dijamin nggak tumpang-tindih oleh antrean.
+      const flatItems = []
+      groups.forEach(g => (g.items || []).forEach(it => { it.group_id = g.id; flatItems.push(it) }))
+      return _diffAndSync(itemsCol, itemsTable, flatItems)
+    })
   }
 
   function scheduleDiffSyncNested(timerKey, groupsCol, groupsTable, itemsCol, itemsTable, groupsRef) {
@@ -602,7 +651,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     payload.settings = _settingsPayload()
     await Promise.all([
       _upsert(payload),
-      clearedBudget    ? _diffAndSync('budget', 'budget_items', budget.value)           : Promise.resolve(),
+      clearedBudget    ? _enqueueSync('budget', () => _diffAndSync('budget', 'budget_items', budget.value)) : Promise.resolve(),
       clearedAdmin     ? _diffAndSyncNested('adminGroups', 'admin_groups', 'adminItems', 'admin_items', admin.value) : Promise.resolve(),
       clearedChecklist ? _diffAndSyncNested('checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist.value) : Promise.resolve(),
       (isNewUser.value && (data.danaAwal || 0) > 0) ? _seedInitialFundTx(data.danaAwal) : Promise.resolve(),
@@ -1498,13 +1547,13 @@ export const useWeddingStore = defineStore('wedding', () => {
       // engine, `_upsert` di sini cuma bawa settings.
       await Promise.all([
         _upsert({ settings: _settingsPayload() }),
-        _diffAndSync('guests', 'guests', guests.value),
-        _diffAndSync('timeline', 'timeline_tasks', timeline.value),
-        _diffAndSync('budget', 'budget_items', budget.value),
-        _diffAndSync('payments', 'budget_payments', payments.value),
-        _diffAndSync('fund', 'wedding_fund_transactions', fund.value),
-        _diffAndSync('vendors', 'vendors', vendors.value),
-        _diffAndSync('gifts', 'wedding_gifts', gifts.value),
+        _enqueueSync('guests',   () => _diffAndSync('guests', 'guests', guests.value)),
+        _enqueueSync('timeline', () => _diffAndSync('timeline', 'timeline_tasks', timeline.value)),
+        _enqueueSync('budget',   () => _diffAndSync('budget', 'budget_items', budget.value)),
+        _enqueueSync('payments', () => _diffAndSync('payments', 'budget_payments', payments.value)),
+        _enqueueSync('fund',     () => _diffAndSync('fund', 'wedding_fund_transactions', fund.value)),
+        _enqueueSync('vendors',  () => _diffAndSync('vendors', 'vendors', vendors.value)),
+        _enqueueSync('gifts',    () => _diffAndSync('gifts', 'wedding_gifts', gifts.value)),
         _diffAndSyncNested('adminGroups', 'admin_groups', 'adminItems', 'admin_items', admin.value),
         _diffAndSyncNested('checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist.value),
       ])
