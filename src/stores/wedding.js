@@ -1915,8 +1915,11 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   function subscribeRealtime(userId) {
     _channel?.unsubscribe()
+    // Teardown channel lama bisa nge-emit CLOSED telat — itu pergantian
+    // channel yang disengaja (login/ganti partner), bukan koneksi putus.
+    _realtimeWasDown = false
     const listenId = ownerUserId.value || userId
-    _channel = supabase.channel('wd:' + listenId)
+    const ch = supabase.channel('wd:' + listenId)
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'wedding_data',
         filter: `user_id=eq.${listenId}`,
@@ -1989,21 +1992,36 @@ export const useWeddingStore = defineStore('wedding', () => {
         event: '*', schema: 'public', table: 'checklist_items',
         filter: `owner_user_id=eq.${listenId}`,
       }, p => _applyItemChange('checklistItems', checklist, p))
-      // Status channel dipantau buat tahu kapan koneksi PUTUS lalu NYAMBUNG
-      // lagi. Event yang lewat selama putus nggak pernah diulang Supabase,
-      // jadi begitu tersambung ulang data ditarik ulang sekali (catch-up).
-      // SUBSCRIBED pertama (pas baru login) di-skip — datanya baru saja
-      // dimuat loadData(), nggak perlu ditarik dua kali.
-      .subscribe(status => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          _realtimeWasDown = true
-          return
-        }
-        if (status === 'SUBSCRIBED' && _realtimeWasDown) {
+    // Status channel dipantau buat tahu kapan koneksi PUTUS lalu NYAMBUNG
+    // lagi. Event yang lewat selama putus nggak pernah diulang Supabase,
+    // jadi begitu tersambung ulang data WAJIB ditarik ulang (catch-up).
+    // SUBSCRIBED pertama (pas baru login) di-skip — datanya baru saja
+    // dimuat loadData(), nggak perlu ditarik dua kali.
+    _channel = ch
+    ch.subscribe(status => {
+      // Status dari channel lama yang sudah diganti (login ulang / pindah
+      // dashboard pasangan) — abaikan, bukan kondisi koneksi channel aktif.
+      if (_channel !== ch) return
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        _realtimeWasDown = true
+        return
+      }
+      if (status === 'SUBSCRIBED' && _realtimeWasDown) {
+        // force:true — tanpa ini, throttle 15 detik refetchAll bisa nelan
+        // catch-up (mis. refetch on-focus baru saja jalan, socket nyambung
+        // 5 detik kemudian → event di jendela itu hilang selamanya).
+        // Kasus nyata: vendor diaktifkan pasangan di iPhone nggak pernah
+        // muncul di Android sampai di-toggle ulang.
+        // Flag baru dimatikan setelah catch-up TERBUKTI sukses — kalau
+        // refetch ditolak (ada refetch lain in-flight / offline), flag
+        // tetap nyala dan poll 60 detik di initAuth yang nuntasin.
+        refetchAll({ force: true }).then(ok => {
+          if (!ok) return
           _realtimeWasDown = false
-          refetchAll()
-        }
-      })
+          toast('Koneksi pulih — data disinkron ulang')
+        })
+      }
+    })
   }
 
   // ── Partner invite ─────────────────────────────────────────────────
@@ -2249,6 +2267,22 @@ export const useWeddingStore = defineStore('wedding', () => {
     })
     // Koneksi balik setelah offline — kandidat kuat ada yang terlewat.
     window.addEventListener('online', () => refetchAll({ force: true }))
+    // Jaring pengaman selama realtime PUTUS: kasus nyata di Android, app
+    // kebuka terus di depan (nggak ada event focus/visibility yang bisa
+    // micu catch-up) sementara socket-nya mati diam-diam — data makin
+    // tertinggal dari device pasangan. Selama channel belum balik
+    // SUBSCRIBED, tarik ulang data tiap 60 detik. Saat realtime sehat,
+    // interval ini nggak ngapa-ngapain (nol beban, nol kedip UI).
+    setInterval(() => {
+      if (!_realtimeWasDown || document.visibilityState !== 'visible' || !user.value) return
+      refetchAll({ force: true }).then(ok => {
+        // Kalau channel ternyata sudah balik sehat ('joined') dan datanya
+        // barusan sukses ditarik, catch-up selesai lewat jalur ini —
+        // matikan flag biar poll berhenti (jangan refetch tiap menit
+        // selamanya). Selama channel masih putus, flag tetap nyala.
+        if (ok && _channel?.state === 'joined') _realtimeWasDown = false
+      })
+    }, 60000)
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'INITIAL_SESSION') {
         try {
