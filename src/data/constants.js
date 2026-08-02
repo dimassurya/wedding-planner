@@ -324,26 +324,11 @@ export const CHECKLIST_SEED = [
   ]) },
 ]
 
-export const TIMELINE_SEED = [
-  ['Menentukan anggaran',       '2026-06-30','belum',  'wanita',  '',          ''],
-  ['Menentukan tanggal',        '2026-06-30','selesai','keduanya','2026-06-20','Fix 20 Des 2026'],
-  ['Mencari WO/EO',             '2026-07-31','sedang', 'wanita',  '',          'Shortlist 3 vendor'],
-  ['Memesan venue',             '2026-07-31','belum',  'pria',    '',          ''],
-  ['Catering',                  '2026-08-15','belum',  'wanita',  '',          ''],
-  ['Fotografer & videografer',  '2026-08-15','selesai','pria',    '2026-06-15','DP sudah dibayar'],
-].map((r, i) => ({ id: i+1, tugas: r[0], deadline: r[1], status: r[2], pic: r[3], tanggalSelesai: r[4], catatan: r[5] }))
-
-export const TL_STATUS = {
-  belum:   { label: 'Belum',   color: '#B32E33', bg: '#F8E8E8', text: '#7a1a1a' },
-  sedang:  { label: 'Sedang',  color: '#CD9F65', bg: '#F0E6CB', text: '#7a5c28' },
-  selesai: { label: 'Selesai', color: '#E5C99A', bg: '#CD9F65', text: '#3a2a10' },
-}
-
-export const TL_PIC = {
-  pria:     { label: 'Pria',     bg: '#0A1D4B', text: '#fff' },
-  wanita:   { label: 'Wanita',   bg: '#F8E8E8', text: '#7a1a1a' },
-  keduanya: { label: 'Keduanya', bg: '#F0E6CB', text: '#7a5c28' },
-}
+// TIMELINE_SEED/TL_STATUS/TL_PIC dihapus: tab Timeline sekarang read-only
+// & nggak punya data sendiri, jadi nggak ada lagi tugas bawaan yang
+// di-seed ke `timeline_tasks`. Baris lama milik user yang sudah terlanjur
+// ada tetap dibaca & ditampilkan (lihat useTimelineFeed.js), tugas baru
+// dibuat di Checklist.
 
 export const WP_TABS = [
   { tab: 'home',      label: 'Home' },
@@ -354,7 +339,40 @@ export const WP_TABS = [
   { tab: 'checklist', label: 'Checklist' },
   { tab: 'budget',    label: 'Budget' },
   { tab: 'keuangan',  label: 'Keuangan' },
-  { tab: 'timeline',  label: 'Agenda' },
+  { tab: 'timeline',  label: 'Timeline' },
+]
+
+// ── Timeline (halaman read-only) ────────────────────────────────────
+// Kategori sumber data yang muncul di Timeline. Timeline TIDAK punya data
+// sendiri — tiap kategori di sini cuma "label + warna" buat data yang
+// rumahnya di modul lain (lihat useTimelineFeed.js). Nambah sumber baru
+// = tambah entri di sini + satu blok di composable-nya, bukan bikin
+// tabel/tab baru.
+export const TIMELINE_CATEGORIES = {
+  checklist: { icon: '📝', label: 'Checklist',         color: '#CD9F65', tab: 'checklist' },
+  bayar:     { icon: '💰', label: 'Pembayaran',        color: '#B32E33', tab: 'budget' },
+  vendor:    { icon: '🤝', label: 'Vendor',            color: '#0A1D4B', tab: 'vendor' },
+  dokumen:   { icon: '📄', label: 'Dokumen',           color: '#7090C8', tab: 'admin' },
+  gift:      { icon: '💍', label: 'Mahar & Seserahan', color: '#810100', tab: 'gifts' },
+  keuangan:  { icon: '🏦', label: 'Keuangan',          color: '#3B6D11', tab: 'keuangan' },
+  acara:     { icon: '❤️', label: 'Hari Pernikahan',   color: '#6E151A', tab: 'home' },
+}
+export const TIMELINE_CATEGORY_ORDER = ['checklist', 'bayar', 'vendor', 'dokumen', 'gift', 'keuangan', 'acara']
+
+// Acara utama pernikahan. Tanggalnya disimpan di `couple` (settings), satu
+// rumah dengan tanggal Hari-H yang sudah ada — diedit di tab Home, cuma
+// dibaca oleh Timeline.
+export const MAIN_EVENTS = [
+  { key: 'tanggalLamaran', label: 'Lamaran',     icon: '💐' },
+  { key: 'tanggalAkad',    label: 'Akad Nikah',  icon: '🕌' },
+  { key: 'tanggalResepsi', label: 'Resepsi',     icon: '🎊' },
+]
+
+// Jenis jadwal vendor (meeting, food testing, dst). Dipakai section
+// "Jadwal Vendor" di form vendor — tanggalnya otomatis nongol di Timeline.
+export const VENDOR_JADWAL_JENIS = [
+  'Meeting Vendor', 'Food Testing', 'Survey Lokasi', 'Fitting Baju',
+  'Trial Makeup', 'Gladi Bersih', 'Loading Barang', 'Pelunasan', 'Lainnya',
 ]
 
 // Kategori transaksi Wedding Fund (tab Keuangan) — daftar opsi <select>,

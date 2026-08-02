@@ -2,7 +2,7 @@ import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref, computed, reactive } from 'vue'
 import { supabase } from '../lib/supabase'
 import {
-  BUDGET_SEED, ADMIN_SEED, CHECKLIST_SEED, TIMELINE_SEED,
+  BUDGET_SEED, ADMIN_SEED, CHECKLIST_SEED,
   VENDOR_CATEGORIES,
 } from '../data/constants'
 import { downloadJSON, downloadCSV, dateStamp, toCSV, fmt } from '../utils/index'
@@ -60,7 +60,10 @@ export const useWeddingStore = defineStore('wedding', () => {
   const ownerEmail   = ref('')     // email owner (ditampilkan ke partner)
 
   // ── Onboarding / profil pasangan ────────────────────────────────
-  const couple = ref({ pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '' })
+  // tanggalLamaran/tanggalAkad/tanggalResepsi nebeng di sini (bukan tabel
+  // sendiri) karena sifatnya sama persis dengan `tanggal` Hari-H: satu
+  // tanggal per pasangan. Diedit di tab Home, dibaca tab Timeline.
+  const couple = ref({ pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '', tanggalLamaran: '', tanggalAkad: '', tanggalResepsi: '' })
   const targetBudget = ref(0)   // target anggaran nikah — patokan tab Keuangan, diisi saat onboarding atau inline-edit
   const onboarded          = ref(false)   // sudah lewat welcome screen (persist di settings)
   const beginOnboarding    = ref(false)   // sementara: user klik "Bayar Sekarang"
@@ -475,6 +478,7 @@ export const useWeddingStore = defineStore('wedding', () => {
 
   async function completeOnboarding(data) {
     couple.value = {
+      ...couple.value,
       pria: (data.pria || '').trim(),
       wanita: (data.wanita || '').trim(),
       tanggal: data.tanggal || '',
@@ -489,12 +493,11 @@ export const useWeddingStore = defineStore('wedding', () => {
     // biar data user lama tidak terhapus kalau melewati onboarding.
     // budget/timeline sudah pindah ke tabel sendiri — dibersihkan lewat
     // _diffAndSync langsung (di bawah), bukan lagi lewat payload wedding_data.
-    let clearedTimeline = false, clearedBudget = false
+    let clearedBudget = false
     let clearedAdmin = false, clearedChecklist = false
     if (isNewUser.value) {
       const t = data.templates || {}
       if (!t.budget)    { budget.value = [];    clearedBudget = true }
-      if (!t.timeline)  { timeline.value = [];  clearedTimeline = true }
       if (!t.admin)     { admin.value = [];     clearedAdmin = true }
       if (!t.checklist) { checklist.value = []; clearedChecklist = true }
     }
@@ -508,7 +511,6 @@ export const useWeddingStore = defineStore('wedding', () => {
     payload.settings = _settingsPayload()
     await Promise.all([
       _upsert(payload),
-      clearedTimeline  ? _diffAndSync('timeline', 'timeline_tasks', timeline.value)     : Promise.resolve(),
       clearedBudget    ? _diffAndSync('budget', 'budget_items', budget.value)           : Promise.resolve(),
       clearedAdmin     ? _diffAndSyncNested('adminGroups', 'admin_groups', 'adminItems', 'admin_items', admin.value) : Promise.resolve(),
       clearedChecklist ? _diffAndSyncNested('checklistGroups', 'checklist_groups', 'checklistItems', 'checklist_items', checklist.value) : Promise.resolve(),
@@ -1590,17 +1592,12 @@ export const useWeddingStore = defineStore('wedding', () => {
     _seedShadow('payments', [])
     _seedShadow('fund', [])
 
-    // timeline: seed di-insert ke timeline_tasks, id lokal dibuang biar
-    // server generate PK asli
-    const timelineSeedRows = TIMELINE_SEED.map(({ id, ...rest }) => ({
-      owner_user_id: userId,
-      ...rest,
-      deadline: rest.deadline || null,
-      tanggalSelesai: rest.tanggalSelesai || null,
-    }))
-    const { data: insertedTimeline } = await supabase.from('timeline_tasks').insert(timelineSeedRows).select()
-    timeline.value = insertedTimeline || []
-    _seedShadow('timeline', timeline.value)
+    // timeline_tasks SENGAJA tidak di-seed lagi: tab Timeline sekarang
+    // read-only dan tidak punya data sendiri — semua tugas bertanggal
+    // rumahnya di Checklist. Tabelnya tetap dimuat/ditampilkan buat user
+    // lama yang barisnya sudah terlanjur ada (lihat useTimelineFeed.js).
+    timeline.value = []
+    _seedShadow('timeline', [])
 
     // budget: seed dari BUDGET_SEED, id lokal dibuang, jatuhTempo '' → null
     const budgetSeedRows = BUDGET_SEED.map(({ id, ...rest }) => ({
@@ -2072,7 +2069,7 @@ export const useWeddingStore = defineStore('wedding', () => {
         guests.value = []; budget.value = []; payments.value = []; fund.value = []; vendors.value = []
         gifts.value = []; admin.value = []
         checklist.value = []; timeline.value = []
-        couple.value = { pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '' }
+        couple.value = { pria: '', wanita: '', tanggal: '', jamMulai: '', jamSelesai: '', tanggalLamaran: '', tanggalAkad: '', tanggalResepsi: '' }
         targetBudget.value = 0
         onboarded.value = false; beginOnboarding.value = false
         // Bersihin shadow/echo-tracking biar nggak nyangkut kalau akun lain
@@ -2143,7 +2140,7 @@ export const useWeddingStore = defineStore('wedding', () => {
     isSelected, toggleSelected, clearSelected,
     // core
     init, toast,
-    saveG, saveB, saveP, saveF, saveV, saveA, saveCK, saveTL, saveTabOrder,
+    saveG, saveB, saveP, saveF, saveV, saveA, saveCK, saveTL, saveTabOrder, saveSettings,
     // budget
     bStatus, bSisa, bSelisih, bDisplayPrice, budgetSelisihTotal, budgetEstimasiSetCount, budgetOrigin,
     addBudgetItem, delBudget, removeBudgetEmptyItem,

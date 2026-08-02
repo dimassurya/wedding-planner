@@ -132,12 +132,14 @@ function onCurInput(e, field) {
 const TEMPLATES = [
   { key: 'budget',    label: 'Anggaran & Vendor',  hint: 'Daftar item budget pernikahan umum' },
   { key: 'checklist', label: 'Checklist Persiapan', hint: 'To-do list persiapan hari H' },
-  { key: 'timeline',  label: 'Agenda',               hint: 'Contoh tugas berjadwal menuju hari-H' },
   { key: 'admin',     label: 'Administrasi',         hint: 'Daftar syarat & dokumen' },
 ]
 
+// 'timeline' sengaja dihapus dari daftar template: tab Timeline sekarang
+// read-only & nggak punya data sendiri — tugas berjadwal semuanya hidup
+// di Checklist, lalu otomatis muncul di garis waktu.
 const templates = reactive({
-  budget: true, checklist: true, timeline: true, admin: true,
+  budget: true, checklist: true, admin: true,
 })
 
 function done() {

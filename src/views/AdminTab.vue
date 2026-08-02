@@ -87,6 +87,17 @@
             <div class="adm-no">{{ i + 1 }}</div>
             <div class="adm-syarat">
               <input type="text" :value="it.syarat" placeholder="Tulis syarat..." @input="e => { it.syarat = e.target.value; store.saveA() }" @blur="onSyaratBlur(g, it)">
+              <input
+                v-if="editingDateIds.has(it.id)"
+                class="adm-date-input" type="date" :data-id="it.id"
+                :value="it.tanggal || ''"
+                @change="e => onTanggal(it, e.target.value)"
+                @blur="stopEditDate(it.id)"
+              >
+              <button v-else-if="it.tanggal" class="adm-date-chip" :class="{ late: dateInfo(it).late }" @click="startEditDate(it.id)">
+                📅 {{ dateInfo(it).text }}<span v-if="dateInfo(it).rel"> · {{ dateInfo(it).rel }}</span>
+              </button>
+              <button v-else class="adm-date-add" title="Tambah tanggal (muncul di Timeline)" @click="startEditDate(it.id)">📅 Tambah Tanggal</button>
             </div>
             <div class="adm-stat">
               <SwitchToggle :model-value="!!it.status" title="Sudah lengkap?" @update:model-value="v => onToggle(it, v)" />
@@ -107,6 +118,7 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
+import { daysLeft, fmtDate } from '../utils/index'
 import SwitchToggle from '../components/SwitchToggle.vue'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import MobileAdminList from '../mobile layout/MobileAdminList.vue'
@@ -201,6 +213,37 @@ async function addItem(g) {
 function onToggle(it, val) {
   it.status = val
   store.saveA()
+}
+
+// ── Tanggal per syarat (jadwal KUA, pengambilan dokumen, legalisasi, dst).
+// Rumah datanya di sini; tab Timeline cuma baca. Kolom `tanggal` bertipe
+// date di DB, jadi string kosong wajib jadi null (Postgres nolak '').
+const editingDateIds = ref(new Set())
+
+function onTanggal(it, val) {
+  it.tanggal = val || null
+  store.saveA()
+}
+function startEditDate(id) {
+  const s = new Set(editingDateIds.value); s.add(id); editingDateIds.value = s
+  nextTick(() => {
+    const el = document.querySelector(`.adm-date-input[data-id="${id}"]`)
+    el?.focus()
+    el?.showPicker?.()
+  })
+}
+function stopEditDate(id) {
+  const s = new Set(editingDateIds.value); s.delete(id); editingDateIds.value = s
+}
+function dateInfo(it) {
+  const d = daysLeft(it.tanggal)
+  let rel = ''
+  if (!it.status) {
+    if (d === 0) rel = 'Hari ini'
+    else if (d > 0) rel = `${d} hari lagi`
+    else rel = `Terlambat ${Math.abs(d)} hari`
+  }
+  return { text: fmtDate(it.tanggal), rel, late: !it.status && d < 0 }
 }
 
 function onSyaratBlur(g, it) {
@@ -300,6 +343,36 @@ function onImport(e) {
   background: rgba(255,255,255,.15) !important;
   border-color: rgba(255,255,255,.55) !important;
   color: #fff !important;
+}
+
+/* Tanggal per syarat — tampil di bawah nama syarat, bukan kolom baru,
+   biar grid tabel desktop nggak berubah. */
+.adm-date-chip, .adm-date-add {
+  display: inline-block;
+  margin: 2px 0 0 9px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'Jost', sans-serif;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: left;
+}
+.adm-date-chip:hover, .adm-date-add:hover { color: var(--plum); }
+.adm-date-chip.late { color: var(--rose); font-weight: 600; }
+.adm-date-add { opacity: .7; }
+.adm-row:hover .adm-date-add { opacity: 1; }
+.adm-syarat .adm-date-input {
+  width: auto;
+  margin: 4px 0 0 9px;
+  font-family: 'Jost', sans-serif;
+  font-size: 12.5px;
+  color: var(--ink);
+  border: 1.5px solid var(--gold);
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px 6px;
 }
 
 .adm-info {

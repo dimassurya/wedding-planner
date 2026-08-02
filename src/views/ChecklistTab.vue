@@ -194,7 +194,7 @@ const CHECKLIST_STEPS = [
     selector: '#panel-checklist .ck-row-v',
     icon: '☑️',
     title: 'Baris Tugas',
-    desc: 'Aktifkan toggle untuk tandai tugas selesai. Ketuk ikon 📅 buat kasih Deadline (otomatis muncul di Agenda) atau ikon 📝 buat tambah catatan singkat.',
+    desc: 'Aktifkan toggle untuk tandai tugas selesai. Ketuk ikon 📅 buat kasih Deadline (otomatis muncul di Timeline) atau ikon 📝 buat tambah catatan singkat.',
   },
 ]
 

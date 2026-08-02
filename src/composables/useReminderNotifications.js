@@ -63,16 +63,26 @@ function checkReminders(store) {
     })
   })
 
-  ;(store.timeline || []).forEach(t => {
-    if (!t.deadline || t.status === 'selesai') return
+  // Tugas bertanggal: deadline Checklist (rumah tugas sekarang) + sisa
+  // tugas peninggalan tab Timeline lama yang datanya masih ada.
+  const tasks = [
+    ...(store.checklist || []).flatMap(g => (g.items || [])
+      .filter(it => it.deadline && !it.status)
+      .map(it => ({ id: `ck${it.id}`, nama: it.tugas, deadline: it.deadline }))),
+    ...(store.timeline || [])
+      .filter(t => t.deadline && t.status !== 'selesai')
+      .map(t => ({ id: `tl${t.id}`, nama: t.tugas, deadline: t.deadline })),
+  ]
+
+  tasks.forEach(t => {
     const left = daysLeftFrom(today, t.deadline)
     if (left > (store.reminders.daysBeforeTimeline ?? 7)) return
     const key = `timeline-${t.id}-${todayKey}`
     if (lastNotified[key]) return
     toNotify.push({
       key,
-      title: left < 0 ? 'Tugas timeline terlambat' : 'Tugas timeline mendekati deadline',
-      body: `${t.tugas || 'Tugas'} — ${left < 0 ? `lewat ${Math.abs(left)} hari` : left === 0 ? 'hari ini' : `${left} hari lagi`}`,
+      title: left < 0 ? 'Tugas terlambat' : 'Tugas mendekati deadline',
+      body: `${t.nama || 'Tugas'} — ${left < 0 ? `lewat ${Math.abs(left)} hari` : left === 0 ? 'hari ini' : `${left} hari lagi`}`,
     })
   })
 

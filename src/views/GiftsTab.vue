@@ -105,7 +105,8 @@
 
           <div class="g-meta">
             <span class="g-price">Rp {{ grp(g.hargaAktual || g.hargaEstimasi) }}</span>
-            <span v-if="g.tanggalPembelian" class="g-meta-item">{{ fmtDate(g.tanggalPembelian) }}</span>
+            <span v-if="g.tanggalPembelian" class="g-meta-item" title="Tanggal pembelian">🛒 {{ fmtDate(g.tanggalPembelian) }}</span>
+            <span v-if="g.tanggalPenyerahan" class="g-meta-item" title="Tanggal penyerahan">🎁 {{ fmtDate(g.tanggalPenyerahan) }}</span>
             <span v-if="g.namaToko" class="g-meta-item">{{ g.namaToko }}</span>
             <span v-if="g.includeInBudget" class="g-linked" title="Masuk Budget">🔗</span>
           </div>

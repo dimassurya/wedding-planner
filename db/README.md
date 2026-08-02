@@ -125,6 +125,18 @@ oleh kode aplikasi.
     `payments` (audit trail + idempotency key buat webhook, RLS read-only
     untuk owner, tulis cuma lewat service_role dari edge function).
 
+20. `026_timeline_dates.sql` — kolom tanggal untuk tab **Timeline**
+    (halaman read-only pengganti "Agenda"). Timeline tidak menyimpan data
+    sendiri, jadi tanggal yang belum punya rumah ditambahkan ke modul
+    asalnya: `vendors.jadwal` (jsonb array jadwal meeting/food testing/
+    survey/fitting), `admin_items.tanggal` (jadwal KUA, pengambilan
+    dokumen, legalisasi), dan `wedding_gifts."tanggalPenyerahan"`.
+    **Wajib dijalankan sebelum memakai build ini** — tanpa kolom
+    `vendors.jadwal`, semua penyimpanan vendor gagal karena payload dari
+    client selalu menyertakan field tersebut. Tanggal Lamaran/Akad/
+    Resepsi tidak butuh migrasi (ikut `wedding_data.settings->couple`,
+    satu rumah dengan tanggal Hari-H).
+
 ## Pembayaran (iPaymu)
 
 **Status saat ini: penguncian dimatikan.** `VITE_PAYMENT_ENABLED=false`

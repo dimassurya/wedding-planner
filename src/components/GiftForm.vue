@@ -40,9 +40,16 @@
       </select>
     </div>
 
-    <div class="field">
-      <label>Tanggal Pembelian</label>
-      <input type="date" :value="gift.tanggalPembelian || ''" @change="e => setField('tanggalPembelian', e.target.value || null)">
+    <!-- Dua tanggal ini otomatis muncul di tab Timeline (rumah datanya di sini). -->
+    <div class="row2">
+      <div class="field">
+        <label>Tanggal Pembelian</label>
+        <input type="date" :value="gift.tanggalPembelian || ''" @change="e => setField('tanggalPembelian', e.target.value || null)">
+      </div>
+      <div class="field">
+        <label>Tanggal Penyerahan</label>
+        <input type="date" :value="gift.tanggalPenyerahan || ''" @change="e => setField('tanggalPenyerahan', e.target.value || null)">
+      </div>
     </div>
 
     <div class="field">

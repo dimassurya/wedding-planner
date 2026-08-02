@@ -73,8 +73,8 @@ const ALL_STEPS = [
   {
     tab: 'timeline',
     icon: '📅',
-    title: 'Agenda',
-    desc: 'Semua tugas & pembayaran yang bertanggal dalam satu garis waktu menuju hari-H.',
+    title: 'Timeline',
+    desc: 'Semua kegiatan, deadline, dan pembayaran bertanggal dari seluruh tab, urut waktu menuju hari-H.',
   },
   {
     tab: 'vendor',

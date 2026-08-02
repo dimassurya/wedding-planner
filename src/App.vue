@@ -107,7 +107,7 @@
         <GiftsTab v-show="store.activeTab === 'gifts'" />
         <AdminTab     v-show="store.activeTab === 'admin'" />
         <ChecklistTab v-show="store.activeTab === 'checklist'" />
-        <AgendaView   v-show="store.activeTab === 'timeline'" />
+        <TimelineView v-show="store.activeTab === 'timeline'" />
       </main>
 
       <!-- Single global BulkBar + BulkEditModal -->
@@ -160,7 +160,7 @@ import VendorTab    from './views/VendorTab.vue'
 import GiftsTab from './views/GiftsTab.vue'
 import AdminTab     from './views/AdminTab.vue'
 import ChecklistTab from './views/ChecklistTab.vue'
-import AgendaView   from './views/AgendaView.vue'
+import TimelineView from './views/TimelineView.vue'
 import BulkEditModal from './components/modals/BulkEditModal.vue'
 import ToastNotif   from './components/ToastNotif.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'

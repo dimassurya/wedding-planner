@@ -159,15 +159,33 @@
       </div>
     </div>
 
+    <!-- Acara utama — rumah data tanggal Lamaran/Akad/Resepsi/Hari-H.
+         Diisi di sini, dibaca (read-only) oleh tab Timeline. -->
+    <div class="card hm-section hm-events">
+      <div class="hm-chart-title">Acara Utama</div>
+      <div class="hm-ev-grid">
+        <label v-for="ev in EVENT_FIELDS" :key="ev.key" class="hm-ev" :class="{ 'hm-ev-hh': ev.key === 'tanggal' }">
+          <span class="hm-ev-lbl">{{ ev.icon }} {{ ev.label }}</span>
+          <input
+            class="hm-ev-date" type="date"
+            :value="store.couple?.[ev.key] || ''"
+            @change="e => setEventDate(ev.key, e.target.value)"
+          >
+          <span class="hm-ev-sub">{{ eventRel(ev.key) }}</span>
+        </label>
+      </div>
+      <div class="hm-ev-hint">Tanggal yang diisi otomatis muncul di tab Timeline.</div>
+    </div>
+
     <!-- Upcoming deadlines -->
     <div class="card hm-section">
       <div class="hm-chart-title">Deadline Terdekat</div>
       <div v-if="!upcoming.length" class="hm-empty">Belum ada deadline. Isi jatuh tempo di Budget atau deadline tugas di Checklist.</div>
       <div v-else class="hm-deadlines">
-        <button v-for="it in upcoming" :key="it.date + it.label" class="hm-dl hm-clickable" @click="goTab(it.src === 'Budget' ? 'budget' : 'timeline')">
+        <button v-for="it in upcoming" :key="it.key" class="hm-dl hm-clickable" @click="goTab(it.tab)">
           <div class="hm-dl-date">{{ fmtDate(it.date) }}</div>
           <div class="hm-dl-main">
-            <span class="hm-dl-src" :class="'hm-src-' + it.src.toLowerCase()">{{ it.src }}</span>
+            <span class="hm-dl-src" :style="{ color: it.color, background: it.color + '1a' }">{{ it.src }}</span>
             {{ it.label }}
           </div>
           <div class="hm-dl-left">
@@ -189,9 +207,10 @@
 import { ref, computed } from 'vue'
 import { useWeddingStore } from '../stores/wedding'
 import { fmt, fmtDate } from '../utils/index'
-import { META, WEDDING_DATE } from '../data/constants'
+import { META, WEDDING_DATE, MAIN_EVENTS, TIMELINE_CATEGORIES } from '../data/constants'
 import { useIsMobile } from '../mobile layout/useIsMobile'
 import { useReminderNotifications } from '../composables/useReminderNotifications'
+import { useTimelineFeed } from '../composables/useTimelineFeed'
 import TourBtn from '../components/TourBtn.vue'
 import AddPartnerCard from '../components/AddPartnerCard.vue'
 
@@ -200,6 +219,7 @@ const isMobile = useIsMobile()
 const showPartnerCard = ref(false)
 
 const { supported: notifSupported, permission: notifPermission, requestPermission } = useReminderNotifications()
+const { items: timelineItems } = useTimelineFeed()
 
 async function enableReminders() {
   if (!notifSupported.value) { store.toast('Browser ini tidak mendukung notifikasi'); return }
@@ -253,7 +273,7 @@ const HOME_STEPS = computed(() => [
     selector: '#panel-home .hm-deadlines',
     icon: '⏰',
     title: 'Deadline Terdekat',
-    desc: '5 deadline terdekat dari Agenda (tugas belum selesai) dan Budget (jatuh tempo pembayaran). Diurut dari yang paling dekat supaya tidak ada yang kelewat.',
+    desc: '5 hal terdekat yang belum selesai — deadline Checklist, jatuh tempo Budget, jadwal Vendor, dan lainnya. Sumber datanya sama persis dengan tab Timeline.',
   },
 ])
 
@@ -266,6 +286,29 @@ const coupleNames = computed(() => {
   if (c.pria && c.wanita) return `${c.pria} & ${c.wanita}`
   return c.pria || c.wanita || ''
 })
+
+// ── Acara utama ──────────────────────────────────────────────────────
+// Tanggal Lamaran/Akad/Resepsi nebeng di profil pasangan (`couple`), satu
+// rumah dengan tanggal Hari-H yang sudah ada — bukan tabel baru. Tab
+// Timeline cuma membaca dari sini.
+const EVENT_FIELDS = [
+  ...MAIN_EVENTS,
+  { key: 'tanggal', label: 'Hari Pernikahan', icon: '❤️' },
+]
+
+function setEventDate(key, val) {
+  store.couple = { ...store.couple, [key]: val || '' }
+  store.saveSettings()
+}
+
+function eventRel(key) {
+  const date = store.couple?.[key]
+  if (!date) return 'Belum diisi'
+  const d = daysLeft(date)
+  if (d === 0) return 'Hari ini'
+  if (d > 0) return `${d} hari lagi`
+  return `${Math.abs(d)} hari lalu`
+}
 
 const heroTime = computed(() => {
   const c = store.couple || {}
@@ -318,7 +361,9 @@ const progressBars = computed(() => [
   { label: 'Checklist Persiapan',  done: ckDone.value,  total: ckTotal.value,        color: '#CD9F65', tab: 'checklist' },
   { label: 'Dokumen Nikah',        done: aDone.value,   total: aTotal.value,         color: '#0A1D4B', tab: 'admin' },
   { label: 'Mahar & Seserahan',    done: gDone.value,   total: store.gifts.length,   color: '#6E151A', tab: 'gifts' },
-  { label: 'Timeline (tugas)',    done: tlDone.value,  total: store.timeline.length, color: '#CD9F65', tab: 'timeline' },
+  // Tugas peninggalan tab Timeline lama — cuma tampil buat user yang
+  // datanya masih ada; tugas baru sekarang hidup di Checklist.
+  ...(store.timeline.length ? [{ label: 'Tugas Lama', done: tlDone.value, total: store.timeline.length, color: '#CD9F65', tab: 'timeline' }] : []),
   { label: 'Vendor dipilih',      done: vJadi.value,   total: store.vendors.length,  color: '#810100', tab: 'vendor' },
 ].map(b => ({ ...b, pct: b.total ? Math.round(b.done / b.total * 100) : 0 })))
 
@@ -326,17 +371,20 @@ function goTab(tab) { store.activeTab = tab }
 
 const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
 
-const upcoming = computed(() => {
-  const list = []
-  store.timeline.forEach(t => { if (t.deadline && t.status !== 'selesai') list.push({ date: t.deadline, label: t.tugas || 'Tugas', src: 'Agenda' }) })
-  store.checklist.forEach(g => (g.items || []).forEach(it => {
-    if (it.deadline && !it.status) list.push({ date: it.deadline, label: it.tugas || 'Tugas', src: 'Agenda' })
-  }))
-  store.budget.forEach(b => {
-    if (b.jatuhTempo && store.bStatus(b).key !== 'lunas') list.push({ date: b.jatuhTempo, label: 'Bayar: ' + (b.item || '—'), src: 'Budget' })
-  })
-  return list.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0).slice(0, 5)
-})
+// Deadline terdekat — baca dari feed Timeline yang sama (satu sumber
+// aturan buat "apa saja yang bertanggal"), bukan ngumpulin ulang sendiri.
+// Milestone (Hari-H, acara, target tabungan) dikecualikan: ini daftar
+// hal yang perlu DIKERJAKAN, bukan penanda waktu.
+const upcoming = computed(() =>
+  timelineItems.value
+    .filter(e => !e.done && !e.milestone)
+    .slice(0, 5)
+    .map(e => ({
+      key: e.key, date: e.date, label: e.title, src: e.badge,
+      color: TIMELINE_CATEGORIES[e.cat]?.color || '#9C7575',
+      tab: e.goto || 'timeline',
+    }))
+)
 
 const daysLeft = date => {
   const d = new Date(date + 'T00:00:00')
@@ -380,35 +428,28 @@ const alerts = computed(() => {
     })
   }
 
-  // Tugas bertanggal dari dua sumber Agenda: Timeline lama + deadline Checklist.
-  const agendaTasks = [
-    ...store.timeline
-      .filter(t => t.deadline && t.status !== 'selesai')
-      .map(t => ({ deadline: t.deadline, label: t.tugas || 'Tugas' })),
-    ...store.checklist.flatMap(g =>
-      (g.items || [])
-        .filter(it => it.deadline && !it.status)
-        .map(it => ({ deadline: it.deadline, label: it.tugas || 'Tugas' }))
-    ),
-  ]
+  // Aktivitas bertanggal non-pembayaran (Checklist, Vendor, Dokumen, Mahar
+  // & Seserahan, tugas lama) — dibaca dari feed Timeline yang sama biar
+  // hitungannya nggak pernah beda dengan yang ditampilkan di tab Timeline.
+  const tlTasks = timelineItems.value.filter(e => !e.done && !e.milestone && e.cat !== 'bayar')
 
-  const tlOverdue = agendaTasks.filter(t => daysLeft(t.deadline) < 0)
+  const tlOverdue = tlTasks.filter(t => daysLeft(t.date) < 0)
   if (tlOverdue.length) {
     list.push({
       id: 'timeline-overdue', severity: 'danger', icon: '🚨',
-      title: `${tlOverdue.length} tugas terlambat`,
-      desc: summarize(tlOverdue, t => t.label),
-      cta: 'Lihat Agenda', action: () => { store.activeTab = 'timeline' },
+      title: `${tlOverdue.length} aktivitas terlambat`,
+      desc: summarize(tlOverdue, t => t.title),
+      cta: 'Lihat Timeline', action: () => { store.activeTab = 'timeline' },
     })
   }
 
-  const tlSoon = agendaTasks.filter(t => daysLeft(t.deadline) >= 0 && daysLeft(t.deadline) <= 7)
+  const tlSoon = tlTasks.filter(t => daysLeft(t.date) >= 0 && daysLeft(t.date) <= 7)
   if (tlSoon.length) {
     list.push({
       id: 'timeline-soon', severity: 'warning', icon: '📅',
-      title: `${tlSoon.length} tugas deadline minggu ini`,
-      desc: summarize(tlSoon, t => t.label),
-      cta: 'Lihat Agenda', action: () => { store.activeTab = 'timeline' },
+      title: `${tlSoon.length} aktivitas dalam 7 hari ke depan`,
+      desc: summarize(tlSoon, t => t.title),
+      cta: 'Lihat Timeline', action: () => { store.activeTab = 'timeline' },
     })
   }
 
@@ -538,6 +579,48 @@ function donutArcs(segments, top, bottom) {
 </script>
 
 <style scoped>
+/* ── Acara utama ── */
+.hm-ev-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+.hm-ev {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 11px 13px;
+  background: var(--ivory);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.hm-ev:hover { border-color: var(--gold); background: var(--paper); }
+.hm-ev-hh { border-color: var(--gold); background: var(--gold-soft); }
+.hm-ev-lbl {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hm-ev-date {
+  width: 100%;
+  font-family: 'Jost', sans-serif;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.hm-ev-date:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.hm-ev-sub { font-size: 11px; color: var(--muted); }
+.hm-ev-hint { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
+
 /* TourBtn pojok kanan hero */
 .hm-hero { position: relative; }
 

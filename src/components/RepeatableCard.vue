@@ -28,6 +28,13 @@
             </div>
 
             <input
+              v-else-if="field.type === 'date'"
+              type="date"
+              :value="item[field.key] || ''"
+              @change="e => item[field.key] = e.target.value || null"
+            >
+
+            <input
               v-else
               :type="field.type === 'number' ? 'number' : 'text'"
               v-model="item[field.key]"
@@ -77,7 +84,7 @@ import { grp, num } from '../utils/index'
 
 const props = defineProps({
   items: { type: Array, required: true },
-  // [{ key, label, type: 'text'|'number'|'textarea'|'select'|'currency',
+  // [{ key, label, type: 'text'|'number'|'date'|'textarea'|'select'|'currency',
   //    placeholder, full, options: array | (item)=>array, valueType: 'number',
   //    onChange: (item)=>void }]
   fields: { type: Array, required: true },
