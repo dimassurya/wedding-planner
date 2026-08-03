@@ -81,7 +81,7 @@
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .83c0 1.67-2.5 2.5-2.5 2.5"/><circle cx="12" cy="17" r=".5" fill="currentColor"/></svg>
                 Panduan
               </button>
-              <button v-if="canInstall" class="pop-item" @click="install(); showActMenu = false">
+              <button v-if="showInstall" class="pop-item" @click="onInstall">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
                 Install aplikasi
               </button>
@@ -142,6 +142,7 @@
       </template>
 
       <ProfileModal v-if="showProfile" @close="showProfile = false" />
+      <InstallGuideModal v-if="showInstallGuide" @close="showInstallGuide = false" />
       <ConfirmDialog />
       <ToastNotif />
       <WelcomeGuide v-if="store.showWelcomeGuide" />
@@ -152,6 +153,9 @@
 
     <!-- Belum onboarding, ATAU sudah tapi trial habis & belum bayar -->
     <PaymentPage v-else />
+
+    <!-- Di luar gerbang login: tawaran update relevan di kondisi apa pun -->
+    <UpdatePrompt />
   </div>
 </template>
 
@@ -177,6 +181,8 @@ import ChecklistTab from './views/ChecklistTab.vue'
 import TimelineView from './views/TimelineView.vue'
 import BulkEditModal from './components/modals/BulkEditModal.vue'
 import ProfileModal  from './components/modals/ProfileModal.vue'
+import InstallGuideModal from './components/InstallGuideModal.vue'
+import UpdatePrompt from './components/UpdatePrompt.vue'
 import ToastNotif   from './components/ToastNotif.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
 
@@ -188,7 +194,16 @@ import MobileSidebar   from './mobile layout/MobileSidebar.vue'
 import { useReminderNotifications } from './composables/useReminderNotifications'
 
 const store        = useWeddingStore()
-const { canInstall, install } = useInstallPWA() // desktop header only
+const { showInstall, needsManualGuide, install } = useInstallPWA() // desktop header only
+const showInstallGuide = ref(false)
+
+// iOS (mis. iPad yang render header desktop) nggak punya API install —
+// buka panduan manual, bukan prompt otomatis yang nggak akan pernah ada.
+async function onInstall() {
+  showActMenu.value = false
+  if (needsManualGuide.value) { showInstallGuide.value = true; return }
+  await install()
+}
 const { checkReminders } = useReminderNotifications()
 const tabBar       = ref(null)
 const tabsNav      = ref(null)
@@ -354,6 +369,7 @@ onMounted(() => {
       showMoreMenu.value = false
       showActMenu.value = false
       showProfile.value = false
+      showInstallGuide.value = false
     }
   })
 

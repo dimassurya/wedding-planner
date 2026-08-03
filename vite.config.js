@@ -6,7 +6,14 @@ export default defineConfig({
   plugins: [
     vue(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' (bukan 'autoUpdate'): versi baru TIDAK langsung mengambil
+      // alih & memuat ulang halaman sendiri — itu bikin app terasa
+      // "refresh sendiri" pas user lagi ngetik. Sekarang munculkan tawaran
+      // dulu lewat UpdatePrompt.vue, user yang menentukan kapan.
+      registerType: 'prompt',
+      // Registrasi ditangani manual di UpdatePrompt.vue lewat
+      // virtual:pwa-register/vue — jangan diinject lagi biar nggak dobel.
+      injectRegister: null,
       manifest: {
         name: 'Soulmate Planner',
         short_name: 'Soulmate',

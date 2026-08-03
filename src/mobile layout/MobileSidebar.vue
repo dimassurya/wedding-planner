@@ -46,7 +46,7 @@
             {{ store.isPartner ? 'Dashboard Bersama' : store.partnerEmail ? 'Kelola Pasangan' : 'Tambah Pasangan' }}
             <span v-if="store.partnerEmail || store.isPartner" class="m-partner-dot"></span>
           </button>
-          <button v-if="canInstall" class="m-side-row" @click="onInstall">
+          <button v-if="showInstall" class="m-side-row" @click="onInstall">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v13M8 12l4 4 4-4"/><path d="M3 18h18v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1z"/></svg>
             Install Aplikasi
           </button>
@@ -57,6 +57,7 @@
         </div>
 
         <AddPartnerCard v-if="showPartner" @close="showPartner = false" />
+        <InstallGuideModal v-if="showInstallGuide" @close="showInstallGuide = false" />
       </aside>
     </div>
   </transition>
@@ -69,12 +70,14 @@ import { WP_TABS } from '../data/constants'
 import { BOTTOM_TABS } from './mobileNav'
 import { useInstallPWA } from '../composables/useInstallPWA'
 import AddPartnerCard from '../components/AddPartnerCard.vue'
+import InstallGuideModal from '../components/InstallGuideModal.vue'
 
 defineProps({ open: Boolean })
 const emit = defineEmits(['close', 'profile'])
 
 const store = useWeddingStore()
-const { canInstall, install } = useInstallPWA()
+const { showInstall, needsManualGuide, install } = useInstallPWA()
+const showInstallGuide = ref(false)
 const importRef   = ref(null)
 const showPartner = ref(false)
 const syncing     = ref(false)
@@ -120,6 +123,9 @@ function onImport(e) {
 }
 
 async function onInstall() {
+  // iOS nggak punya API install — tampilkan panduan manual, jangan tutup
+  // sidebar-nya dulu biar modalnya kebaca.
+  if (needsManualGuide.value) { showInstallGuide.value = true; return }
   await install()
   emit('close')
 }

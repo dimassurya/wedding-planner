@@ -243,11 +243,17 @@ export const useWeddingStore = defineStore('wedding', () => {
   // tersimpan. Key-nya sama dengan key _timers.
   const _pendingFlush = {}
 
+  // Refetch latar yang lagi jalan. Tulisan yang jatuh tempo di tengah
+  // refetch WAJIB nunggu dulu — kalau nggak, diff-nya bisa lihat shadow
+  // yang lagi di-reseed separuh jalan.
+  let _syncPromise = null
+
   function _schedule(key, fn, delay = 600) {
     clearTimeout(_timers[key])
     _pendingFlush[key] = fn
-    _timers[key] = setTimeout(() => {
+    _timers[key] = setTimeout(async () => {
       delete _pendingFlush[key]
+      if (_syncPromise) { try { await _syncPromise } catch (_) {} }
       fn()
     }, delay)
   }
@@ -2166,26 +2172,33 @@ export const useWeddingStore = defineStore('wedding', () => {
   async function refetchAll({ force = false, quiet = true } = {}) {
     if (!user.value || _refetching || loading.value) return false
     // Jangan narik ulang tiap kali app dilirik sebentar — focus/visibility
-    // bisa nyala beruntun. Tombol manual pakai force:true biar selalu jalan.
-    if (!force && Date.now() - _lastRefetchAt < 15000) return false
+    // bisa nyala beruntun (pindah app, buka notifikasi, dst).
+    // Tombol manual pakai force:true biar selalu jalan.
+    if (!force && Date.now() - _lastRefetchAt < 60000) return false
 
     _refetching = true
-    try {
+    const run = (async () => {
       await flushPendingSaves()
       const ownerUid = ownerUserId.value || user.value.id
-      loading.value = true
-      try {
-        const { data } = await supabase.from('wedding_data')
-          .select('*').eq('user_id', ownerUid).maybeSingle()
-        if (data) _applyData(data)
-        await Promise.all([
-          _loadGuestsAndTimeline(ownerUid),
-          _loadBudgetVendorsGifts(ownerUid),
-          _loadAdminAndChecklist(ownerUid),
-        ])
-      } finally {
-        loading.value = false
-      }
+      // SENGAJA TIDAK menyentuh `loading` — flag itu memunculkan overlay
+      // layar penuh "Menghubungkan ke server…" (App.vue), yang buat catch-up
+      // latar terasa seperti aplikasi nge-refresh sendiri tiap kali pindah
+      // app. Pengaman race-nya sekarang lewat _syncPromise: tulisan yang
+      // jatuh tempo di tengah refetch nunggu ini selesai dulu (lihat
+      // _schedule), jadi shadow nggak pernah ke-diff pas separuh reseed.
+      const { data } = await supabase.from('wedding_data')
+        .select('*').eq('user_id', ownerUid).maybeSingle()
+      if (data) _applyData(data)
+      await Promise.all([
+        _loadGuestsAndTimeline(ownerUid),
+        _loadBudgetVendorsGifts(ownerUid),
+        _loadAdminAndChecklist(ownerUid),
+      ])
+    })()
+    _syncPromise = run
+
+    try {
+      await run
       _lastRefetchAt = Date.now()
       if (!quiet) toast('Data tersinkron')
       return true
@@ -2195,6 +2208,7 @@ export const useWeddingStore = defineStore('wedding', () => {
       return false
     } finally {
       _refetching = false
+      if (_syncPromise === run) _syncPromise = null
     }
   }
 
