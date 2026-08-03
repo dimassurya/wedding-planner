@@ -259,7 +259,7 @@
       <div class="gh-table-inner">
       <div class="gh-thead" :style="{ top: headTop + 'px' }">
         <div class="gh-cbx"><input type="checkbox" class="cbx" :checked="allVisSelected" :indeterminate.prop="someVisSelected && !allVisSelected" @change="toggleAll"></div>
-        <div class="gh-h-center">No</div><div>Nama Tamu</div><div class="gh-h-center">Jumlah</div><div>Relasi</div><div>Informasi Penting</div><div>Kehadiran</div><div class="gh-actions"></div>
+        <div class="gh-h-center">No</div><div>Nama Tamu</div><div class="gh-h-center">Jumlah</div><div>Relasi</div><div>Informasi Penting</div><div>Kehadiran</div><div></div><div class="gh-actions"></div>
       </div>
 
       <div v-if="!visRows.length" class="empty">
@@ -267,8 +267,16 @@
         <div>{{ search || filterRelasi !== 'all' || filterKehadiran !== 'all' ? 'Tidak ada yang cocok.' : 'Klik Tambah Tamu untuk mulai.' }}</div>
       </div>
 
-      <div v-for="(g, i) in visRows" :key="g.id" class="gh-trow" :class="{ sel: store.isSelected(g.id), unconfirmed: (g.kehadiran || 'belum') === 'tidak' }" :data-id="g.id">
-        <div class="gh-cbx"><input type="checkbox" class="cbx rowcbx" :checked="store.isSelected(g.id)" @change="e => store.toggleSelected(g.id, e.target.checked)"></div>
+      <div v-for="(g, i) in visRows" :key="g.id" class="gh-rowwrap">
+      <!-- Seluruh baris jadi area klik buat buka/tutup detail (bukan cuma
+           chevron-nya). Elemen interaktif di dalamnya dikasih @click.stop
+           biar checkbox/dropdown/tombol nggak ikut nge-toggle. -->
+      <div
+        class="gh-trow" :class="{ sel: store.isSelected(g.id), unconfirmed: (g.kehadiran || 'belum') === 'tidak', open: expandedIds.has(g.id) }"
+        :data-id="g.id"
+        @click="toggleExpand(g.id)"
+      >
+        <div class="gh-cbx" @click.stop><input type="checkbox" class="cbx rowcbx" :checked="store.isSelected(g.id)" @change="e => store.toggleSelected(g.id, e.target.checked)"></div>
         <div class="gh-no">{{ i + 1 }}</div>
         <div class="gh-name">{{ g.nama }}</div>
         <div class="gh-pax-wrap"><span class="gh-pax">{{ g.jumlah }}</span></div>
@@ -284,7 +292,7 @@
           </template>
           <span v-else class="gh-info-none">—</span>
         </div>
-        <div class="gh-konf">
+        <div class="gh-konf" @click.stop>
           <select
             class="gh-keh-sel"
             :class="'ks-' + (g.kehadiran || 'belum')"
@@ -294,11 +302,44 @@
             <option v-for="k in KEHADIRAN_ORDER" :key="k" :value="k">{{ KEHADIRAN_ICONS[k] }} {{ KEHADIRAN_STATUS[k].label }}</option>
           </select>
         </div>
-        <div class="gh-actions">
+        <button
+          class="gh-expand-btn" :class="{ open: expandedIds.has(g.id) }"
+          :aria-expanded="expandedIds.has(g.id)"
+          :aria-label="expandedIds.has(g.id) ? 'Tutup detail tamu' : 'Lihat detail tamu'"
+          @click.stop="toggleExpand(g.id)"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="gh-actions" @click.stop>
           <button class="act item-action-btn" @click="openEdit(g.id)" title="Edit">
             <svg viewBox="0 0 24 24" fill="none" stroke="#6E151A" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
           </button>
         </div>
+      </div>
+
+      <!-- Panel detail — isinya sama persis dengan panel kartu mobile
+           (MobileGuestList.vue), biar informasi yang kelihatan di HP dan
+           di PC nggak beda. -->
+      <div v-if="expandedIds.has(g.id)" class="gh-detail-panel">
+        <div class="gh-dp-meta">
+          👥 {{ META[g.relasi]?.label || 'Lainnya' }} · Diundang ke {{ g.undangan || 'keduanya' }}
+        </div>
+
+        <div class="gh-dp-lbl">✨ Informasi Penting</div>
+
+        <template v-if="infoPentingIcons(g).length || (g.catatan || '').trim()">
+          <div v-if="infoPentingIcons(g).length" class="gh-dp-chips">
+            <span v-for="c in infoPentingIcons(g)" :key="c.id" class="gh-dp-chip">{{ c.icon }} {{ c.label }}</span>
+          </div>
+          <div v-for="(d, idx) in infoDetails(g)" :key="idx" class="gh-dp-detail">{{ d }}</div>
+          <div v-if="(g.catatan || '').trim()" class="gh-dp-note">📝 {{ g.catatan }}</div>
+        </template>
+        <div v-else class="gh-dp-empty">Tidak ada informasi khusus untuk tamu ini.</div>
+
+        <button class="gh-dp-edit" @click="openEdit(g.id)">
+          {{ infoPentingIcons(g).length || (g.catatan || '').trim() ? 'Ubah data tamu' : 'Tambah informasi penting' }} →
+        </button>
+      </div>
       </div>
       </div>
     </div>
@@ -557,6 +598,38 @@ function infoPentingIcons(g) {
   return INFORMASI_PENTING_OPTIONS.filter(o => flags.includes(o.id))
 }
 
+// Field tambahan milik chip tertentu (alergi/menginap/pendamping) jadi
+// kalimat pendek — cuma yang chip-nya aktif DAN isinya ada. Sama persis
+// dengan infoDetails() di MobileGuestList.vue supaya isi panel detail di
+// PC & HP tidak pernah beda.
+function infoDetails(g) {
+  const d = g.informasiPenting || {}
+  const flags = d.flags || []
+  const out = []
+  if (flags.includes('alergi') && (d.jenisAlergi || '').trim()) {
+    out.push(`Alergi: ${d.jenisAlergi.trim()}`)
+  }
+  if (flags.includes('menginap')) {
+    const parts = []
+    if (d.jumlahKamar) parts.push(`${d.jumlahKamar} kamar`)
+    if ((d.catatanMenginap || '').trim()) parts.push(d.catatanMenginap.trim())
+    if (parts.length) out.push(`Menginap: ${parts.join(' · ')}`)
+  }
+  if (flags.includes('pendamping') && d.jumlahPendamping) {
+    out.push(`Butuh ${d.jumlahPendamping} pendamping`)
+  }
+  return out
+}
+
+// Baris yang lagi kebuka. Boleh lebih dari satu sekaligus — sama seperti
+// kartu mobile, biar bisa bandingin dua tamu tanpa yang satu ketutup.
+const expandedIds = ref(new Set())
+function toggleExpand(id) {
+  const s = new Set(expandedIds.value)
+  s.has(id) ? s.delete(id) : s.add(id)
+  expandedIds.value = s
+}
+
 function openAdd()     { editId.value = null; modalShow.value = true }
 function openEdit(id)  { editId.value = id;   modalShow.value = true }
 
@@ -813,7 +886,7 @@ onBeforeUnmount(() => {
 .gh-table-inner { min-width: 0; }
 .gh-thead, .gh-trow {
   display: grid;
-  grid-template-columns: 26px 28px minmax(0,1fr) 54px 118px 92px 148px 40px;
+  grid-template-columns: 26px 28px minmax(0,1fr) 54px 118px 92px 148px 28px 40px;
   align-items: center;
   gap: 10px;
   padding: 8px 16px;
@@ -834,10 +907,73 @@ onBeforeUnmount(() => {
 @media (max-width: 680px) {
   .gh-thead { position: static; }
 }
-.gh-trow { min-height: 44px; }
-.gh-trow + .gh-trow { border-top: 1px solid var(--line); }
+.gh-trow { min-height: 44px; cursor: pointer; transition: background .15s; }
+.gh-trow:hover { background: var(--ivory); }
+.gh-trow.open { background: var(--ivory); }
+/* Isi sel yang bukan tombol tetap boleh diseleksi teksnya (nama tamu dsb) */
+.gh-trow .gh-cbx, .gh-trow .gh-konf, .gh-trow .gh-actions { cursor: default; }
+/* Border pindah ke pembungkus: baris & panel detailnya satu kesatuan, jadi
+   garis pemisah harus antar-TAMU, bukan antara baris & panelnya sendiri. */
+.gh-rowwrap + .gh-rowwrap { border-top: 1px solid var(--line); }
 .gh-trow.sel { background: rgba(129,1,0,.04); }
 .gh-trow.unconfirmed { opacity: .7; }
+
+/* ── Tombol expand + panel detail (isi sama dgn kartu mobile) ── */
+.gh-expand-btn {
+  width: 28px; height: 28px; padding: 0; border: none; background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); border-radius: 6px; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.gh-expand-btn:hover { background: var(--ivory); color: var(--plum); }
+.gh-expand-btn svg { transition: transform .15s; }
+.gh-expand-btn.open svg { transform: rotate(180deg); }
+
+/* Panel detail sengaja DATAR (bukan kartu) biar nyatu sama barisnya —
+   pembedanya cukup latar ivory, tanpa garis/border/bayangan. */
+.gh-detail-panel {
+  padding: 10px 16px 14px 64px;
+  background: var(--ivory);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.gh-dp-meta { font-size: 12.5px; color: var(--muted); }
+.gh-dp-lbl {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--plum);
+}
+.gh-dp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.gh-dp-chip {
+  font-size: 12px; font-weight: 500; color: var(--ink);
+  background: var(--paper); border: 1px solid var(--line);
+  border-radius: 100px; padding: 4px 10px;
+}
+.gh-dp-detail {
+  position: relative;
+  padding-left: 13px;
+  font-size: 12.5px; color: var(--ink); line-height: 1.5;
+}
+.gh-dp-detail::before {
+  content: '';
+  position: absolute;
+  left: 2px; top: 8px;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+.gh-dp-note {
+  font-size: 12.5px; color: var(--muted); line-height: 1.5;
+  background: var(--paper); border-radius: 8px; padding: 7px 10px;
+  word-break: break-word;
+}
+.gh-dp-empty { font-size: 12.5px; color: var(--muted); font-style: italic; }
+.gh-dp-edit {
+  align-self: flex-start; margin-top: 2px; padding: 2px 0;
+  background: none; border: none; cursor: pointer;
+  font-family: 'Jost', sans-serif; font-size: 12px; font-weight: 600; color: var(--plum);
+}
+.gh-dp-edit:hover { text-decoration: underline; }
 .gh-h-center { text-align: center; }
 .gh-cbx { display: flex; }
 .gh-no { text-align: center; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
