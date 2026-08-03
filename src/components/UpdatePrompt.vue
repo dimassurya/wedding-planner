@@ -19,16 +19,37 @@ import { useRegisterSW } from 'virtual:pwa-register/vue'
 
 // Cek pembaruan berkala — app ini sering dibiarkan kebuka berjam-jam,
 // tanpa ini tawaran update baru muncul saat halaman dibuka ulang.
-const CEK_TIAP = 60 * 60 * 1000 // 1 jam
+const CEK_TIAP = 30 * 60 * 1000 // 30 menit
+const JEDA_MIN = 60 * 1000      // throttle: maksimal 1 cek per menit
 
 const { needRefresh, updateServiceWorker } = useRegisterSW({
   onRegisteredSW(swUrl, registration) {
     if (!registration) return
-    setInterval(async () => {
+    let terakhirCek = Date.now()
+
+    async function cekUpdate() {
       // Jangan cek pas offline — cuma bikin error di console.
       if (!navigator.onLine) return
+      if (Date.now() - terakhirCek < JEDA_MIN) return
+      terakhirCek = Date.now()
       try { await registration.update() } catch (_) {}
-    }, CEK_TIAP)
+    }
+
+    setInterval(cekUpdate, CEK_TIAP)
+
+    // PENTING buat HP: app yang sudah di-install hampir selalu "resume
+    // dari background", BUKAN load ulang halaman — jadi pengecekan saat
+    // registrasi nggak pernah jalan lagi. Tanpa hook ini, tawaran update
+    // bisa telat sampai setengah jam walau versi baru sudah lama live
+    // (kejadian nyata: fitur baru nggak muncul di HP padahal sudah
+    // deploy). registerType tetap 'prompt' — user yang mutusin kapan
+    // muat ulang, app nggak pernah refresh sendiri.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') cekUpdate()
+    })
+    window.addEventListener('focus', cekUpdate)
+    // Koneksi balik setelah offline — kandidat kuat ada versi baru terlewat.
+    window.addEventListener('online', () => { terakhirCek = 0; cekUpdate() })
   },
 })
 
