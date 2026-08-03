@@ -147,10 +147,10 @@ const showInfoPenting = ref(false)
 function blankForm() {
   return {
     nama: '', jumlah: 2, undangan: 'keduanya', relasi: 'cpp', kehadiran: 'belum', catatan: '',
-    // Informasi Penting: state lokal-only buat sekarang (lihat catatan di
-    // INFORMASI_PENTING_OPTIONS) — sengaja TIDAK dikirim ke store.saveGuest
-    // karena kolom databasenya belum ada. Struktur ini yang bakal dipakai
-    // pas tahap berikutnya nyambungin ke Business Logic.
+    // Informasi Penting sekarang BENERAN tersimpan (kolom jsonb
+    // guests."informasiPenting", lihat db/028) — dipakai kolom Informasi
+    // Penting di tabel desktop, statistik Special Attention, dan panel
+    // detail kartu tamu mobile.
     informasiPenting: { flags: [], jenisAlergi: '', jumlahKamar: 1, catatanMenginap: '', jumlahPendamping: 1 },
   }
 }
@@ -168,11 +168,26 @@ watch(() => props.show, open => {
   if (!open) return
   if (guest.value) {
     const g = guest.value
-    form.value = { ...blankForm(), nama: g.nama, jumlah: g.jumlah, undangan: g.undangan || 'keduanya', relasi: g.relasi, kehadiran: g.kehadiran || 'belum', catatan: g.catatan || '' }
+    const blank = blankForm()
+    form.value = {
+      ...blank,
+      nama: g.nama, jumlah: g.jumlah, undangan: g.undangan || 'keduanya',
+      relasi: g.relasi, kehadiran: g.kehadiran || 'belum', catatan: g.catatan || '',
+      // Merge ke bentuk lengkap: baris lama (sebelum db/028) nggak punya
+      // field ini, dan flags wajib array baru — bukan referensi ke array
+      // milik store, biar batal-edit nggak diam-diam mengubah data.
+      informasiPenting: {
+        ...blank.informasiPenting,
+        ...(g.informasiPenting || {}),
+        flags: [...(g.informasiPenting?.flags || [])],
+      },
+    }
   } else {
     form.value = blankForm()
   }
-  showInfoPenting.value = false
+  // Jangan sembunyiin data yang udah keisi di balik accordion — pola sama
+  // seperti showMore* di VendorModal.
+  showInfoPenting.value = form.value.informasiPenting.flags.length > 0
   nextTick(() => namaInput.value?.focus())
 })
 
@@ -185,6 +200,22 @@ const { rebaseline } = useFormDraft('guest', {
   onRestore: () => store.toast('Isian terakhirmu dipulihkan'),
 })
 
+// Bersihkan sebelum simpan: field tambahan cuma disertakan kalau chip
+// pemiliknya aktif, biar nggak ada sisa data yatim (mis. "jenis alergi"
+// masih kesimpen padahal chip Alergi udah dimatikan).
+function cleanInfoPenting() {
+  const ip = form.value.informasiPenting
+  const flags = [...ip.flags]
+  const out = { flags }
+  if (flags.includes('alergi')) out.jenisAlergi = (ip.jenisAlergi || '').trim()
+  if (flags.includes('menginap')) {
+    out.jumlahKamar = ip.jumlahKamar || 1
+    out.catatanMenginap = (ip.catatanMenginap || '').trim()
+  }
+  if (flags.includes('pendamping')) out.jumlahPendamping = ip.jumlahPendamping || 1
+  return out
+}
+
 async function save(addAnother) {
   if (!form.value.nama.trim()) { store.toast('Nama belum diisi'); return }
   const ok = await store.saveGuest({
@@ -194,6 +225,7 @@ async function save(addAnother) {
     relasi:    form.value.relasi,
     kehadiran: form.value.kehadiran,
     catatan:   form.value.catatan.trim(),
+    informasiPenting: cleanInfoPenting(),
   }, props.editId)
   if (!ok) return   // saveGuest sudah toast pesan errornya sendiri
   store.toast(props.editId ? 'Perubahan tersimpan' : 'Tamu ditambahkan')

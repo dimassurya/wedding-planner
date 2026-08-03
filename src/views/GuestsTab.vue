@@ -279,9 +279,10 @@
         </div>
         <div class="gh-info-cell">
           <template v-if="infoPentingIcons(g).length">
-            <span v-for="ic in infoPentingIcons(g).slice(0, 3)" :key="ic" class="gh-info-badge">{{ ic }}</span>
-            <span v-if="infoPentingIcons(g).length > 3" class="gh-info-more">+{{ infoPentingIcons(g).length - 3 }}</span>
+            <span v-for="o in infoPentingIcons(g).slice(0, 3)" :key="o.id" class="gh-info-badge" :title="o.label">{{ o.icon }}</span>
+            <span v-if="infoPentingIcons(g).length > 3" class="gh-info-more" :title="infoPentingIcons(g).slice(3).map(o => o.label).join(', ')">+{{ infoPentingIcons(g).length - 3 }}</span>
           </template>
+          <span v-else class="gh-info-none">—</span>
         </div>
         <div class="gh-konf">
           <select
@@ -547,13 +548,13 @@ function setKehadiran(g, val) {
   store.saveG()
 }
 
-// Badge Informasi Penting di Data Grid — g.informasiPenting belum pernah
-// ada di data asli (lihat memory guest-form-informasi-penting), jadi ini
-// akan selalu kosong sekarang. Ditulis begini biar begitu kolomnya beneran
-// kesimpen di tahap berikutnya, badge ini otomatis kepakai tanpa refactor.
+// Badge Informasi Penting di Data Grid. Sumbernya kolom jsonb
+// guests."informasiPenting" (db/028) — baris lama belum punya field ini,
+// jadi tetap dijaga optional chaining. Objek (bukan cuma ikon) supaya
+// badge-nya bisa dikasih tooltip nama kategorinya.
 function infoPentingIcons(g) {
   const flags = g.informasiPenting?.flags || []
-  return flags.map(id => INFORMASI_PENTING_OPTIONS.find(o => o.id === id)?.icon).filter(Boolean)
+  return INFORMASI_PENTING_OPTIONS.filter(o => flags.includes(o.id))
 }
 
 function openAdd()     { editId.value = null; modalShow.value = true }
@@ -856,6 +857,7 @@ onBeforeUnmount(() => {
 .gh-info-cell { display: flex; align-items: center; gap: 3px; font-size: 14px; }
 .gh-info-badge { line-height: 1; }
 .gh-info-more { font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 1px; }
+.gh-info-none { color: var(--line); font-size: 12px; }
 
 .gh-pax-wrap { text-align: center; }
 .gh-pax { font-family: 'Cormorant Garamond', serif; font-size: 15px; font-weight: 700; color: var(--plum); }

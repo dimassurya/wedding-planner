@@ -1,0 +1,37 @@
+-- ============================================================
+--  028_guest_informasi_penting.sql — simpan "Informasi Penting" tamu.
+--
+--  Chip Informasi Penting (VIP, bawa bayi, lansia, kursi roda, alergi,
+--  vegetarian, menginap, butuh pendamping, dst.) sudah ada di form
+--  Tambah/Ubah Tamu sejak lama, TAPI belum pernah punya kolom di
+--  database — isinya cuma hidup di state form lalu hilang begitu modal
+--  ditutup (lihat catatan lama di GuestModal.vue & constants.js).
+--  Akibatnya kolom "Informasi Penting" di tabel Tamu desktop selalu
+--  kosong, statistik Special Attention selalu 0, dan panel detail di
+--  kartu tamu mobile nggak punya apa-apa buat ditampilkan.
+--
+--  Satu kolom jsonb dipilih (bukan belasan kolom boolean) karena:
+--   - daftar kategorinya masih berkembang (INFORMASI_PENTING_OPTIONS),
+--     nambah opsi baru nggak perlu migrasi lagi;
+--   - beberapa opsi bawa field tambahan sendiri (jenis alergi, jumlah
+--     kamar + catatan menginap, jumlah pendamping) yang cuma relevan
+--     kalau chip-nya aktif.
+--
+--  Bentuk isinya:
+--    {
+--      "flags": ["vip","alergi","menginap"],
+--      "jenisAlergi": "kacang, seafood",
+--      "jumlahKamar": 2,
+--      "catatanMenginap": "check-in H-1",
+--      "jumlahPendamping": 1
+--    }
+--  Default '{}' — client baca lewat `g.informasiPenting?.flags || []`,
+--  jadi baris lama tanpa data tetap aman tanpa backfill.
+--
+--  Aman & non-destruktif: cuma menambah 1 kolom. Tabel guests sudah
+--  replica identity full (009), jadi kolom baru otomatis ikut ke payload
+--  realtime tanpa perubahan lain.
+-- ============================================================
+
+alter table public.guests
+  add column if not exists "informasiPenting" jsonb not null default '{}'::jsonb;

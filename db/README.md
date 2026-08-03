@@ -149,6 +149,17 @@ oleh kode aplikasi.
     meninjaunya. Perbaikan sisi client ada di `wedding.js` (antrean
     `_enqueueSync` per kolom + penanda `_insertInFlight`).
 
+22. `028_guest_informasi_penting.sql` — kolom jsonb
+    `guests."informasiPenting"`. Chip Informasi Penting (VIP, bawa bayi,
+    lansia, kursi roda, alergi, menginap, butuh pendamping, dst.) sudah
+    lama ada di form Tamu tapi **belum pernah tersimpan** — cuma hidup di
+    state form lalu hilang, jadi kolom Informasi Penting di tabel desktop
+    selalu kosong & statistik Special Attention selalu 0. Satu kolom jsonb
+    (bukan belasan boolean) karena daftar kategorinya masih berkembang dan
+    sebagian opsi bawa field tambahan sendiri (jenis alergi, jumlah kamar +
+    catatan menginap, jumlah pendamping). Default `'{}'` — baris lama aman
+    tanpa backfill. Sudah dijalankan di production 2026-08-03.
+
 ## Pembayaran (iPaymu)
 
 **Status saat ini: penguncian dimatikan.** `VITE_PAYMENT_ENABLED=false`

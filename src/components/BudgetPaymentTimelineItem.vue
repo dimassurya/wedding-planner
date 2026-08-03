@@ -1,5 +1,5 @@
 <template>
-  <div class="bpt-item" :class="{ done: payment.paid }">
+  <div class="bpt-item" :class="{ done: payment.paid, editable }">
     <span class="bpt-check" :class="{ on: payment.paid }" :aria-label="payment.paid ? 'Lunas' : 'Belum dibayar'">
       <svg v-if="payment.paid" viewBox="0 0 20 20" fill="none"><path d="M4 10l4.5 4.5L16 6" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </span>
@@ -45,17 +45,25 @@
       <span v-if="!editable && payment.remarks" class="bpt-remarks-text">{{ payment.remarks }}</span>
     </div>
 
+    <!-- Read-only (preview di tab Budget): nominal tetap sejajar, muat. -->
     <div v-if="!editable" class="bpt-amt">{{ fmt(payment.amount) }}</div>
-    <div v-else class="bpt-amt-edit"><span class="bpt-rp">Rp</span>
-      <input type="text" inputmode="numeric" :value="grp(payment.amount)" @input="onAmt">
-    </div>
-
-    <button v-if="editable && !payment.paid" class="bpt-pay" @click="onPaymentAction">Bayar</button>
-    <button v-else-if="editable" class="bpt-revert" @click="onPaymentAction">Batalkan</button>
 
     <button v-if="editable" class="bpt-del" @click="onDelete" title="Hapus termin">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
     </button>
+
+    <!-- Mode editable: nominal + tombol aksi dapat BARIS SENDIRI di bawah.
+         Sejajar sama nama/chip bikin kolom teks kesisa cuma puluhan piksel
+         di lebar HP — chip status nggak bisa menyusut, jadi meluber &
+         tumpang-tindih sama input nominal. -->
+    <div v-if="editable" class="bpt-actions">
+      <label class="bpt-amt-edit">
+        <span class="bpt-rp">Rp</span>
+        <input type="text" inputmode="numeric" :value="grp(payment.amount)" @input="onAmt" aria-label="Nominal termin">
+      </label>
+      <button v-if="!payment.paid" class="bpt-pay" @click="onPaymentAction">Bayar</button>
+      <button v-else class="bpt-revert" @click="onPaymentAction">Batalkan</button>
+    </div>
   </div>
 </template>
 
@@ -160,6 +168,34 @@ function onDelete() { store.delPayment(props.payment.id) }
 }
 .bpt-item + .bpt-item { border-top: 1px solid var(--line); }
 
+/* ── Mode editable (modal Detail Item) — layout 2 baris ──
+   Baris 1: [✓] nama termin ............... [hapus]
+   Baris 2: [Rp nominal ........] [Bayar]
+   Dulu semuanya sejajar 1 baris: 4 elemen lebar-tetap (check 18 + nominal
+   104 + tombol + hapus 22 + gap) makan ~228px dari lebar modal, jadi di
+   HP kolom nama cuma kesisa puluhan piksel dan chip status (flex:none,
+   nowrap) meluber nabrak input nominal. */
+.bpt-item.editable {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 22px;
+  grid-template-areas:
+    "check body del"
+    "acts  acts acts";
+  column-gap: 8px;
+  row-gap: 10px;
+  align-items: center;
+  padding: 12px 2px;
+}
+.bpt-item.editable .bpt-check { grid-area: check; }
+.bpt-item.editable .bpt-body  { grid-area: body; }
+.bpt-item.editable .bpt-del   { grid-area: del; }
+
+.bpt-actions { grid-area: acts; display: flex; align-items: center; gap: 8px; }
+/* Input nominal jadi lega (dulu dipatok 104px), tombol tetap seukuran teks. */
+.bpt-actions .bpt-amt-edit { flex: 1 1 auto; width: auto; max-width: 220px; }
+.bpt-actions .bpt-pay,
+.bpt-actions .bpt-revert { flex: none; }
+
 .bpt-check {
   flex: none; width: 18px; height: 18px;
   border-radius: 50%; border: 1.5px solid var(--line); background: var(--paper);
@@ -171,12 +207,18 @@ function onDelete() { store.delPayment(props.payment.id) }
 .bpt-body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
 
 .bpt-line1 { display: flex; align-items: center; }
+/* Garis bawah SELALU kelihatan (dulu transparan, cuma nongol saat focus) —
+   tanpa itu nama termin kebaca kayak teks biasa, bukan field yang bisa
+   diisi. Ketebalan saat focus dinaikin lewat box-shadow, bukan border-width,
+   biar tinggi barisnya nggak bergeser. */
 .bpt-title-input {
   width: 100%; min-width: 0; box-sizing: border-box; font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 500; color: var(--ink);
-  border: none; border-bottom: 1px solid transparent; background: transparent; padding: 1px 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  border: none; border-bottom: 1px solid var(--line); background: transparent; padding: 2px 0 5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: border-color .15s, box-shadow .15s;
 }
-.bpt-title-input:focus { outline: none; border-bottom-color: var(--gold); }
+.bpt-title-input::placeholder { color: #c2b4bc; font-style: italic; }
+.bpt-title-input:hover { border-bottom-color: var(--muted); }
+.bpt-title-input:focus { outline: none; border-bottom-color: var(--gold); box-shadow: 0 1px 0 0 var(--gold); }
 .bpt-title { font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .bpt-line2 { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; line-height: 1.3; row-gap: 8px; }
@@ -192,11 +234,15 @@ function onDelete() { store.delPayment(props.payment.id) }
 .bpt-chip-source.src-fund     { color: #7a5c28; background: var(--gold-soft); }
 .bpt-chip-source.src-external { color: var(--muted); background: var(--ivory); }
 
+/* Dikasih bingkai tipis biar kebaca sebagai field yang bisa diketuk —
+   sebelumnya polos tanpa border, di layar HP kelihatan kayak teks nyasar. */
 .bpt-date-inline {
-  font-family: inherit; font-size: 11px; color: var(--muted); white-space: nowrap;
-  border: none; background: transparent; padding: 0; max-width: 108px; cursor: pointer;
+  font-family: inherit; font-size: 11.5px; color: var(--muted); white-space: nowrap;
+  border: 1px solid var(--line); background: var(--paper); border-radius: 7px;
+  padding: 4px 7px; max-width: 100%; cursor: pointer; transition: .15s;
 }
-.bpt-date-inline:hover, .bpt-date-inline:focus { color: var(--ink); outline: none; }
+.bpt-date-inline:hover { color: var(--ink); border-color: var(--gold); }
+.bpt-date-inline:focus { color: var(--ink); outline: none; border-color: var(--gold); background: #fff; box-shadow: 0 0 0 2px var(--gold-soft); }
 
 .bpt-line2-paid {
   border: none; background: transparent; padding: 0; margin: 0; font: inherit; text-align: left; cursor: default;
@@ -213,18 +259,19 @@ function onDelete() { store.delPayment(props.payment.id) }
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 
-.bpt-amt-edit { flex: none; position: relative; width: 104px; }
-.bpt-rp { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 10.5px; color: var(--muted); pointer-events: none; }
+.bpt-amt-edit { flex: none; position: relative; display: block; width: 104px; }
+.bpt-rp { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--muted); pointer-events: none; }
 .bpt-amt-edit input {
   width: 100%; box-sizing: border-box; text-align: right; font-variant-numeric: tabular-nums;
-  font-size: 12.5px; color: var(--ink); border: 1px solid var(--line); background: #fff;
-  border-radius: 7px; padding: 4px 7px 4px 24px;
+  font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 600; color: var(--ink);
+  border: 1px solid var(--line); background: #fff;
+  border-radius: 8px; padding: 7px 10px 7px 28px;
 }
 .bpt-amt-edit input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-soft); }
 
 .bpt-pay, .bpt-revert {
-  flex: none; font-family: 'Jost', sans-serif; font-size: 11px; font-weight: 700;
-  border-radius: 100px; padding: 5px 9px; cursor: pointer; transition: .15s;
+  flex: none; font-family: 'Jost', sans-serif; font-size: 12px; font-weight: 700;
+  border-radius: 100px; padding: 8px 16px; cursor: pointer; transition: .15s;
 }
 .bpt-pay { color: var(--plum); background: var(--gold-soft); border: 1px solid var(--gold); }
 .bpt-pay:hover { background: var(--gold); color: var(--ink); }
