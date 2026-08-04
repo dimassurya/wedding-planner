@@ -1485,7 +1485,20 @@ export const useWeddingStore = defineStore('wedding', () => {
     isPartner.value    = false
     partnerEmail.value = ''
     isNewUser.value    = true
-    await supabase.from('wedding_data').insert({ user_id: userId, settings: {} })
+    const { error: wdError } = await supabase.from('wedding_data').insert({ user_id: userId, settings: {} })
+    if (wdError) {
+      // Sesi masih bawa access token yang "valid" (belum expired) tapi baris
+      // auth.users-nya sudah tidak ada (mis. akun baru saja dihapus) — insert
+      // ini gagal kena FK violation. Kalau diteruskan, semua seed di bawah
+      // bakal ikut gagal diam-diam (hasilnya: SEMUA tab kelihatan kosong,
+      // dan aksi manual macam "Tambah Bagian" baru error belakangan karena
+      // itu satu-satunya insert yang cek error). Putus di sini, paksa logout
+      // biar user login ulang dgn akun yang valid.
+      console.error('[loadData] gagal insert wedding_data untuk user baru, sesi kemungkinan basi:', wdError)
+      toast('Sesi kamu sudah tidak valid, silakan login ulang')
+      await signOut()
+      return
+    }
     // guests & vendors & mahar: array kosong, tidak ada seed
     guests.value  = []; vendors.value = []; mahar.value = []
     payments.value = []
