@@ -1724,10 +1724,18 @@ export const useWeddingStore = defineStore('wedding', () => {
           }
           return
         }
+        // Owner: sinkronkan status pasangan begitu ada yang gabung/keluar,
+        // biar kartu "Tambah Pasangan" langsung nunjuk status terhubung
+        // tanpa nunggu revalidateMembership (baru jalan pas tab difokuskan
+        // ulang). Tanpa ini, owner yang appnya masih kebuka pas partner
+        // accept undangan bakal tetap lihat form "belum ada pasangan" —
+        // termasuk masih bisa generate undangan baru padahal sudah terhubung.
+        if (!isPartner.value) partnerEmail.value = d.partner_email || ''
+
         // Semua 8 entity (guests/timeline/budget/vendors/seserahan/mahar/
         // admin/checklist) sudah pindah ke tabel sendiri (lihat binding di
         // bawah) — kolom wedding_data yang sama namanya sudah tidak dibaca
-        // lagi di sini. Handler ini sekarang cuma urus kickout partner.
+        // lagi di sini. Sisanya di handler ini cuma urus status kemitraan.
       })
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'guests',
